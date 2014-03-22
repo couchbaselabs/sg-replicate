@@ -38,6 +38,8 @@ const (
 	REPLICATION_START = ReplicationEventSignal(iota)
 	REPLICATION_STOP
 	REPLICATION_PAUSE
+	FETCH_CHECKPOINT_SUCCEEDED
+	FETCH_CHECKPOINT_FAILED
 )
 
 type ReplicationEvent struct {
@@ -59,10 +61,6 @@ const (
 	REPLICATION_IDLE
 	REPLICATION_ACTIVE
 )
-
-func (event ReplicationEvent) Status() ReplicationStatus {
-	return REPLICATION_STOPPED
-}
 
 // stateFn represents the state
 // as a function that returns the next state.
@@ -131,24 +129,31 @@ func (r *Replication) fetchTargetCheckpoint() {
 	logg.LogTo("SYNCTUBE", "resp: %v, err: %v", resp, err)
 	if err != nil {
 		logg.LogTo("SYNCTUBE", "Error getting checkpoint: %v", err)
-		r.Stop()
+		event := NewReplicationEvent(FETCH_CHECKPOINT_FAILED)
+		r.EventChan <- *event
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == 404 {
 		// valid response, continue with empty remote checkpoint
 		logg.LogTo("SYNCTUBE", "404 trying to get checkpoint, continue..")
+		event := NewReplicationEvent(FETCH_CHECKPOINT_SUCCEEDED)
+		r.EventChan <- *event
 	} else if resp.StatusCode >= 400 {
 		// we got an error, lets abort
 		logg.LogTo("SYNCTUBE", "4xx error(not 404) getting checkpoint")
-		r.Stop()
+		event := NewReplicationEvent(FETCH_CHECKPOINT_FAILED)
+		r.EventChan <- *event
 	} else if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		// looks like we got a valid checkpoint
 		logg.LogTo("SYNCTUBE", "valid checkpoint")
+		event := NewReplicationEvent(FETCH_CHECKPOINT_SUCCEEDED)
+		r.EventChan <- *event
 		// TODO: extract checkpoint
 	} else {
 		// unexpected http status, abort
 		logg.LogTo("SYNCTUBE", "unexpected http status %v", resp.StatusCode)
-		r.Stop()
+		event := NewReplicationEvent(FETCH_CHECKPOINT_FAILED)
+		r.EventChan <- *event
 	}
 
 }
@@ -167,24 +172,57 @@ func stateFnPreStarted(r *Replication) stateFn {
 
 		go r.fetchTargetCheckpoint()
 
+		logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchCheckpoint -> stateFnActive")
+		return stateFnActiveFetchCheckpoint
+
+	default:
+		logg.LogTo("SYNCTUBE", "Unexpected event: %v", event)
 	}
 
-	return stateFnActive
+	time.Sleep(time.Second)
+	return stateFnPreStarted
 
 }
 
-func stateFnActive(r *Replication) stateFn {
+func stateFnActiveFetchCheckpoint(r *Replication) stateFn {
 
 	event := <-r.EventChan
-	logg.LogTo("SYNCTUBE", "stateFnActive got event: %v", event)
 	switch event.Signal {
 	case REPLICATION_STOP:
 		notification := NewReplicationNotification(REPLICATION_STOPPED)
 		r.NotificationChan <- *notification
 		return nil
+	case FETCH_CHECKPOINT_FAILED:
+		// TODO: add details to the notification with LastError
+		notification := NewReplicationNotification(REPLICATION_STOPPED)
+		r.NotificationChan <- *notification
+		return nil
+	case FETCH_CHECKPOINT_SUCCEEDED:
+		logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchCheckpoint -> stateFnActive")
+
+		// TODO: go r.fetchChangesFeed()
+
+		return stateFnActive
+	default:
+		logg.LogTo("SYNCTUBE", "Unexpected event: %v", event)
 	}
 
-	logg.LogTo("SYNCTUBE", "stateFnActive")
+	time.Sleep(time.Second)
+	return stateFnActiveFetchCheckpoint
+}
+
+func stateFnActive(r *Replication) stateFn {
+
+	event := <-r.EventChan
+	switch event.Signal {
+	case REPLICATION_STOP:
+		notification := NewReplicationNotification(REPLICATION_STOPPED)
+		r.NotificationChan <- *notification
+		return nil
+	default:
+		logg.LogTo("SYNCTUBE", "Unexpected event: %v", event)
+	}
+
 	time.Sleep(time.Second)
 	return stateFnActive
 }
