@@ -9,6 +9,7 @@ import (
 
 func init() {
 	logg.LogKeys["TEST"] = true
+	logg.LogKeys["SYNCTUBE"] = true
 }
 
 func TestOneShotReplicationBrokenLocalDoc(t *testing.T) {
@@ -35,22 +36,23 @@ func TestOneShotReplicationBrokenLocalDoc(t *testing.T) {
 	params.Target = targetServer.URL
 	params.Continuous = false
 
-	eventChan := make(chan ReplicationEvent)
+	queueSize := 1
+	notificationChan := make(chan ReplicationNotification, queueSize)
 
-	replication := NewReplication(params, eventChan)
+	replication := NewReplication(params, notificationChan)
 	replication.Start()
 
 	sawReplicationActive := false
-	logg.LogTo("TEST", "Looping over eventChan events..")
-	for replicationEvent := range eventChan {
+	logg.LogTo("TEST", "Looping over notificationChan events..")
+	for replicationEvent := range notificationChan {
 		logg.LogTo("TEST", "Got event: %v", replicationEvent)
-		switch replicationEvent.Status() {
+		switch replicationEvent.Status {
 		case REPLICATION_ACTIVE:
 			sawReplicationActive = true
 		}
 	}
 
-	logg.LogTo("TEST", "Looping over eventChan finished")
+	logg.LogTo("TEST", "Looping over notificationChan finished")
 
 	assert.True(t, sawReplicationActive)
 
@@ -68,14 +70,14 @@ func TestOneShotHappyPathReplication(t *testing.T) {
 		params.Target = "bar.com"
 		params.Continuous = true
 
-		eventChan := make(chan ReplicationEvent)
+		notificationChan := make(chan ReplicationEvent)
 
-		replication := NewReplication(params, eventChan)
+		replication := NewReplication(params, notificationChan)
 		replication.Start()
 
 		sawReplicationActive := false
 		sawReplicationStopped := false
-		for replicationEvent := range eventChan {
+		for replicationEvent := range notificationChan {
 			switch replicationEvent.Status() {
 			case ReplicationEvent.STATUS_ACTIVE:
 				sawReplicationActive = true
