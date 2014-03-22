@@ -39,22 +39,27 @@ func TestOneShotReplicationBrokenLocalDoc(t *testing.T) {
 	queueSize := 1
 	notificationChan := make(chan ReplicationNotification, queueSize)
 
+	// create a new replication and start it
+	logg.LogTo("TEST", "Starting ..")
 	replication := NewReplication(params, notificationChan)
 	replication.Start()
 
-	sawReplicationActive := false
-	logg.LogTo("TEST", "Looping over notificationChan events..")
-	for replicationEvent := range notificationChan {
-		logg.LogTo("TEST", "Got event: %v", replicationEvent)
-		switch replicationEvent.Status {
-		case REPLICATION_ACTIVE:
-			sawReplicationActive = true
-		}
-	}
+	// expect to get a replication active event
+	replicationNotification := <-notificationChan
+	assert.Equals(t, replicationNotification.Status, REPLICATION_ACTIVE)
 
-	logg.LogTo("TEST", "Looping over notificationChan finished")
+	// stop it
+	logg.LogTo("TEST", "Stopping ..")
+	replication.Stop()
 
-	assert.True(t, sawReplicationActive)
+	// expect to get a replication stopped event
+	replicationNotification = <-notificationChan
+	assert.Equals(t, replicationNotification.Status, REPLICATION_STOPPED)
+
+	// the notification chan should be closed now
+	logg.LogTo("TEST", "Checking notification channel closed ..")
+	_, ok := <-notificationChan
+	assert.False(t, ok)
 
 }
 

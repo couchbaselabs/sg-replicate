@@ -84,20 +84,23 @@ func NewReplication(params ReplicationParameters, notificationChan chan Replicat
 
 func (r *Replication) processEvents() {
 
+	defer close(r.EventChan)        // No more events
+	defer close(r.NotificationChan) // No more notifications
+
 	for state := stateFnPreStarted; state != nil; {
 		state = state(r)
 	}
-	close(r.EventChan)        // No more events
-	close(r.NotificationChan) // No more notifications
 
 }
 
 func (r *Replication) Start() {
+	event := NewReplicationEvent(REPLICATION_START)
+	r.EventChan <- *event
+}
 
-	// send a start event to the event channel
-	startEvent := NewReplicationEvent(REPLICATION_START)
-	r.EventChan <- *startEvent
-
+func (r *Replication) Stop() {
+	event := NewReplicationEvent(REPLICATION_STOP)
+	r.EventChan <- *event
 }
 
 func stateFnPreStarted(r *Replication) stateFn {
@@ -118,6 +121,16 @@ func stateFnPreStarted(r *Replication) stateFn {
 }
 
 func stateFnActive(r *Replication) stateFn {
+
+	event := <-r.EventChan
+	logg.LogTo("SYNCTUBE", "stateFnActive got event: %v", event)
+	switch event.Signal {
+	case REPLICATION_STOP:
+		notification := NewReplicationNotification(REPLICATION_STOPPED)
+		r.NotificationChan <- *notification
+		return nil
+	}
+
 	logg.LogTo("SYNCTUBE", "stateFnActive")
 	time.Sleep(time.Second)
 	return stateFnActive
