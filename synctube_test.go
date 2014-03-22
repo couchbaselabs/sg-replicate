@@ -29,7 +29,7 @@ func TestOneShotReplicationBrokenLocalDoc(t *testing.T) {
 
 	// setup fake response on target server
 	headers := map[string]string{"Content-Type": "application/json"}
-	targetServer.Response(200, headers, "{\"bogus\": true}")
+	targetServer.Response(500, headers, "{\"bogus\": true}")
 
 	params := ReplicationParameters{}
 	params.Source = sourceServer.URL
@@ -48,11 +48,8 @@ func TestOneShotReplicationBrokenLocalDoc(t *testing.T) {
 	replicationNotification := <-notificationChan
 	assert.Equals(t, replicationNotification.Status, REPLICATION_ACTIVE)
 
-	// stop it
-	logg.LogTo("TEST", "Stopping ..")
-	replication.Stop()
-
-	// expect to get a replication stopped event
+	// since the attempt to get the checkpoint from the target
+	// server will fail, expect to get a replication stopped event
 	replicationNotification = <-notificationChan
 	assert.Equals(t, replicationNotification.Status, REPLICATION_STOPPED)
 

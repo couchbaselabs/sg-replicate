@@ -1,7 +1,10 @@
 package synctube
 
 import (
+	"fmt"
 	"github.com/couchbaselabs/logg"
+	"github.com/mreiferson/go-httpclient"
+	"net/http"
 	"net/url"
 	"time"
 )
@@ -103,6 +106,53 @@ func (r *Replication) Stop() {
 	r.EventChan <- *event
 }
 
+func (r *Replication) baseTargetUrl() string {
+	return r.Parameters.Target.String()
+}
+
+func (r *Replication) fetchTargetCheckpoint() {
+
+	// fetch the checkpoint document
+	// on the target.
+
+	checkpoint := "foo" // TODO
+	destUrl := fmt.Sprintf("%s/_local/%s", r.baseTargetUrl(), checkpoint)
+
+	transport := &httpclient.Transport{
+		ConnectTimeout:        60 * time.Second,
+		RequestTimeout:        60 * time.Second,
+		ResponseHeaderTimeout: 60 * time.Second,
+	}
+	defer transport.Close()
+
+	client := &http.Client{Transport: transport}
+	req, _ := http.NewRequest("GET", destUrl, nil)
+	resp, err := client.Do(req)
+	logg.LogTo("SYNCTUBE", "resp: %v, err: %v", resp, err)
+	if err != nil {
+		logg.LogTo("SYNCTUBE", "Error getting checkpoint: %v", err)
+		r.Stop()
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == 404 {
+		// valid response, continue with empty remote checkpoint
+		logg.LogTo("SYNCTUBE", "404 trying to get checkpoint, continue..")
+	} else if resp.StatusCode >= 400 {
+		// we got an error, lets abort
+		logg.LogTo("SYNCTUBE", "4xx error(not 404) getting checkpoint")
+		r.Stop()
+	} else if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		// looks like we got a valid checkpoint
+		logg.LogTo("SYNCTUBE", "valid checkpoint")
+		// TODO: extract checkpoint
+	} else {
+		// unexpected http status, abort
+		logg.LogTo("SYNCTUBE", "unexpected http status %v", resp.StatusCode)
+		r.Stop()
+	}
+
+}
+
 func stateFnPreStarted(r *Replication) stateFn {
 
 	event := <-r.EventChan
@@ -114,6 +164,9 @@ func stateFnPreStarted(r *Replication) stateFn {
 		notification := NewReplicationNotification(REPLICATION_ACTIVE)
 		r.NotificationChan <- *notification
 		logg.LogTo("SYNCTUBE", "sent notificication: %v", notification)
+
+		go r.fetchTargetCheckpoint()
+
 	}
 
 	return stateFnActive
