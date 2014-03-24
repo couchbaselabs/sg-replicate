@@ -33,7 +33,9 @@ func TestOneShotReplicationBrokenLocalDoc(t *testing.T) {
 
 	params := ReplicationParameters{}
 	params.Source = sourceServer.URL
+	params.SourceDb = "db"
 	params.Target = targetServer.URL
+	params.TargetDb = "db"
 	params.Continuous = false
 
 	queueSize := 1

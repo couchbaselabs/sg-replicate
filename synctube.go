@@ -7,15 +7,8 @@ import (
 	"github.com/couchbaselabs/logg"
 	"github.com/mreiferson/go-httpclient"
 	"net/http"
-	"net/url"
 	"time"
 )
-
-type ReplicationParameters struct {
-	Source     *url.URL
-	Target     *url.URL
-	Continuous bool
-}
 
 type ReplicationNotification struct {
 	Status ReplicationStatus
@@ -85,6 +78,18 @@ func NewReplication(params ReplicationParameters, notificationChan chan Replicat
 
 }
 
+// Start this replication
+func (r *Replication) Start() {
+	event := NewReplicationEvent(REPLICATION_START)
+	r.EventChan <- *event
+}
+
+// Stop this replication
+func (r *Replication) Stop() {
+	event := NewReplicationEvent(REPLICATION_STOP)
+	r.EventChan <- *event
+}
+
 func (r *Replication) processEvents() {
 
 	defer close(r.EventChan)        // No more events
@@ -96,22 +101,8 @@ func (r *Replication) processEvents() {
 
 }
 
-func (r *Replication) Start() {
-	event := NewReplicationEvent(REPLICATION_START)
-	r.EventChan <- *event
-}
-
-func (r *Replication) Stop() {
-	event := NewReplicationEvent(REPLICATION_STOP)
-	r.EventChan <- *event
-}
-
-func (r *Replication) baseTargetUrl() string {
-	return r.Parameters.Target.String()
-}
-
 func (r Replication) getTargetCheckpoint() string {
-	targetUrlString := r.Parameters.Target.String()
+	targetUrlString := r.Parameters.getTargetDbUrl()
 	hash := crypto.SHA1.New()
 	hash.Sum([]byte(targetUrlString))
 	return hex.EncodeToString(hash.Sum(nil))
@@ -119,11 +110,9 @@ func (r Replication) getTargetCheckpoint() string {
 
 func (r Replication) fetchTargetCheckpoint() {
 
-	// fetch the checkpoint document
-	// on the target.
-
 	checkpoint := r.getTargetCheckpoint()
-	destUrl := fmt.Sprintf("%s/_local/%s", r.baseTargetUrl(), checkpoint)
+	destUrl := fmt.Sprintf("%s/_local/%s", r.Parameters.getTargetDbUrl(), checkpoint)
+	logg.LogTo("SYNCTUBE", "destUrl: %s", destUrl)
 
 	transport := &httpclient.Transport{
 		ConnectTimeout:        60 * time.Second,
