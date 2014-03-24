@@ -60,6 +60,61 @@ func TestOneShotReplicationBrokenLocalDoc(t *testing.T) {
 
 }
 
+func TestGetTargetCheckpoint(t *testing.T) {
+
+	targetServer := fakehttp.NewHTTPServerWithPort(5986)
+
+	params := ReplicationParameters{}
+	params.Target = targetServer.URL
+	replication := NewReplication(params, nil)
+	targetChekpoint := replication.getTargetCheckpoint()
+	logg.LogTo("TEST", "checkpoint: %v", targetChekpoint)
+
+}
+
+func TestOneShotReplicationBrokenChangesFeed(t *testing.T) {
+
+	// startup fake source server
+	sourceServer := fakehttp.NewHTTPServerWithPort(5987)
+	sourceServer.Start()
+
+	// startup fake target server
+	targetServer := fakehttp.NewHTTPServerWithPort(5986)
+	targetServer.Start()
+
+	// setup fake response on target server
+	headers := map[string]string{"Content-Type": "application/json"}
+	targetServer.Response(200, headers, "{\"bogus\": true}")
+
+	params := ReplicationParameters{}
+	params.Source = sourceServer.URL
+	params.Target = targetServer.URL
+	params.Continuous = false
+
+	queueSize := 1
+	notificationChan := make(chan ReplicationNotification, queueSize)
+
+	// create a new replication and start it
+	logg.LogTo("TEST", "Starting ..")
+	replication := NewReplication(params, notificationChan)
+	replication.Start()
+
+	// expect to get a replication active event
+	replicationNotification := <-notificationChan
+	assert.Equals(t, replicationNotification.Status, REPLICATION_ACTIVE)
+
+	// since the attempt to get the checkpoint from the target
+	// server will fail, expect to get a replication stopped event
+	replicationNotification = <-notificationChan
+	assert.Equals(t, replicationNotification.Status, REPLICATION_STOPPED)
+
+	// the notification chan should be closed now
+	logg.LogTo("TEST", "Checking notification channel closed ..")
+	_, ok := <-notificationChan
+	assert.False(t, ok)
+
+}
+
 func TestOneShotHappyPathReplication(t *testing.T) {
 
 	// Happy Path test -- both the simulated source and targets

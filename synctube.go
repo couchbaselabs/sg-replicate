@@ -1,6 +1,8 @@
 package synctube
 
 import (
+	"crypto"
+	"encoding/hex"
 	"fmt"
 	"github.com/couchbaselabs/logg"
 	"github.com/mreiferson/go-httpclient"
@@ -108,12 +110,19 @@ func (r *Replication) baseTargetUrl() string {
 	return r.Parameters.Target.String()
 }
 
-func (r *Replication) fetchTargetCheckpoint() {
+func (r Replication) getTargetCheckpoint() string {
+	targetUrlString := r.Parameters.Target.String()
+	hash := crypto.SHA1.New()
+	hash.Sum([]byte(targetUrlString))
+	return hex.EncodeToString(hash.Sum(nil))
+}
+
+func (r Replication) fetchTargetCheckpoint() {
 
 	// fetch the checkpoint document
 	// on the target.
 
-	checkpoint := "foo" // TODO
+	checkpoint := r.getTargetCheckpoint()
 	destUrl := fmt.Sprintf("%s/_local/%s", r.baseTargetUrl(), checkpoint)
 
 	transport := &httpclient.Transport{
@@ -155,6 +164,12 @@ func (r *Replication) fetchTargetCheckpoint() {
 		event := NewReplicationEvent(FETCH_CHECKPOINT_FAILED)
 		r.EventChan <- *event
 	}
+
+}
+
+func (r Replication) fetchChangesFeed() {
+
+	// TODO: copy fetchRemoteCheckpoint and customize for change feed
 
 }
 
