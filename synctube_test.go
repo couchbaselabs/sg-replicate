@@ -36,7 +36,7 @@ func fakeServers(sourcePort, targetPort int) (source *fakehttp.HTTPServer, targe
 	return
 }
 
-func TestOneShotReplicationBrokenLocalDoc(t *testing.T) {
+func TestOneShotReplicationGetCheckpointFailed(t *testing.T) {
 
 	// the simulated sync gateway source only returns a _local doc
 	// with a checkpoint.  after that, the request to the _changes
@@ -113,7 +113,7 @@ func TestOneShotReplicationGetCheckpointHappypath(t *testing.T) {
 
 }
 
-func TestOneShotReplicationBrokenChangesFeed(t *testing.T) {
+func TestOneShotReplicationGetChangesFeedFailed(t *testing.T) {
 
 	sourceServer, targetServer := fakeServers(5987, 5986)
 
@@ -146,6 +146,52 @@ func TestOneShotReplicationBrokenChangesFeed(t *testing.T) {
 	logg.LogTo("TEST", "Checking notification channel closed ..")
 	_, ok := <-notificationChan
 	assert.False(t, ok)
+
+}
+
+func TestOneShotReplicationGetChangesFeedHappyPath(t *testing.T) {
+
+	sourceServer, targetServer := fakeServers(5991, 5990)
+
+	// response to checkpoint
+	headers := map[string]string{"Content-Type": "application/json"}
+	targetServer.Response(200, headers, "{\"bogus\": true}")
+
+	// response to changes feed
+	fakeChangesFeed := fakeChangesFeed()
+	sourceServer.Response(200, headers, fakeChangesFeed)
+
+	params := replicationParams(sourceServer.URL, targetServer.URL)
+
+	queueSize := 1
+	notificationChan := make(chan ReplicationNotification, queueSize)
+
+	// create a new replication and start it
+	logg.LogTo("TEST", "Starting ..")
+	replication := NewReplication(params, notificationChan)
+	replication.Start()
+
+	// expect to get a replication active event
+	replicationNotification := <-notificationChan
+	assert.Equals(t, replicationNotification.Status, REPLICATION_ACTIVE)
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHANGES_FEED)
+
+	replication.Stop()
+
+	waitForNotification(replication, REPLICATION_STOPPED)
+
+	// the notification chan should be closed now
+	logg.LogTo("TEST", "Checking notification channel closed ..")
+	_, ok := <-notificationChan
+	assert.False(t, ok)
+
+}
+
+func fakeChangesFeed() string {
+	return `{"results":[{"seq":2,"id":"doc2","changes":[{"rev":"1-5e38"}]},{"seq":3,"id":"doc3","changes":[{"rev":"1-563b"}]}],"last_seq":3}`
 
 }
 

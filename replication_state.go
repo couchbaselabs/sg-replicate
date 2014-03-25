@@ -49,7 +49,7 @@ func stateFnActiveFetchCheckpoint(r *Replication) stateFn {
 		r.NotificationChan <- *notification
 		return nil
 	case FETCH_CHECKPOINT_SUCCEEDED:
-		logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchCheckpoint -> stateFnActive")
+		logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchCheckpoint -> stateFnActiveFetchChangesFeed")
 
 		logg.LogTo("SYNCTUBE", "event.data: %v", event.Data)
 		dataString := event.Data.(string)
@@ -62,7 +62,7 @@ func stateFnActiveFetchCheckpoint(r *Replication) stateFn {
 
 		go r.fetchChangesFeed()
 
-		return stateFnActive
+		return stateFnActiveFetchChangesFeed
 	default:
 		logg.LogTo("SYNCTUBE", "Unexpected event: %v", event)
 	}
@@ -71,18 +71,46 @@ func stateFnActiveFetchCheckpoint(r *Replication) stateFn {
 	return stateFnActiveFetchCheckpoint
 }
 
-func stateFnActive(r *Replication) stateFn {
+func stateFnActiveFetchChangesFeed(r *Replication) stateFn {
 
-	logg.LogTo("SYNCTUBE", "stateFnActive")
+	logg.LogTo("SYNCTUBE", "stateFnActiveFetchChangesFeed")
 	event := <-r.EventChan
-	logg.LogTo("SYNCTUBE", "stateFnActive got event: %v", event)
+	logg.LogTo("SYNCTUBE", "stateFnActiveFetchChangesFeed got event: %v", event)
 	switch event.Signal {
 	case REPLICATION_STOP:
 		notification := NewReplicationNotification(REPLICATION_STOPPED)
 		r.NotificationChan <- *notification
 		return nil
 	case FETCH_CHANGES_FEED_FAILED:
-		notification := NewReplicationNotification(REPLICATION_FETCH_CHANGES_FEED_FAILED)
+		notification := NewReplicationNotification(REPLICATION_STOPPED)
+		r.NotificationChan <- *notification
+		return nil
+	case FETCH_CHANGES_FEED_SUCCEEDED:
+		notification := NewReplicationNotification(REPLICATION_FETCHED_CHANGES_FEED)
+		r.NotificationChan <- *notification
+
+		// go r.fetchRevDiffs()
+
+		logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchChangesFeed -> stateFnActiveFetchRevDiffs")
+
+		return stateFnActiveFetchRevDiffs
+
+	default:
+		logg.LogTo("SYNCTUBE", "Unexpected event: %v", event)
+	}
+
+	time.Sleep(time.Second)
+	return stateFnActiveFetchChangesFeed
+}
+
+func stateFnActiveFetchRevDiffs(r *Replication) stateFn {
+
+	logg.LogTo("SYNCTUBE", "stateFnActiveFetchRevDiffs")
+	event := <-r.EventChan
+	logg.LogTo("SYNCTUBE", "stateFnActiveFetchRevDiffs got event: %v", event)
+	switch event.Signal {
+	case REPLICATION_STOP:
+		notification := NewReplicationNotification(REPLICATION_STOPPED)
 		r.NotificationChan <- *notification
 		return nil
 
@@ -91,5 +119,5 @@ func stateFnActive(r *Replication) stateFn {
 	}
 
 	time.Sleep(time.Second)
-	return stateFnActive
+	return stateFnActiveFetchRevDiffs
 }

@@ -102,15 +102,20 @@ func (r Replication) fetchTargetCheckpoint() {
 	} else if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		// looks like we got a valid checkpoint
 		logg.LogTo("SYNCTUBE", "valid checkpoint")
-		event := NewReplicationEvent(FETCH_CHECKPOINT_SUCCEEDED)
+
 		bodyText, _ := ioutil.ReadAll(resp.Body)
 		logg.LogTo("SYNCTUBE", "body: %v", string(bodyText))
 		checkpoint := Checkpoint{}
 		err = json.Unmarshal(bodyText, &checkpoint)
 		if err != nil {
-			logg.LogPanic("Error unmarshalling checkpoint %v:", err)
+			logg.LogTo("SYNCTUBE", "Error unmarshalling checkpoint")
+			logg.LogError(err)
+			event := NewReplicationEvent(FETCH_CHECKPOINT_FAILED)
+			r.EventChan <- *event
+			return
 		}
 		logg.LogTo("SYNCTUBE", "checkpoint: %v", checkpoint.LastSequence)
+		event := NewReplicationEvent(FETCH_CHECKPOINT_SUCCEEDED)
 		event.Data = checkpoint.LastSequence
 		logg.LogTo("SYNCTUBE", "event: %v", event)
 		r.EventChan <- *event
@@ -119,6 +124,46 @@ func (r Replication) fetchTargetCheckpoint() {
 		// unexpected http status, abort
 		logg.LogTo("SYNCTUBE", "unexpected http status %v", resp.StatusCode)
 		event := NewReplicationEvent(FETCH_CHECKPOINT_FAILED)
+		r.EventChan <- *event
+	}
+
+}
+
+func (r Replication) fetchChangesFeed() {
+
+	destUrl := r.getChangesFeedUrl()
+
+	transport := r.getTransport()
+	defer transport.Close()
+
+	client := &http.Client{Transport: transport}
+	req, _ := http.NewRequest("GET", destUrl, nil)
+	resp, err := client.Do(req)
+	logg.LogTo("SYNCTUBE", "changes feed resp: %v, err: %v", resp, err)
+	if err != nil {
+		logg.LogTo("SYNCTUBE", "Error getting changes feed: %v", err)
+		event := NewReplicationEvent(FETCH_CHANGES_FEED_FAILED)
+		r.EventChan <- *event
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		logg.LogTo("SYNCTUBE", "Error getting changes feed.  Resp: %v", resp)
+		event := NewReplicationEvent(FETCH_CHANGES_FEED_FAILED)
+		r.EventChan <- *event
+	} else {
+		bodyText, _ := ioutil.ReadAll(resp.Body)
+		changes := Changes{}
+		err = json.Unmarshal(bodyText, &changes)
+		if err != nil {
+			logg.LogTo("SYNCTUBE", "Error unmarshalling change")
+			logg.LogError(err)
+			event := NewReplicationEvent(FETCH_CHANGES_FEED_FAILED)
+			r.EventChan <- *event
+		}
+		event := NewReplicationEvent(FETCH_CHANGES_FEED_SUCCEEDED)
+		event.Data = changes
+		logg.LogTo("SYNCTUBE", "event: %v", event)
 		r.EventChan <- *event
 	}
 
@@ -144,32 +189,4 @@ func (r Replication) getTransport() *httpclient.Transport {
 		RequestTimeout:        60 * time.Second,
 		ResponseHeaderTimeout: 60 * time.Second,
 	}
-}
-
-func (r *Replication) fetchChangesFeed() {
-
-	destUrl := r.getChangesFeedUrl()
-
-	transport := r.getTransport()
-	defer transport.Close()
-
-	client := &http.Client{Transport: transport}
-	req, _ := http.NewRequest("GET", destUrl, nil)
-	resp, err := client.Do(req)
-	logg.LogTo("SYNCTUBE", "changes feed resp: %v, err: %v", resp, err)
-	if err != nil {
-		logg.LogTo("SYNCTUBE", "Error getting changes feed: %v", err)
-		event := NewReplicationEvent(FETCH_CHANGES_FEED_FAILED)
-		r.EventChan <- *event
-		return
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		logg.LogTo("SYNCTUBE", "Error getting changes feed.  Resp: %v", resp)
-		event := NewReplicationEvent(FETCH_CHANGES_FEED_FAILED)
-		r.EventChan <- *event
-	} else {
-
-	}
-
 }
