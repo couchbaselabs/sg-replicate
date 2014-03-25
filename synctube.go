@@ -17,6 +17,7 @@ type Replication struct {
 	EventChan               chan ReplicationEvent
 	NotificationChan        chan ReplicationNotification
 	FetchedTargetCheckpoint Checkpoint
+	FetchedChanges          Changes
 }
 
 func NewReplication(params ReplicationParameters, notificationChan chan ReplicationNotification) *Replication {

@@ -86,6 +86,10 @@ func stateFnActiveFetchChangesFeed(r *Replication) stateFn {
 		r.NotificationChan <- *notification
 		return nil
 	case FETCH_CHANGES_FEED_SUCCEEDED:
+
+		changes := event.Data.(Changes)
+		r.FetchedChanges = changes
+
 		notification := NewReplicationNotification(REPLICATION_FETCHED_CHANGES_FEED)
 		r.NotificationChan <- *notification
 

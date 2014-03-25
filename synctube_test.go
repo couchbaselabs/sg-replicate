@@ -179,6 +179,9 @@ func TestOneShotReplicationGetChangesFeedHappyPath(t *testing.T) {
 
 	waitForNotification(replication, REPLICATION_FETCHED_CHANGES_FEED)
 
+	changes := replication.FetchedChanges
+	assert.Equals(t, len(changes.Results), 2)
+
 	replication.Stop()
 
 	waitForNotification(replication, REPLICATION_STOPPED)
