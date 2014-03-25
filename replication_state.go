@@ -50,6 +50,13 @@ func stateFnActiveFetchCheckpoint(r *Replication) stateFn {
 		return nil
 	case FETCH_CHECKPOINT_SUCCEEDED:
 		logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchCheckpoint -> stateFnActive")
+
+		logg.LogTo("SYNCTUBE", "event.data: %v", event.Data)
+		dataString := event.Data.(string)
+		logg.LogTo("SYNCTUBE", "event.string: %v", dataString)
+		checkpoint := Checkpoint{LastSequence: dataString}
+		r.FetchedTargetCheckpoint = checkpoint
+
 		notification := NewReplicationNotification(REPLICATION_FETCHED_CHECKPOINT)
 		r.NotificationChan <- *notification
 

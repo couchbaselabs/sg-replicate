@@ -87,9 +87,11 @@ func TestOneShotReplicationGetCheckpointHappypath(t *testing.T) {
 	// create a new replication
 	replication := NewReplication(params, notificationChan)
 
+	lastSequence := "1"
+
 	// setup fake response on target server
 	headers := map[string]string{"Content-Type": "application/json"}
-	jsonResponse := fmt.Sprintf("{\"id\":\"_local/%s\",\"ok\":true,\"rev\":\"0-2\",\"last_sequence\":\"0\"}", replication.getTargetCheckpoint())
+	jsonResponse := fmt.Sprintf("{\"id\":\"_local/%s\",\"ok\":true,\"rev\":\"0-2\",\"lastSequence\":\"%s\"}", replication.getTargetCheckpoint(), lastSequence)
 	targetServer.Response(200, headers, jsonResponse)
 
 	// start it
@@ -98,7 +100,8 @@ func TestOneShotReplicationGetCheckpointHappypath(t *testing.T) {
 
 	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
 
-	// get the fetched checkpoint and make sure it's 0
+	// get the fetched checkpoint and make sure it matches
+	assert.Equals(t, lastSequence, replication.FetchedTargetCheckpoint.LastSequence)
 
 	replication.Stop()
 	waitForNotification(replication, REPLICATION_STOPPED)

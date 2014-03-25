@@ -3,17 +3,20 @@ package synctube
 import (
 	"crypto"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"github.com/couchbaselabs/logg"
 	"github.com/mreiferson/go-httpclient"
+	"io/ioutil"
 	"net/http"
 	"time"
 )
 
 type Replication struct {
-	Parameters       ReplicationParameters
-	EventChan        chan ReplicationEvent
-	NotificationChan chan ReplicationNotification
+	Parameters              ReplicationParameters
+	EventChan               chan ReplicationEvent
+	NotificationChan        chan ReplicationNotification
+	FetchedTargetCheckpoint Checkpoint
 }
 
 func NewReplication(params ReplicationParameters, notificationChan chan ReplicationNotification) *Replication {
@@ -88,6 +91,8 @@ func (r Replication) fetchTargetCheckpoint() {
 		// valid response, continue with empty remote checkpoint
 		logg.LogTo("SYNCTUBE", "404 trying to get checkpoint, continue..")
 		event := NewReplicationEvent(FETCH_CHECKPOINT_SUCCEEDED)
+		checkpoint := Checkpoint{LastSequence: "0"}
+		event.Data = checkpoint.LastSequence
 		r.EventChan <- *event
 	} else if resp.StatusCode >= 400 {
 		// we got an error, lets abort
@@ -98,8 +103,18 @@ func (r Replication) fetchTargetCheckpoint() {
 		// looks like we got a valid checkpoint
 		logg.LogTo("SYNCTUBE", "valid checkpoint")
 		event := NewReplicationEvent(FETCH_CHECKPOINT_SUCCEEDED)
+		bodyText, _ := ioutil.ReadAll(resp.Body)
+		logg.LogTo("SYNCTUBE", "body: %v", string(bodyText))
+		checkpoint := Checkpoint{}
+		err = json.Unmarshal(bodyText, &checkpoint)
+		if err != nil {
+			logg.LogPanic("Error unmarshalling checkpoint %v:", err)
+		}
+		logg.LogTo("SYNCTUBE", "checkpoint: %v", checkpoint.LastSequence)
+		event.Data = checkpoint.LastSequence
+		logg.LogTo("SYNCTUBE", "event: %v", event)
 		r.EventChan <- *event
-		// TODO: extract checkpoint
+
 	} else {
 		// unexpected http status, abort
 		logg.LogTo("SYNCTUBE", "unexpected http status %v", resp.StatusCode)
