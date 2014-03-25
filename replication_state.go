@@ -93,11 +93,18 @@ func stateFnActiveFetchChangesFeed(r *Replication) stateFn {
 		notification := NewReplicationNotification(REPLICATION_FETCHED_CHANGES_FEED)
 		r.NotificationChan <- *notification
 
-		// go r.fetchRevDiffs()
+		if len(changes.Results) == 0 {
+			// nothing to do, so stop
+			notification := NewReplicationNotification(REPLICATION_STOPPED)
+			r.NotificationChan <- *notification
+			return nil
+		} else {
+			// go r.fetchRevDiffs()
 
-		logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchChangesFeed -> stateFnActiveFetchRevDiffs")
+			logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchChangesFeed -> stateFnActiveFetchRevDiffs")
 
-		return stateFnActiveFetchRevDiffs
+			return stateFnActiveFetchRevDiffs
+		}
 
 	default:
 		logg.LogTo("SYNCTUBE", "Unexpected event: %v", event)

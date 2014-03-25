@@ -193,9 +193,55 @@ func TestOneShotReplicationGetChangesFeedHappyPath(t *testing.T) {
 
 }
 
+func TestOneShotReplicationGetChangesFeedEmpty(t *testing.T) {
+
+	sourceServer, targetServer := fakeServers(5993, 5992)
+
+	// response to checkpoint
+	headers := map[string]string{"Content-Type": "application/json"}
+	targetServer.Response(200, headers, "{\"bogus\": true}")
+
+	// response to changes feed
+	fakeChangesFeed := fakeEmptyChangesFeed()
+	sourceServer.Response(200, headers, fakeChangesFeed)
+
+	params := replicationParams(sourceServer.URL, targetServer.URL)
+
+	queueSize := 1
+	notificationChan := make(chan ReplicationNotification, queueSize)
+
+	// create a new replication and start it
+	logg.LogTo("TEST", "Starting ..")
+	replication := NewReplication(params, notificationChan)
+	replication.Start()
+
+	// expect to get a replication active event
+	replicationNotification := <-notificationChan
+	assert.Equals(t, replicationNotification.Status, REPLICATION_ACTIVE)
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHANGES_FEED)
+
+	changes := replication.FetchedChanges
+	assert.Equals(t, len(changes.Results), 0)
+
+	waitForNotification(replication, REPLICATION_STOPPED)
+
+	// the notification chan should be closed now
+	logg.LogTo("TEST", "Checking notification channel closed ..")
+	_, ok := <-notificationChan
+	assert.False(t, ok)
+
+}
+
 func fakeChangesFeed() string {
 	return `{"results":[{"seq":2,"id":"doc2","changes":[{"rev":"1-5e38"}]},{"seq":3,"id":"doc3","changes":[{"rev":"1-563b"}]}],"last_seq":3}`
 
+}
+
+func fakeEmptyChangesFeed() string {
+	return `{"results":[],"last_seq":3}`
 }
 
 func waitForNotification(replication *Replication, expected ReplicationStatus) {
