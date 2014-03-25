@@ -37,6 +37,7 @@ func stateFnPreStarted(r *Replication) stateFn {
 func stateFnActiveFetchCheckpoint(r *Replication) stateFn {
 
 	event := <-r.EventChan
+	logg.LogTo("SYNCTUBE", "stateFnActiveFetchCheckpoint got event: %v", event)
 	switch event.Signal {
 	case REPLICATION_STOP:
 		notification := NewReplicationNotification(REPLICATION_STOPPED)
@@ -50,10 +51,9 @@ func stateFnActiveFetchCheckpoint(r *Replication) stateFn {
 	case FETCH_CHECKPOINT_SUCCEEDED:
 		logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchCheckpoint -> stateFnActive")
 		notification := NewReplicationNotification(REPLICATION_FETCHED_CHECKPOINT)
-
 		r.NotificationChan <- *notification
 
-		// TODO: go r.fetchChangesFeed()
+		go r.fetchChangesFeed()
 
 		return stateFnActive
 	default:
@@ -66,12 +66,19 @@ func stateFnActiveFetchCheckpoint(r *Replication) stateFn {
 
 func stateFnActive(r *Replication) stateFn {
 
+	logg.LogTo("SYNCTUBE", "stateFnActive")
 	event := <-r.EventChan
+	logg.LogTo("SYNCTUBE", "stateFnActive got event: %v", event)
 	switch event.Signal {
 	case REPLICATION_STOP:
 		notification := NewReplicationNotification(REPLICATION_STOPPED)
 		r.NotificationChan <- *notification
 		return nil
+	case FETCH_CHANGES_FEED_FAILED:
+		notification := NewReplicationNotification(REPLICATION_FETCH_CHANGES_FEED_FAILED)
+		r.NotificationChan <- *notification
+		return nil
+
 	default:
 		logg.LogTo("SYNCTUBE", "Unexpected event: %v", event)
 	}

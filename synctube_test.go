@@ -7,6 +7,7 @@ import (
 	"github.com/tleyden/fakehttp"
 	"net/url"
 	"testing"
+	"time"
 )
 
 func init() {
@@ -109,33 +110,6 @@ func TestOneShotReplicationGetCheckpointHappypath(t *testing.T) {
 
 }
 
-func waitForNotification(replication *Replication, expected ReplicationStatus) {
-	logg.LogTo("TEST", "Waiting for %v", expected)
-	notificationChan := replication.NotificationChan
-
-	for {
-		replicationNotification := <-notificationChan
-		if replicationNotification.Status == expected {
-			logg.LogTo("TEST", "Got %v", expected)
-			return
-		} else {
-			logg.LogTo("TEST", "Waiting for %v but got %v, igoring", expected, replicationNotification.Status)
-		}
-	}
-}
-
-func TestGetTargetCheckpoint(t *testing.T) {
-
-	targetServer := fakehttp.NewHTTPServerWithPort(5986)
-
-	params := ReplicationParameters{}
-	params.Target = targetServer.URL
-	replication := NewReplication(params, nil)
-	targetChekpoint := replication.getTargetCheckpoint()
-	logg.LogTo("TEST", "checkpoint: %v", targetChekpoint)
-
-}
-
 func TestOneShotReplicationBrokenChangesFeed(t *testing.T) {
 
 	sourceServer, targetServer := fakeServers(5987, 5986)
@@ -143,6 +117,9 @@ func TestOneShotReplicationBrokenChangesFeed(t *testing.T) {
 	// setup fake response on target server
 	headers := map[string]string{"Content-Type": "application/json"}
 	targetServer.Response(200, headers, "{\"bogus\": true}")
+
+	// fake response to changes feed
+	sourceServer.Response(500, headers, "{\"error\": true}")
 
 	params := replicationParams(sourceServer.URL, targetServer.URL)
 
@@ -158,14 +135,46 @@ func TestOneShotReplicationBrokenChangesFeed(t *testing.T) {
 	replicationNotification := <-notificationChan
 	assert.Equals(t, replicationNotification.Status, REPLICATION_ACTIVE)
 
-	// since the attempt to get the checkpoint from the target
-	// server will fail, expect to get a replication stopped event
+	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
+
 	waitForNotification(replication, REPLICATION_STOPPED)
 
 	// the notification chan should be closed now
 	logg.LogTo("TEST", "Checking notification channel closed ..")
 	_, ok := <-notificationChan
 	assert.False(t, ok)
+
+}
+
+func waitForNotification(replication *Replication, expected ReplicationStatus) {
+	logg.LogTo("TEST", "Waiting for %v", expected)
+	notificationChan := replication.NotificationChan
+
+	for {
+		select {
+		case replicationNotification := <-notificationChan:
+			if replicationNotification.Status == expected {
+				logg.LogTo("TEST", "Got %v", expected)
+				return
+			} else {
+				logg.LogTo("TEST", "Waiting for %v but got %v, igoring", expected, replicationNotification.Status)
+			}
+		case <-time.After(time.Second * 10):
+			logg.LogPanic("Timeout waiting for %v", expected)
+		}
+	}
+
+}
+
+func TestGetTargetCheckpoint(t *testing.T) {
+
+	targetServer := fakehttp.NewHTTPServerWithPort(5986)
+
+	params := ReplicationParameters{}
+	params.Target = targetServer.URL
+	replication := NewReplication(params, nil)
+	targetChekpoint := replication.getTargetCheckpoint()
+	logg.LogTo("TEST", "checkpoint: %v", targetChekpoint)
 
 }
 

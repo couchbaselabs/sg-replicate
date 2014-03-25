@@ -54,6 +54,8 @@ func (r *Replication) processEvents() {
 		state = state(r)
 	}
 
+	logg.LogTo("SYNC", "processEvents() is done")
+
 }
 
 func (r Replication) getTargetCheckpoint() string {
@@ -79,6 +81,7 @@ func (r Replication) fetchTargetCheckpoint() {
 		logg.LogTo("SYNCTUBE", "Error getting checkpoint: %v", err)
 		event := NewReplicationEvent(FETCH_CHECKPOINT_FAILED)
 		r.EventChan <- *event
+		return
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == 404 {
@@ -128,9 +131,8 @@ func (r Replication) getTransport() *httpclient.Transport {
 	}
 }
 
-func (r Replication) fetchChangesFeed() {
+func (r *Replication) fetchChangesFeed() {
 
-	// TODO: copy fetchRemoteCheckpoint and customize for change feed
 	destUrl := r.getChangesFeedUrl()
 
 	transport := r.getTransport()
@@ -144,9 +146,14 @@ func (r Replication) fetchChangesFeed() {
 		logg.LogTo("SYNCTUBE", "Error getting changes feed: %v", err)
 		event := NewReplicationEvent(FETCH_CHANGES_FEED_FAILED)
 		r.EventChan <- *event
+		return
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode == 404 {
+	if resp.StatusCode >= 400 {
+		logg.LogTo("SYNCTUBE", "Error getting changes feed.  Resp: %v", resp)
+		event := NewReplicationEvent(FETCH_CHANGES_FEED_FAILED)
+		r.EventChan <- *event
+	} else {
 
 	}
 
