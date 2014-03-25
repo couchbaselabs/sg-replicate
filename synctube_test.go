@@ -110,13 +110,16 @@ func TestOneShotReplicationGetCheckpointHappypath(t *testing.T) {
 }
 
 func waitForNotification(replication *Replication, expected ReplicationStatus) {
-
+	logg.LogTo("TEST", "Waiting for %v", expected)
 	notificationChan := replication.NotificationChan
 
 	for {
 		replicationNotification := <-notificationChan
 		if replicationNotification.Status == expected {
+			logg.LogTo("TEST", "Got %v", expected)
 			return
+		} else {
+			logg.LogTo("TEST", "Waiting for %v but got %v, igoring", expected, replicationNotification.Status)
 		}
 	}
 }
