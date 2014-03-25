@@ -20,3 +20,19 @@ func (params ReplicationParameters) getSourceDbUrl() string {
 func (params ReplicationParameters) getTargetDbUrl() string {
 	return fmt.Sprintf("%s/%s", params.Target, params.TargetDb)
 }
+
+func (params ReplicationParameters) getChangesFeedType() string {
+	return "longpoll"
+}
+
+func (params ReplicationParameters) getChangesFeedLimit() string {
+	return "50"
+}
+
+func (params ReplicationParameters) getChangesFeedHeartbeat() string {
+	return "300000"
+}
+
+func (params ReplicationParameters) getChangesFeedStyle() string {
+	return "all_docs"
+}

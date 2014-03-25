@@ -27,27 +27,6 @@ type Replication struct {
 	NotificationChan chan ReplicationNotification
 }
 
-type ReplicationEventSignal int
-
-const (
-	REPLICATION_START = ReplicationEventSignal(iota)
-	REPLICATION_STOP
-	REPLICATION_PAUSE
-	FETCH_CHECKPOINT_SUCCEEDED
-	FETCH_CHECKPOINT_FAILED
-)
-
-type ReplicationEvent struct {
-	Signal ReplicationEventSignal
-	// could have other stuff associated w/ event
-}
-
-func NewReplicationEvent(signal ReplicationEventSignal) *ReplicationEvent {
-	return &ReplicationEvent{
-		Signal: signal,
-	}
-}
-
 type ReplicationStatus int
 
 const (
@@ -55,6 +34,7 @@ const (
 	REPLICATION_PAUSED
 	REPLICATION_IDLE
 	REPLICATION_ACTIVE
+	REPLICATION_FETCHED_CHECKPOINT
 )
 
 // stateFn represents the state
@@ -112,13 +92,8 @@ func (r Replication) fetchTargetCheckpoint() {
 
 	checkpoint := r.getTargetCheckpoint()
 	destUrl := fmt.Sprintf("%s/_local/%s", r.Parameters.getTargetDbUrl(), checkpoint)
-	logg.LogTo("SYNCTUBE", "destUrl: %s", destUrl)
 
-	transport := &httpclient.Transport{
-		ConnectTimeout:        60 * time.Second,
-		RequestTimeout:        60 * time.Second,
-		ResponseHeaderTimeout: 60 * time.Second,
-	}
+	transport := r.getTransport()
 	defer transport.Close()
 
 	client := &http.Client{Transport: transport}
@@ -156,9 +131,49 @@ func (r Replication) fetchTargetCheckpoint() {
 
 }
 
+func (r Replication) getChangesFeedUrl() string {
+	// TODO: add since param
+
+	dbUrl := r.Parameters.getSourceDbUrl()
+	return fmt.Sprintf(
+		"%s/_changes?feed=%s&limit=%s&heartbeat=%s&style=%s",
+		dbUrl,
+		r.Parameters.getChangesFeedType(),
+		r.Parameters.getChangesFeedLimit(),
+		r.Parameters.getChangesFeedHeartbeat(),
+		r.Parameters.getChangesFeedStyle())
+
+}
+
+func (r Replication) getTransport() *httpclient.Transport {
+	return &httpclient.Transport{
+		ConnectTimeout:        60 * time.Second,
+		RequestTimeout:        60 * time.Second,
+		ResponseHeaderTimeout: 60 * time.Second,
+	}
+}
+
 func (r Replication) fetchChangesFeed() {
 
 	// TODO: copy fetchRemoteCheckpoint and customize for change feed
+	destUrl := r.getChangesFeedUrl()
+
+	transport := r.getTransport()
+	defer transport.Close()
+
+	client := &http.Client{Transport: transport}
+	req, _ := http.NewRequest("GET", destUrl, nil)
+	resp, err := client.Do(req)
+	logg.LogTo("SYNCTUBE", "changes feed resp: %v, err: %v", resp, err)
+	if err != nil {
+		logg.LogTo("SYNCTUBE", "Error getting changes feed: %v", err)
+		event := NewReplicationEvent(FETCH_CHANGES_FEED_FAILED)
+		r.EventChan <- *event
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == 404 {
+
+	}
 
 }
 
@@ -203,6 +218,9 @@ func stateFnActiveFetchCheckpoint(r *Replication) stateFn {
 		return nil
 	case FETCH_CHECKPOINT_SUCCEEDED:
 		logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchCheckpoint -> stateFnActive")
+		notification := NewReplicationNotification(REPLICATION_FETCHED_CHECKPOINT)
+
+		r.NotificationChan <- *notification
 
 		// TODO: go r.fetchChangesFeed()
 
