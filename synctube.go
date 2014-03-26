@@ -1,6 +1,7 @@
 package synctube
 
 import (
+	"bytes"
 	"crypto"
 	"encoding/hex"
 	"encoding/json"
@@ -130,24 +131,55 @@ func (r Replication) fetchTargetCheckpoint() {
 
 }
 
-func (r Replication) fetchRevDiffs() {
+func (r Replication) fetchRevsDiff() {
+
+	transport := r.getTransport()
+	defer transport.Close()
 
 	revsDiffUrl := r.getRevsDiffUrl()
 	revsDiffMap := generateRevsDiffMap(r.Changes)
 	logg.LogTo("SYNCTUBE", "%v %v", revsDiffUrl, revsDiffMap)
+	revsDiffRequestJSON, err := json.Marshal(revsDiffMap)
+	if err != nil {
+		logg.LogTo("SYNCTUBE", "Error marshaling %v", revsDiffMap)
+		logg.LogError(err)
+		event := NewReplicationEvent(FETCH_REVS_DIFF_FAILED)
+		r.EventChan <- *event
+		return
+	}
 
-	/*
-		revsDiffRequest := map[string]interface{}{
-			"doca": "1-0000dac6571554820000000000000000",
-		}
+	req, err := http.NewRequest(
+		"POST",
+		revsDiffUrl,
+		bytes.NewReader(revsDiffRequestJSON),
+	)
+	if err != nil {
+		logg.LogTo("SYNCTUBE", "Error creating request %v", revsDiffRequestJSON)
+		logg.LogError(err)
+		event := NewReplicationEvent(FETCH_REVS_DIFF_FAILED)
+		r.EventChan <- *event
+		return
+	}
 
-		revsDiffRequestJSON, err := json.Marshal(revsDiffRequest)
-		if err != nil {
-			t.Errorf("Error marshaling JSON: %v", err)
-		}
+	client := &http.Client{Transport: transport}
 
-		r, _ := http.NewRequest("POST", "http://127.0.0.1/default%2f528/_revs_diff", bytes.NewReader(revsDiffRequestJSON))
-	*/
+	resp, err := client.Do(req)
+	logg.LogTo("SYNCTUBE", "revs diff resp: %v, err: %v", resp, err)
+	if err != nil {
+		logg.LogTo("SYNCTUBE", "Error getting revs diff: %v", err)
+		event := NewReplicationEvent(FETCH_REVS_DIFF_FAILED)
+		r.EventChan <- *event
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		logg.LogTo("SYNCTUBE", "Unexpected response getting revs diff: %v", resp)
+		event := NewReplicationEvent(FETCH_REVS_DIFF_FAILED)
+		r.EventChan <- *event
+		return
+	}
+
+	// Parse it into a structure
 
 }
 
@@ -206,7 +238,7 @@ func (r Replication) getChangesFeedUrl() string {
 }
 
 func (r Replication) getRevsDiffUrl() string {
-	dbUrl := r.Parameters.getSourceDbUrl()
+	dbUrl := r.Parameters.getTargetDbUrl()
 	return fmt.Sprintf(
 		"%s/_revs_diff",
 		dbUrl)

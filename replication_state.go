@@ -99,7 +99,7 @@ func stateFnActiveFetchChangesFeed(r *Replication) stateFn {
 			r.NotificationChan <- *notification
 			return nil
 		} else {
-			go r.fetchRevDiffs()
+			go r.fetchRevsDiff()
 
 			logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchChangesFeed -> stateFnActiveFetchRevDiffs")
 
@@ -121,6 +121,10 @@ func stateFnActiveFetchRevDiffs(r *Replication) stateFn {
 	logg.LogTo("SYNCTUBE", "stateFnActiveFetchRevDiffs got event: %v", event)
 	switch event.Signal {
 	case REPLICATION_STOP:
+		notification := NewReplicationNotification(REPLICATION_STOPPED)
+		r.NotificationChan <- *notification
+		return nil
+	case FETCH_REVS_DIFF_FAILED:
 		notification := NewReplicationNotification(REPLICATION_STOPPED)
 		r.NotificationChan <- *notification
 		return nil
