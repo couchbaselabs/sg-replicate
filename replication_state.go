@@ -88,7 +88,7 @@ func stateFnActiveFetchChangesFeed(r *Replication) stateFn {
 	case FETCH_CHANGES_FEED_SUCCEEDED:
 
 		changes := event.Data.(Changes)
-		r.FetchedChanges = changes
+		r.Changes = changes
 
 		notification := NewReplicationNotification(REPLICATION_FETCHED_CHANGES_FEED)
 		r.NotificationChan <- *notification
@@ -99,7 +99,7 @@ func stateFnActiveFetchChangesFeed(r *Replication) stateFn {
 			r.NotificationChan <- *notification
 			return nil
 		} else {
-			// go r.fetchRevDiffs()
+			go r.fetchRevDiffs()
 
 			logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchChangesFeed -> stateFnActiveFetchRevDiffs")
 

@@ -17,7 +17,7 @@ type Replication struct {
 	EventChan               chan ReplicationEvent
 	NotificationChan        chan ReplicationNotification
 	FetchedTargetCheckpoint Checkpoint
-	FetchedChanges          Changes
+	Changes                 Changes
 }
 
 func NewReplication(params ReplicationParameters, notificationChan chan ReplicationNotification) *Replication {
@@ -130,6 +130,27 @@ func (r Replication) fetchTargetCheckpoint() {
 
 }
 
+func (r Replication) fetchRevDiffs() {
+
+	revsDiffUrl := r.getRevsDiffUrl()
+	revsDiffMap := generateRevsDiffMap(r.Changes)
+	logg.LogTo("SYNCTUBE", "%v %v", revsDiffUrl, revsDiffMap)
+
+	/*
+		revsDiffRequest := map[string]interface{}{
+			"doca": "1-0000dac6571554820000000000000000",
+		}
+
+		revsDiffRequestJSON, err := json.Marshal(revsDiffRequest)
+		if err != nil {
+			t.Errorf("Error marshaling JSON: %v", err)
+		}
+
+		r, _ := http.NewRequest("POST", "http://127.0.0.1/default%2f528/_revs_diff", bytes.NewReader(revsDiffRequestJSON))
+	*/
+
+}
+
 func (r Replication) fetchChangesFeed() {
 
 	destUrl := r.getChangesFeedUrl()
@@ -181,6 +202,14 @@ func (r Replication) getChangesFeedUrl() string {
 		r.Parameters.getChangesFeedLimit(),
 		r.Parameters.getChangesFeedHeartbeat(),
 		r.Parameters.getChangesFeedStyle())
+
+}
+
+func (r Replication) getRevsDiffUrl() string {
+	dbUrl := r.Parameters.getSourceDbUrl()
+	return fmt.Sprintf(
+		"%s/_revs_diff",
+		dbUrl)
 
 }
 
