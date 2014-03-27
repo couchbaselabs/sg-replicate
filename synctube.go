@@ -116,6 +116,13 @@ func (r Replication) fetchTargetCheckpoint() {
 			r.EventChan <- *event
 			return
 		}
+		if len(checkpoint.LastSequence) == 0 {
+			logg.LogTo("SYNCTUBE", "Invalid checkpoint, no lastsequence")
+			event := NewReplicationEvent(FETCH_CHECKPOINT_FAILED)
+			r.EventChan <- *event
+			return
+		}
+
 		logg.LogTo("SYNCTUBE", "checkpoint: %v", checkpoint.LastSequence)
 		event := NewReplicationEvent(FETCH_CHECKPOINT_SUCCEEDED)
 		event.Data = checkpoint.LastSequence

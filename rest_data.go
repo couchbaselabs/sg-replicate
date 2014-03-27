@@ -1,7 +1,20 @@
 package synctube
 
+import (
+	"github.com/couchbaselabs/logg"
+	"strconv"
+)
+
 type Checkpoint struct {
 	LastSequence string `json:"lastSequence"`
+}
+
+func (checkpoint Checkpoint) LastCheckpointNumeric() (i int, err error) {
+	i, err = strconv.Atoi(checkpoint.LastSequence)
+	if err != nil {
+		logg.LogError(err)
+	}
+	return
 }
 
 type ChangedRev struct {
