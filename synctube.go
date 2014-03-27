@@ -19,6 +19,7 @@ type Replication struct {
 	NotificationChan        chan ReplicationNotification
 	FetchedTargetCheckpoint Checkpoint
 	Changes                 Changes
+	RevsDiff                RevsDiffResponseMap
 }
 
 func NewReplication(params ReplicationParameters, notificationChan chan ReplicationNotification) *Replication {
@@ -144,6 +145,47 @@ func (r Replication) fetchTargetCheckpoint() {
 
 }
 
+func (r Replication) fetchChangesFeed() {
+
+	destUrl := r.getChangesFeedUrl()
+
+	transport := r.getTransport()
+	defer transport.Close()
+
+	client := &http.Client{Transport: transport}
+	req, _ := http.NewRequest("GET", destUrl, nil)
+	resp, err := client.Do(req)
+	logg.LogTo("SYNCTUBE", "changes feed resp: %v, err: %v", resp, err)
+	if err != nil {
+		logg.LogTo("SYNCTUBE", "Error getting changes feed: %v", err)
+		event := NewReplicationEvent(FETCH_CHANGES_FEED_FAILED)
+		r.EventChan <- *event
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		logg.LogTo("SYNCTUBE", "Error getting changes feed.  Resp: %v", resp)
+		event := NewReplicationEvent(FETCH_CHANGES_FEED_FAILED)
+		r.EventChan <- *event
+		return
+	}
+
+	bodyText, _ := ioutil.ReadAll(resp.Body)
+	changes := Changes{}
+	err = json.Unmarshal(bodyText, &changes)
+	if err != nil {
+		logg.LogTo("SYNCTUBE", "Error unmarshalling change")
+		logg.LogError(err)
+		event := NewReplicationEvent(FETCH_CHANGES_FEED_FAILED)
+		r.EventChan <- *event
+	}
+	event := NewReplicationEvent(FETCH_CHANGES_FEED_SUCCEEDED)
+	event.Data = changes
+	logg.LogTo("SYNCTUBE", "event: %v", event)
+	r.EventChan <- *event
+
+}
+
 func (r Replication) fetchRevsDiff() {
 
 	transport := r.getTransport()
@@ -152,7 +194,7 @@ func (r Replication) fetchRevsDiff() {
 	revsDiffUrl := r.getRevsDiffUrl()
 	revsDiffMap := generateRevsDiffMap(r.Changes)
 	logg.LogTo("SYNCTUBE", "%v %v", revsDiffUrl, revsDiffMap)
-	revsDiffRequestJSON, err := json.Marshal(revsDiffMap)
+	revsDiffMapJson, err := json.Marshal(revsDiffMap)
 	if err != nil {
 		logg.LogTo("SYNCTUBE", "Error marshaling %v", revsDiffMap)
 		logg.LogError(err)
@@ -161,13 +203,9 @@ func (r Replication) fetchRevsDiff() {
 		return
 	}
 
-	req, err := http.NewRequest(
-		"POST",
-		revsDiffUrl,
-		bytes.NewReader(revsDiffRequestJSON),
-	)
+	req, err := http.NewRequest("POST", revsDiffUrl, bytes.NewReader(revsDiffMapJson))
 	if err != nil {
-		logg.LogTo("SYNCTUBE", "Error creating request %v", revsDiffRequestJSON)
+		logg.LogTo("SYNCTUBE", "Error creating request %v", revsDiffMapJson)
 		logg.LogError(err)
 		event := NewReplicationEvent(FETCH_REVS_DIFF_FAILED)
 		r.EventChan <- *event
@@ -192,47 +230,24 @@ func (r Replication) fetchRevsDiff() {
 		return
 	}
 
-	// Parse it into a structure
-
-}
-
-func (r Replication) fetchChangesFeed() {
-
-	destUrl := r.getChangesFeedUrl()
-
-	transport := r.getTransport()
-	defer transport.Close()
-
-	client := &http.Client{Transport: transport}
-	req, _ := http.NewRequest("GET", destUrl, nil)
-	resp, err := client.Do(req)
-	logg.LogTo("SYNCTUBE", "changes feed resp: %v, err: %v", resp, err)
+	bodyText, _ := ioutil.ReadAll(resp.Body)
+	revsDiffJson := RevsDiffResponseMap{}
+	err = json.Unmarshal(bodyText, &revsDiffJson)
 	if err != nil {
-		logg.LogTo("SYNCTUBE", "Error getting changes feed: %v", err)
-		event := NewReplicationEvent(FETCH_CHANGES_FEED_FAILED)
+		logg.LogTo("SYNCTUBE", "Error unmarshalling json")
+		logg.LogError(err)
+		event := NewReplicationEvent(FETCH_REVS_DIFF_FAILED)
 		r.EventChan <- *event
 		return
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		logg.LogTo("SYNCTUBE", "Error getting changes feed.  Resp: %v", resp)
-		event := NewReplicationEvent(FETCH_CHANGES_FEED_FAILED)
-		r.EventChan <- *event
-	} else {
-		bodyText, _ := ioutil.ReadAll(resp.Body)
-		changes := Changes{}
-		err = json.Unmarshal(bodyText, &changes)
-		if err != nil {
-			logg.LogTo("SYNCTUBE", "Error unmarshalling change")
-			logg.LogError(err)
-			event := NewReplicationEvent(FETCH_CHANGES_FEED_FAILED)
-			r.EventChan <- *event
-		}
-		event := NewReplicationEvent(FETCH_CHANGES_FEED_SUCCEEDED)
-		event.Data = changes
-		logg.LogTo("SYNCTUBE", "event: %v", event)
-		r.EventChan <- *event
-	}
+	event := NewReplicationEvent(FETCH_REVS_DIFF_SUCCEEDED)
+	event.Data = revsDiffJson
+	logg.LogTo("SYNCTUBE", "event: %v", event)
+	r.EventChan <- *event
+
+}
+
+func (r Replication) fetchSourceDocs() {
 
 }
 

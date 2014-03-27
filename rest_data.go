@@ -33,6 +33,12 @@ type Changes struct {
 	LastSequence int      `json:"last_seq"`
 }
 
+type RevsDiffDocumentResponse struct {
+	Missing []string `json:"missing"`
+}
+
+type RevsDiffResponseMap map[string]RevsDiffDocumentResponse
+
 func (change Change) getRevs() []string {
 	revs := []string{}
 	for _, changedRev := range change.ChangedRevs {
@@ -41,11 +47,11 @@ func (change Change) getRevs() []string {
 	return revs
 }
 
-type RevsDiffMap map[string][]string
+type RevsDiffQueryMap map[string][]string
 
-func generateRevsDiffMap(changes Changes) RevsDiffMap {
+func generateRevsDiffMap(changes Changes) RevsDiffQueryMap {
 
-	revsDiffMap := RevsDiffMap{}
+	revsDiffMap := RevsDiffQueryMap{}
 	for _, change := range changes.Results {
 		revsDiffMap[change.Id] = change.getRevs()
 	}

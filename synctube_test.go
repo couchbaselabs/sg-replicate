@@ -213,8 +213,7 @@ func TestOneShotReplicationGetRevsDiffFailed(t *testing.T) {
 	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
 
 	// fake response to changes feed
-	fakeChangesFeed := fakeChangesFeed()
-	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed)
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed())
 
 	// fake response to revs_diff
 	targetServer.Response(500, jsonHeaders(), "{\"error\": true}")
@@ -226,6 +225,43 @@ func TestOneShotReplicationGetRevsDiffFailed(t *testing.T) {
 	assert.Equals(t, replicationNotification.Status, REPLICATION_ACTIVE)
 
 	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
+
+	waitForNotification(replication, REPLICATION_STOPPED)
+
+	assertNotificationChannelClosed(notificationChan)
+
+}
+
+func TestOneShotReplicationGetRevsDiffHappyPath(t *testing.T) {
+
+	sourceServer, targetServer := fakeServers(5997, 5996)
+
+	params := replicationParams(sourceServer.URL, targetServer.URL)
+
+	notificationChan := make(chan ReplicationNotification)
+
+	// create a new replication and start it
+	replication := NewReplication(params, notificationChan)
+
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
+
+	// fake response to changes feed
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed())
+
+	// fake response to revs_diff
+	targetServer.Response(200, jsonHeaders(), fakeRevsDiff())
+
+	replication.Start()
+
+	// expect to get a replication active event
+	replicationNotification := <-notificationChan
+	assert.Equals(t, replicationNotification.Status, REPLICATION_ACTIVE)
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
+
+	waitForNotification(replication, REPLICATION_FETCHED_REVS_DIFF)
+
+	replication.Stop()
 
 	waitForNotification(replication, REPLICATION_STOPPED)
 
@@ -251,6 +287,10 @@ func assertNotificationChannelClosed(notificationChan chan ReplicationNotificati
 
 func fakeChangesFeed() string {
 	return `{"results":[{"seq":2,"id":"doc2","changes":[{"rev":"1-5e38"}]},{"seq":3,"id":"doc3","changes":[{"rev":"1-563b"}]}],"last_seq":3}`
+}
+
+func fakeRevsDiff() string {
+	return `{"doc2":{"missing":["1-5e38"]}}`
 }
 
 func fakeEmptyChangesFeed() string {
