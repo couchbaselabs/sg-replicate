@@ -122,7 +122,13 @@ func (r Replication) fetchTargetCheckpoint() {
 			r.EventChan <- *event
 			return
 		}
-
+		expectedId := fmt.Sprintf("_local/%s", r.targetCheckpointAddress())
+		if checkpoint.Id != expectedId {
+			logg.LogTo("SYNCTUBE", "Got %s, expected %s", checkpoint.Id, expectedId)
+			event := NewReplicationEvent(FETCH_CHECKPOINT_FAILED)
+			r.EventChan <- *event
+			return
+		}
 		logg.LogTo("SYNCTUBE", "checkpoint: %v", checkpoint.LastSequence)
 		event := NewReplicationEvent(FETCH_CHECKPOINT_SUCCEEDED)
 		event.Data = checkpoint.LastSequence

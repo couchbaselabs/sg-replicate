@@ -7,6 +7,7 @@ import (
 
 type Checkpoint struct {
 	LastSequence string `json:"lastSequence"`
+	Id           string `json:"id"`
 }
 
 func (checkpoint Checkpoint) LastCheckpointNumeric() (i int, err error) {
