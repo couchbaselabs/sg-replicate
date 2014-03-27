@@ -46,16 +46,12 @@ func TestOneShotReplicationGetCheckpointFailed(t *testing.T) {
 	sourceServer, targetServer := fakeServers(5985, 5984)
 
 	// setup fake response on target server
-	headers := map[string]string{"Content-Type": "application/json"}
-	targetServer.Response(500, headers, "{\"bogus\": true}")
+	targetServer.Response(500, jsonHeaders(), "{\"bogus\": true}")
 
 	params := replicationParams(sourceServer.URL, targetServer.URL)
 
-	queueSize := 1
-	notificationChan := make(chan ReplicationNotification, queueSize)
+	notificationChan := make(chan ReplicationNotification)
 
-	// create a new replication and start it
-	logg.LogTo("TEST", "Starting ..")
 	replication := NewReplication(params, notificationChan)
 	replication.Start()
 
@@ -68,10 +64,7 @@ func TestOneShotReplicationGetCheckpointFailed(t *testing.T) {
 	replicationNotification = <-notificationChan
 	assert.Equals(t, replicationNotification.Status, REPLICATION_STOPPED)
 
-	// the notification chan should be closed now
-	logg.LogTo("TEST", "Checking notification channel closed ..")
-	_, ok := <-notificationChan
-	assert.False(t, ok)
+	assertNotificationChannelClosed(notificationChan)
 
 }
 
@@ -81,21 +74,16 @@ func TestOneShotReplicationGetCheckpointHappypath(t *testing.T) {
 
 	params := replicationParams(sourceServer.URL, targetServer.URL)
 
-	queueSize := 1
-	notificationChan := make(chan ReplicationNotification, queueSize)
+	notificationChan := make(chan ReplicationNotification)
 
-	// create a new replication
 	replication := NewReplication(params, notificationChan)
 
 	lastSequence := "1"
 
 	// setup fake response on target server
-	headers := map[string]string{"Content-Type": "application/json"}
 	jsonResponse := fmt.Sprintf("{\"id\":\"_local/%s\",\"ok\":true,\"rev\":\"0-2\",\"lastSequence\":\"%s\"}", replication.getTargetCheckpoint(), lastSequence)
-	targetServer.Response(200, headers, jsonResponse)
+	targetServer.Response(200, jsonHeaders(), jsonResponse)
 
-	// start it
-	logg.LogTo("TEST", "Starting ..")
 	replication.Start()
 
 	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
@@ -106,10 +94,7 @@ func TestOneShotReplicationGetCheckpointHappypath(t *testing.T) {
 	replication.Stop()
 	waitForNotification(replication, REPLICATION_STOPPED)
 
-	// the notification chan should be closed now
-	logg.LogTo("TEST", "Checking notification channel closed ..")
-	_, ok := <-notificationChan
-	assert.False(t, ok)
+	assertNotificationChannelClosed(notificationChan)
 
 }
 
@@ -118,19 +103,15 @@ func TestOneShotReplicationGetChangesFeedFailed(t *testing.T) {
 	sourceServer, targetServer := fakeServers(5987, 5986)
 
 	// setup fake response on target server
-	headers := map[string]string{"Content-Type": "application/json"}
-	targetServer.Response(200, headers, "{\"bogus\": true}")
+	targetServer.Response(200, jsonHeaders(), "{\"bogus\": true}")
 
 	// fake response to changes feed
-	sourceServer.Response(500, headers, "{\"error\": true}")
+	sourceServer.Response(500, jsonHeaders(), "{\"error\": true}")
 
 	params := replicationParams(sourceServer.URL, targetServer.URL)
 
-	queueSize := 1
-	notificationChan := make(chan ReplicationNotification, queueSize)
+	notificationChan := make(chan ReplicationNotification)
 
-	// create a new replication and start it
-	logg.LogTo("TEST", "Starting ..")
 	replication := NewReplication(params, notificationChan)
 	replication.Start()
 
@@ -142,10 +123,7 @@ func TestOneShotReplicationGetChangesFeedFailed(t *testing.T) {
 
 	waitForNotification(replication, REPLICATION_STOPPED)
 
-	// the notification chan should be closed now
-	logg.LogTo("TEST", "Checking notification channel closed ..")
-	_, ok := <-notificationChan
-	assert.False(t, ok)
+	assertNotificationChannelClosed(notificationChan)
 
 }
 
@@ -154,20 +132,17 @@ func TestOneShotReplicationGetChangesFeedHappyPath(t *testing.T) {
 	sourceServer, targetServer := fakeServers(5991, 5990)
 
 	// response to checkpoint
-	headers := map[string]string{"Content-Type": "application/json"}
-	targetServer.Response(200, headers, "{\"bogus\": true}")
+	targetServer.Response(200, jsonHeaders(), "{\"bogus\": true}")
 
 	// response to changes feed
 	fakeChangesFeed := fakeChangesFeed()
-	sourceServer.Response(200, headers, fakeChangesFeed)
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed)
 
 	params := replicationParams(sourceServer.URL, targetServer.URL)
 
-	queueSize := 1
-	notificationChan := make(chan ReplicationNotification, queueSize)
+	notificationChan := make(chan ReplicationNotification)
 
 	// create a new replication and start it
-	logg.LogTo("TEST", "Starting ..")
 	replication := NewReplication(params, notificationChan)
 	replication.Start()
 
@@ -186,10 +161,7 @@ func TestOneShotReplicationGetChangesFeedHappyPath(t *testing.T) {
 
 	waitForNotification(replication, REPLICATION_STOPPED)
 
-	// the notification chan should be closed now
-	logg.LogTo("TEST", "Checking notification channel closed ..")
-	_, ok := <-notificationChan
-	assert.False(t, ok)
+	assertNotificationChannelClosed(notificationChan)
 
 }
 
@@ -198,20 +170,17 @@ func TestOneShotReplicationGetChangesFeedEmpty(t *testing.T) {
 	sourceServer, targetServer := fakeServers(5993, 5992)
 
 	// response to checkpoint
-	headers := map[string]string{"Content-Type": "application/json"}
-	targetServer.Response(200, headers, "{\"bogus\": true}")
+	targetServer.Response(200, jsonHeaders(), "{\"bogus\": true}")
 
 	// response to changes feed
 	fakeChangesFeed := fakeEmptyChangesFeed()
-	sourceServer.Response(200, headers, fakeChangesFeed)
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed)
 
 	params := replicationParams(sourceServer.URL, targetServer.URL)
 
-	queueSize := 1
-	notificationChan := make(chan ReplicationNotification, queueSize)
+	notificationChan := make(chan ReplicationNotification)
 
 	// create a new replication and start it
-	logg.LogTo("TEST", "Starting ..")
 	replication := NewReplication(params, notificationChan)
 	replication.Start()
 
@@ -228,10 +197,7 @@ func TestOneShotReplicationGetChangesFeedEmpty(t *testing.T) {
 
 	waitForNotification(replication, REPLICATION_STOPPED)
 
-	// the notification chan should be closed now
-	logg.LogTo("TEST", "Checking notification channel closed ..")
-	_, ok := <-notificationChan
-	assert.False(t, ok)
+	assertNotificationChannelClosed(notificationChan)
 
 }
 
@@ -240,23 +206,20 @@ func TestOneShotReplicationGetRevsDiffFailed(t *testing.T) {
 	sourceServer, targetServer := fakeServers(5995, 5994)
 
 	// fake response to getting checkpoint
-	headers := map[string]string{"Content-Type": "application/json"}
-	targetServer.Response(200, headers, "{\"bogus\": true}")
+	targetServer.Response(200, jsonHeaders(), "{\"bogus\": true}")
 
 	// fake response to changes feed
 	fakeChangesFeed := fakeChangesFeed()
-	sourceServer.Response(200, headers, fakeChangesFeed)
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed)
 
 	// fake response to revs_diff
-	targetServer.Response(500, headers, "{\"error\": true}")
+	targetServer.Response(500, jsonHeaders(), "{\"error\": true}")
 
 	params := replicationParams(sourceServer.URL, targetServer.URL)
 
-	queueSize := 1
-	notificationChan := make(chan ReplicationNotification, queueSize)
+	notificationChan := make(chan ReplicationNotification)
 
 	// create a new replication and start it
-	logg.LogTo("TEST", "Starting ..")
 	replication := NewReplication(params, notificationChan)
 	replication.Start()
 
@@ -268,11 +231,19 @@ func TestOneShotReplicationGetRevsDiffFailed(t *testing.T) {
 
 	waitForNotification(replication, REPLICATION_STOPPED)
 
-	// the notification chan should be closed now
-	logg.LogTo("TEST", "Checking notification channel closed ..")
-	_, ok := <-notificationChan
-	assert.False(t, ok)
+	assertNotificationChannelClosed(notificationChan)
 
+}
+
+func jsonHeaders() map[string]string {
+	return map[string]string{"Content-Type": "application/json"}
+}
+
+func assertNotificationChannelClosed(notificationChan chan ReplicationNotification) {
+	_, ok := <-notificationChan
+	if ok {
+		logg.LogPanic("notificationChan was not closed")
+	}
 }
 
 func fakeChangesFeed() string {
