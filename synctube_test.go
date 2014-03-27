@@ -46,7 +46,7 @@ func TestOneShotReplicationGetCheckpointFailed(t *testing.T) {
 	sourceServer, targetServer := fakeServers(5985, 5984)
 
 	// setup fake response on target server
-	targetServer.Response(500, jsonHeaders(), "{\"bogus\": true}")
+	targetServer.Response(500, jsonHeaders(), bogusJson())
 
 	params := replicationParams(sourceServer.URL, targetServer.URL)
 
@@ -81,7 +81,7 @@ func TestOneShotReplicationGetCheckpointHappypath(t *testing.T) {
 	lastSequence := "1"
 
 	// setup fake response on target server
-	jsonResponse := fmt.Sprintf("{\"id\":\"_local/%s\",\"ok\":true,\"rev\":\"0-2\",\"lastSequence\":\"%s\"}", replication.getTargetCheckpoint(), lastSequence)
+	jsonResponse := fmt.Sprintf(`{"id":"_local/%s","ok":true,"rev":"0-2","lastSequence":"%s"}`, replication.getTargetCheckpoint(), lastSequence)
 	targetServer.Response(200, jsonHeaders(), jsonResponse)
 
 	replication.Start()
@@ -103,7 +103,7 @@ func TestOneShotReplicationGetChangesFeedFailed(t *testing.T) {
 	sourceServer, targetServer := fakeServers(5987, 5986)
 
 	// setup fake response on target server
-	targetServer.Response(200, jsonHeaders(), "{\"bogus\": true}")
+	targetServer.Response(200, jsonHeaders(), bogusJson())
 
 	// fake response to changes feed
 	sourceServer.Response(500, jsonHeaders(), "{\"error\": true}")
@@ -132,7 +132,7 @@ func TestOneShotReplicationGetChangesFeedHappyPath(t *testing.T) {
 	sourceServer, targetServer := fakeServers(5991, 5990)
 
 	// response to checkpoint
-	targetServer.Response(200, jsonHeaders(), "{\"bogus\": true}")
+	targetServer.Response(200, jsonHeaders(), bogusJson())
 
 	// response to changes feed
 	fakeChangesFeed := fakeChangesFeed()
@@ -170,7 +170,7 @@ func TestOneShotReplicationGetChangesFeedEmpty(t *testing.T) {
 	sourceServer, targetServer := fakeServers(5993, 5992)
 
 	// response to checkpoint
-	targetServer.Response(200, jsonHeaders(), "{\"bogus\": true}")
+	targetServer.Response(200, jsonHeaders(), bogusJson())
 
 	// response to changes feed
 	fakeChangesFeed := fakeEmptyChangesFeed()
@@ -206,7 +206,7 @@ func TestOneShotReplicationGetRevsDiffFailed(t *testing.T) {
 	sourceServer, targetServer := fakeServers(5995, 5994)
 
 	// fake response to getting checkpoint
-	targetServer.Response(200, jsonHeaders(), "{\"bogus\": true}")
+	targetServer.Response(200, jsonHeaders(), bogusJson())
 
 	// fake response to changes feed
 	fakeChangesFeed := fakeChangesFeed()
@@ -273,6 +273,10 @@ func waitForNotification(replication *Replication, expected ReplicationStatus) {
 		}
 	}
 
+}
+
+func bogusJson() string {
+	return `{"bogus": true}`
 }
 
 func TestGetTargetCheckpoint(t *testing.T) {
