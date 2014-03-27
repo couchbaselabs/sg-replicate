@@ -79,7 +79,7 @@ func TestOneShotReplicationGetCheckpointHappypath(t *testing.T) {
 	replication := NewReplication(params, notificationChan)
 
 	lastSequence := 1
-	jsonResponse := fakeCheckpointResponse(replication.getTargetCheckpoint(), 1)
+	jsonResponse := fakeCheckpointResponse(replication.targetCheckpointAddress(), 1)
 	targetServer.Response(200, jsonHeaders(), jsonResponse)
 
 	replication.Start()
@@ -108,7 +108,7 @@ func TestOneShotReplicationGetChangesFeedFailed(t *testing.T) {
 
 	replication := NewReplication(params, notificationChan)
 
-	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.getTargetCheckpoint(), 1))
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
 
 	// fake response to changes feed
 	sourceServer.Response(500, jsonHeaders(), "{\"error\": true}")
@@ -137,7 +137,7 @@ func TestOneShotReplicationGetChangesFeedHappyPath(t *testing.T) {
 
 	replication := NewReplication(params, notificationChan)
 
-	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.getTargetCheckpoint(), 1))
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
 
 	// response to changes feed
 	fakeChangesFeed := fakeChangesFeed()
@@ -174,7 +174,7 @@ func TestOneShotReplicationGetChangesFeedEmpty(t *testing.T) {
 
 	replication := NewReplication(params, notificationChan)
 
-	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.getTargetCheckpoint(), 1))
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
 
 	// response to changes feed
 	fakeChangesFeed := fakeEmptyChangesFeed()
@@ -210,7 +210,7 @@ func TestOneShotReplicationGetRevsDiffFailed(t *testing.T) {
 	// create a new replication and start it
 	replication := NewReplication(params, notificationChan)
 
-	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.getTargetCheckpoint(), 1))
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
 
 	// fake response to changes feed
 	fakeChangesFeed := fakeChangesFeed()
@@ -288,8 +288,8 @@ func TestGetTargetCheckpoint(t *testing.T) {
 	params := ReplicationParameters{}
 	params.Target = targetServer.URL
 	replication := NewReplication(params, nil)
-	targetChekpoint := replication.getTargetCheckpoint()
-	logg.LogTo("TEST", "checkpoint: %v", targetChekpoint)
+	targetCheckpoint := replication.targetCheckpointAddress()
+	logg.LogTo("TEST", "checkpoint: %v", targetCheckpoint)
 
 }
 

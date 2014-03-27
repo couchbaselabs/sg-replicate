@@ -63,7 +63,7 @@ func (r *Replication) processEvents() {
 
 }
 
-func (r Replication) getTargetCheckpoint() string {
+func (r Replication) targetCheckpointAddress() string {
 	targetUrlString := r.Parameters.getTargetDbUrl()
 	hash := crypto.SHA1.New()
 	hash.Sum([]byte(targetUrlString))
@@ -72,7 +72,7 @@ func (r Replication) getTargetCheckpoint() string {
 
 func (r Replication) fetchTargetCheckpoint() {
 
-	checkpoint := r.getTargetCheckpoint()
+	checkpoint := r.targetCheckpointAddress()
 	destUrl := fmt.Sprintf("%s/_local/%s", r.Parameters.getTargetDbUrl(), checkpoint)
 
 	transport := r.getTransport()
