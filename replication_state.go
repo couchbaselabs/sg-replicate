@@ -167,6 +167,7 @@ func stateFnActiveFetchBulkGet(r *Replication) stateFn {
 		r.NotificationChan <- *notification
 		return nil
 	case FETCH_BULK_GET_SUCCEEDED:
+		r.DocumentBodies = event.Data.([]DocumentBody)
 		notification := NewReplicationNotification(REPLICATION_FETCHED_BULK_GET)
 		r.NotificationChan <- *notification
 		return nil

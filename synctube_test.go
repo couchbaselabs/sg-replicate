@@ -341,6 +341,10 @@ func TestOneShotReplicationBulkGetHappyPath(t *testing.T) {
 
 	waitForNotification(replication, REPLICATION_FETCHED_BULK_GET)
 
+	assert.Equals(t, len(replication.DocumentBodies), 1)
+	documentBody := replication.DocumentBodies[0]
+	assert.Equals(t, documentBody["_id"], "doc2")
+
 	assertNotificationChannelClosed(notificationChan)
 
 }

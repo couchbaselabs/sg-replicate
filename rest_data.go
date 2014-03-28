@@ -49,6 +49,8 @@ func (change Change) getRevs() []string {
 
 type RevsDiffQueryMap map[string][]string
 
+type DocumentBody map[string]interface{}
+
 func generateRevsDiffMap(changes Changes) RevsDiffQueryMap {
 
 	revsDiffMap := RevsDiffQueryMap{}

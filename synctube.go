@@ -22,6 +22,7 @@ type Replication struct {
 	FetchedTargetCheckpoint Checkpoint
 	Changes                 Changes
 	RevsDiff                RevsDiffResponseMap
+	DocumentBodies          []DocumentBody
 }
 
 func NewReplication(params ReplicationParameters, notificationChan chan ReplicationNotification) *Replication {
@@ -291,33 +292,38 @@ func (r Replication) fetchBulkGet() {
 		return
 	}
 
-	// bodyText, _ := ioutil.ReadAll(resp.Body)
-	// logg.LogTo("SYNCTUBE", "bodyText: %v", bodyText)
-
-	// TODO: parse body into data structures
 	contentType := resp.Header.Get("Content-Type")
-	logg.LogTo("SYNCTUBE", "contentType: %v", contentType)
-	logg.LogTo("SYNCTUBE", "headers: %v", resp.Header)
 
 	mediaType, attrs, _ := mime.ParseMediaType(contentType)
 	boundary := attrs["boundary"]
-	logg.LogTo("SYNCTUBE", "mediaType: %v", mediaType)
-	logg.LogTo("SYNCTUBE", "boundary: %v", boundary)
-	logg.LogTo("SYNCTUBE", "attrs: %v", attrs)
 
-	reader := multipart.NewReader(resp.Body, boundary)
-	mainPart, err := reader.NextPart()
-	logg.LogTo("SYNCTUBE", "mainPart: %v", mainPart)
-	logg.LogTo("SYNCTUBE", "mainPart.Header: %v", mainPart.Header)
-	if err != nil {
-		logg.LogTo("SYNCTUBE", "err: %v", err)
-		return
+	if mediaType != "multipart/mixed" {
+		logg.LogPanic("unexpected mediaType: %v", mediaType)
 	}
 
-	mainPartBytes, _ := ioutil.ReadAll(mainPart)
-	logg.LogTo("SYNCTUBE", "mainPartBody: %v", string(mainPartBytes))
+	reader := multipart.NewReader(resp.Body, boundary)
+	documentBodies := []DocumentBody{}
+
+	for {
+		mainPart, err := reader.NextPart()
+		if err != nil {
+			break
+		}
+		documentBody := DocumentBody{}
+		decoder := json.NewDecoder(mainPart)
+		if err = decoder.Decode(&documentBody); err != nil {
+			logg.LogTo("SYNCTUBE", "Error decoding part: %v", err)
+			event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
+			r.EventChan <- *event
+			return
+		}
+		documentBodies = append(documentBodies, documentBody)
+		mainPart.Close()
+
+	}
 
 	event := NewReplicationEvent(FETCH_BULK_GET_SUCCEEDED)
+	event.Data = documentBodies
 	r.EventChan <- *event
 
 }
