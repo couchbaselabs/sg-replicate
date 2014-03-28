@@ -270,7 +270,6 @@ func TestOneShotReplicationGetRevsDiffHappyPath(t *testing.T) {
 }
 
 func TestOneShotReplicationBulkGetFailed(t *testing.T) {
-
 	sourceServer, targetServer := fakeServers(5999, 5998)
 
 	params := replicationParams(sourceServer.URL, targetServer.URL)
@@ -307,6 +306,45 @@ func TestOneShotReplicationBulkGetFailed(t *testing.T) {
 
 }
 
+func TestOneShotReplicationBulkGetHappyPath(t *testing.T) {
+
+	sourceServer, targetServer := fakeServers(6001, 6000)
+
+	params := replicationParams(sourceServer.URL, targetServer.URL)
+
+	notificationChan := make(chan ReplicationNotification)
+
+	// create a new replication and start it
+	replication := NewReplication(params, notificationChan)
+
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
+
+	// fake response to changes feed
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed())
+
+	// fake response to bulk get
+	boundary := fakeBoundary()
+	sourceServer.Response(200, jsonHeadersMultipart(boundary), fakeBulkGetResponse(boundary))
+
+	// fake response to revs_diff
+	targetServer.Response(200, jsonHeaders(), fakeRevsDiff())
+
+	replication.Start()
+
+	// expect to get a replication active event
+	replicationNotification := <-notificationChan
+	assert.Equals(t, replicationNotification.Status, REPLICATION_ACTIVE)
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
+
+	waitForNotification(replication, REPLICATION_FETCHED_REVS_DIFF)
+
+	waitForNotification(replication, REPLICATION_FETCHED_BULK_GET)
+
+	assertNotificationChannelClosed(notificationChan)
+
+}
+
 func fakeCheckpointResponse(checkpointAddress string, lastSequence int) string {
 	return fmt.Sprintf(`{"id":"_local/%s","ok":true,"rev":"0-2","lastSequence":"%v"}`, checkpointAddress, lastSequence)
 
@@ -314,6 +352,11 @@ func fakeCheckpointResponse(checkpointAddress string, lastSequence int) string {
 
 func jsonHeaders() map[string]string {
 	return map[string]string{"Content-Type": "application/json"}
+}
+
+func jsonHeadersMultipart(boundary string) map[string]string {
+	contentType := fmt.Sprintf(`multipart/mixed; boundary="%s"`, boundary)
+	return map[string]string{"Content-Type": contentType}
 }
 
 func assertNotificationChannelClosed(notificationChan chan ReplicationNotification) {
@@ -329,6 +372,17 @@ func fakeChangesFeed() string {
 
 func fakeRevsDiff() string {
 	return `{"doc2":{"missing":["1-5e38"]}}`
+}
+
+func fakeBoundary() string {
+	return "882fbb2ef17c452b4a30362990eaed6bc53d5ed71b27ad32f9b50f7616aa"
+}
+
+func fakeBulkGetResponse(boundary string) string {
+	return fmt.Sprintf(`--%s
+Content-Type: application/json
+
+{"_id":"doc2","_rev":"1-5e38","_revisions":{"ids":["5e38"],"start":1},"fakefield1":false,"fakefield2":1, "fakefield3":"blah"}`, boundary)
 }
 
 func fakeEmptyChangesFeed() string {

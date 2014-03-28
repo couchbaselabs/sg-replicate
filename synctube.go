@@ -292,6 +292,11 @@ func (r Replication) fetchBulkGet() {
 	bodyText, _ := ioutil.ReadAll(resp.Body)
 	logg.LogTo("SYNCTUBE", "bodyText: %v", bodyText)
 
+	// TODO: parse body into data structures
+
+	event := NewReplicationEvent(FETCH_BULK_GET_SUCCEEDED)
+	r.EventChan <- *event
+
 }
 
 func (r Replication) getChangesFeedUrl() string {

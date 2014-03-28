@@ -140,9 +140,9 @@ func stateFnActiveFetchRevDiffs(r *Replication) stateFn {
 		} else {
 			go r.fetchBulkGet()
 
-			logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchRevDiffs -> stateFnActiveFetchSourceDocs")
+			logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchRevDiffs -> stateFnActiveFetchBulkGet")
 
-			return stateFnActiveFetchSourceDocs
+			return stateFnActiveFetchBulkGet
 		}
 
 	default:
@@ -153,10 +153,10 @@ func stateFnActiveFetchRevDiffs(r *Replication) stateFn {
 	return stateFnActiveFetchRevDiffs
 }
 
-func stateFnActiveFetchSourceDocs(r *Replication) stateFn {
-	logg.LogTo("SYNCTUBE", "stateFnActiveFetchSourceDocs")
+func stateFnActiveFetchBulkGet(r *Replication) stateFn {
+	logg.LogTo("SYNCTUBE", "stateFnActiveFetchBulkGet")
 	event := <-r.EventChan
-	logg.LogTo("SYNCTUBE", "stateFnActiveFetchSourceDocs got event: %v", event)
+	logg.LogTo("SYNCTUBE", "stateFnActiveFetchBulkGet got event: %v", event)
 	switch event.Signal {
 	case REPLICATION_STOP:
 		notification := NewReplicationNotification(REPLICATION_STOPPED)
@@ -166,11 +166,15 @@ func stateFnActiveFetchSourceDocs(r *Replication) stateFn {
 		notification := NewReplicationNotification(REPLICATION_STOPPED)
 		r.NotificationChan <- *notification
 		return nil
+	case FETCH_BULK_GET_SUCCEEDED:
+		notification := NewReplicationNotification(REPLICATION_FETCHED_BULK_GET)
+		r.NotificationChan <- *notification
+		return nil
 	default:
 		logg.LogTo("SYNCTUBE", "Unexpected event: %v", event)
 	}
 
 	time.Sleep(time.Second)
-	return stateFnActiveFetchSourceDocs
+	return stateFnActiveFetchBulkGet
 
 }
