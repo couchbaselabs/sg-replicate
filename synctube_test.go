@@ -382,7 +382,9 @@ func fakeBulkGetResponse(boundary string) string {
 	return fmt.Sprintf(`--%s
 Content-Type: application/json
 
-{"_id":"doc2","_rev":"1-5e38","_revisions":{"ids":["5e38"],"start":1},"fakefield1":false,"fakefield2":1, "fakefield3":"blah"}`, boundary)
+{"_id":"doc2","_rev":"1-5e38","_revisions":{"ids":["5e38"],"start":1},"fakefield1":false,"fakefield2":1, "fakefield3":"blah"}
+--%s--
+`, boundary, boundary)
 }
 
 func fakeEmptyChangesFeed() string {

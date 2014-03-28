@@ -9,6 +9,8 @@ import (
 	"github.com/couchbaselabs/logg"
 	"github.com/mreiferson/go-httpclient"
 	"io/ioutil"
+	"mime"
+	"mime/multipart"
 	"net/http"
 	"time"
 )
@@ -289,10 +291,31 @@ func (r Replication) fetchBulkGet() {
 		return
 	}
 
-	bodyText, _ := ioutil.ReadAll(resp.Body)
-	logg.LogTo("SYNCTUBE", "bodyText: %v", bodyText)
+	// bodyText, _ := ioutil.ReadAll(resp.Body)
+	// logg.LogTo("SYNCTUBE", "bodyText: %v", bodyText)
 
 	// TODO: parse body into data structures
+	contentType := resp.Header.Get("Content-Type")
+	logg.LogTo("SYNCTUBE", "contentType: %v", contentType)
+	logg.LogTo("SYNCTUBE", "headers: %v", resp.Header)
+
+	mediaType, attrs, _ := mime.ParseMediaType(contentType)
+	boundary := attrs["boundary"]
+	logg.LogTo("SYNCTUBE", "mediaType: %v", mediaType)
+	logg.LogTo("SYNCTUBE", "boundary: %v", boundary)
+	logg.LogTo("SYNCTUBE", "attrs: %v", attrs)
+
+	reader := multipart.NewReader(resp.Body, boundary)
+	mainPart, err := reader.NextPart()
+	logg.LogTo("SYNCTUBE", "mainPart: %v", mainPart)
+	logg.LogTo("SYNCTUBE", "mainPart.Header: %v", mainPart.Header)
+	if err != nil {
+		logg.LogTo("SYNCTUBE", "err: %v", err)
+		return
+	}
+
+	mainPartBytes, _ := ioutil.ReadAll(mainPart)
+	logg.LogTo("SYNCTUBE", "mainPartBody: %v", string(mainPartBytes))
 
 	event := NewReplicationEvent(FETCH_BULK_GET_SUCCEEDED)
 	r.EventChan <- *event
