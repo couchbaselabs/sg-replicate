@@ -193,7 +193,6 @@ func (r Replication) fetchRevsDiff() {
 
 	revsDiffUrl := r.getRevsDiffUrl()
 	revsDiffMap := generateRevsDiffMap(r.Changes)
-	logg.LogTo("SYNCTUBE", "%v %v", revsDiffUrl, revsDiffMap)
 	revsDiffMapJson, err := json.Marshal(revsDiffMap)
 	if err != nil {
 		logg.LogTo("SYNCTUBE", "Error marshaling %v", revsDiffMap)
@@ -247,7 +246,51 @@ func (r Replication) fetchRevsDiff() {
 
 }
 
-func (r Replication) fetchSourceDocs() {
+func (r Replication) fetchBulkGet() {
+	transport := r.getTransport()
+	defer transport.Close()
+
+	bulkGetUrl := r.getBulkGetUrl()
+	bulkDocsRequest := generateBulkDocsRequest(r.RevsDiff)
+
+	bulkDocsRequestJson, err := json.Marshal(bulkDocsRequest)
+	if err != nil {
+		logg.LogTo("SYNCTUBE", "Error marshaling %v", bulkDocsRequest)
+		logg.LogError(err)
+		event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
+		r.EventChan <- *event
+		return
+	}
+
+	req, err := http.NewRequest("POST", bulkGetUrl, bytes.NewReader(bulkDocsRequestJson))
+	if err != nil {
+		logg.LogTo("SYNCTUBE", "Error creating request %v", bulkDocsRequestJson)
+		logg.LogError(err)
+		event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
+		r.EventChan <- *event
+		return
+	}
+
+	client := &http.Client{Transport: transport}
+
+	resp, err := client.Do(req)
+	logg.LogTo("SYNCTUBE", "bulk get resp: %v, err: %v", resp, err)
+	if err != nil {
+		logg.LogTo("SYNCTUBE", "Error getting bulk get: %v", err)
+		event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
+		r.EventChan <- *event
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		logg.LogTo("SYNCTUBE", "Unexpected response getting bulk get: %v", resp)
+		event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
+		r.EventChan <- *event
+		return
+	}
+
+	bodyText, _ := ioutil.ReadAll(resp.Body)
+	logg.LogTo("SYNCTUBE", "bodyText: %v", bodyText)
 
 }
 
@@ -269,6 +312,14 @@ func (r Replication) getRevsDiffUrl() string {
 	dbUrl := r.Parameters.getTargetDbUrl()
 	return fmt.Sprintf(
 		"%s/_revs_diff",
+		dbUrl)
+
+}
+
+func (r Replication) getBulkGetUrl() string {
+	dbUrl := r.Parameters.getSourceDbUrl()
+	return fmt.Sprintf(
+		"%s/_bulk_get?revs=true&attachments=true",
 		dbUrl)
 
 }

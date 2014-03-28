@@ -57,3 +57,27 @@ func generateRevsDiffMap(changes Changes) RevsDiffQueryMap {
 	}
 	return revsDiffMap
 }
+
+type DocumentRevisionPair struct {
+	Id       string `json:"id"`
+	Revision string `json:"rev"`
+}
+
+type BulkDocsRequest struct {
+	Docs []DocumentRevisionPair `json:"docs"`
+}
+
+func generateBulkDocsRequest(revsDiff RevsDiffResponseMap) BulkDocsRequest {
+	bulkDocsRequest := BulkDocsRequest{}
+	docs := []DocumentRevisionPair{}
+	for docid, docResponse := range revsDiff {
+		for _, missingRev := range docResponse.Missing {
+			docRevPair := DocumentRevisionPair{}
+			docRevPair.Id = docid
+			docRevPair.Revision = missingRev
+			docs = append(docs, docRevPair)
+		}
+	}
+	bulkDocsRequest.Docs = docs
+	return bulkDocsRequest
+}
