@@ -453,6 +453,55 @@ func TestOneShotReplicationBulkDocsHappyPath(t *testing.T) {
 
 }
 
+func TestOneShotReplicationPushCheckpointFailed(t *testing.T) {
+
+	sourceServer, targetServer := fakeServers(6007, 6006)
+
+	params := replicationParams(sourceServer.URL, targetServer.URL)
+
+	notificationChan := make(chan ReplicationNotification)
+
+	// create a new replication and start it
+	replication := NewReplication(params, notificationChan)
+
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
+
+	// fake response to changes feed
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed())
+
+	// fake response to bulk get
+	boundary := fakeBoundary()
+	sourceServer.Response(200, jsonHeadersMultipart(boundary), fakeBulkGetResponse(boundary))
+
+	// fake response to revs_diff
+	targetServer.Response(200, jsonHeaders(), fakeRevsDiff())
+
+	// fake response to bulk docs
+	targetServer.Response(200, jsonHeaders(), fakeBulkDocsResponse())
+
+	// failed response to push checkpoint
+	targetServer.Response(500, jsonHeaders(), bogusJson())
+
+	replication.Start()
+
+	// expect to get a replication active event
+	replicationNotification := <-notificationChan
+	assert.Equals(t, replicationNotification.Status, REPLICATION_ACTIVE)
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
+
+	waitForNotification(replication, REPLICATION_FETCHED_REVS_DIFF)
+
+	waitForNotification(replication, REPLICATION_FETCHED_BULK_GET)
+
+	waitForNotification(replication, REPLICATION_PUSHED_BULK_DOCS)
+
+	waitForNotification(replication, REPLICATION_STOPPED)
+
+	assertNotificationChannelClosed(notificationChan)
+
+}
+
 func fakeCheckpointResponse(checkpointAddress string, lastSequence int) string {
 	return fmt.Sprintf(`{"id":"_local/%s","ok":true,"rev":"0-2","lastSequence":"%v"}`, checkpointAddress, lastSequence)
 

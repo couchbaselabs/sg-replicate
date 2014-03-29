@@ -77,8 +77,7 @@ func (r Replication) targetCheckpointAddress() string {
 
 func (r Replication) fetchTargetCheckpoint() {
 
-	checkpoint := r.targetCheckpointAddress()
-	destUrl := fmt.Sprintf("%s/_local/%s", r.Parameters.getTargetDbUrl(), checkpoint)
+	destUrl := r.getCheckpointUrl()
 
 	transport := r.getTransport()
 	defer transport.Close()
@@ -385,6 +384,57 @@ func (r Replication) pushBulkDocs() {
 	event.Data = bulkDocsResponse
 	r.EventChan <- *event
 
+}
+
+func (r Replication) pushCheckpoint() {
+
+	transport := r.getTransport()
+	defer transport.Close()
+
+	checkpointUrl := r.getCheckpointUrl()
+	pushCheckpointRequest := generatePushCheckpointRequest(r.Changes)
+
+	requestJson, err := json.Marshal(pushCheckpointRequest)
+	if err != nil {
+		logg.LogTo("SYNCTUBE", "Error marshaling %v", pushCheckpointRequest)
+		logg.LogError(err)
+		event := NewReplicationEvent(PUSH_CHECKPOINT_FAILED)
+		r.EventChan <- *event
+		return
+	}
+
+	req, err := http.NewRequest("POST", checkpointUrl, bytes.NewReader(requestJson))
+	if err != nil {
+		logg.LogTo("SYNCTUBE", "Error creating request %v", requestJson)
+		logg.LogError(err)
+		event := NewReplicationEvent(PUSH_CHECKPOINT_FAILED)
+		r.EventChan <- *event
+		return
+	}
+
+	client := &http.Client{Transport: transport}
+
+	resp, err := client.Do(req)
+	logg.LogTo("SYNCTUBE", "push checkpoint resp: %v, err: %v", resp, err)
+	if err != nil {
+		logg.LogTo("SYNCTUBE", "Error pushing checkpoint: %v", err)
+		event := NewReplicationEvent(PUSH_CHECKPOINT_FAILED)
+		r.EventChan <- *event
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		logg.LogTo("SYNCTUBE", "Unexpected response pushing checkpoint: %v", resp)
+		event := NewReplicationEvent(PUSH_CHECKPOINT_FAILED)
+		r.EventChan <- *event
+		return
+	}
+
+}
+
+func (r Replication) getCheckpointUrl() string {
+	checkpointAddress := r.targetCheckpointAddress()
+	return fmt.Sprintf("%s/_local/%s", r.Parameters.getTargetDbUrl(), checkpointAddress)
 }
 
 func (r Replication) getChangesFeedUrl() string {

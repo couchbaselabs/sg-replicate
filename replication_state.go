@@ -220,7 +220,7 @@ func stateFnActivePushBulkDocs(r *Replication) stateFn {
 			r.NotificationChan <- *notification
 			return nil
 		} else {
-			// go r.pushCheckpoint()
+			go r.pushCheckpoint()
 
 			logg.LogTo("SYNCTUBE", "Transition from stateFnActivePushBulkDocs -> stateFnActivePushCheckpoint")
 
@@ -241,6 +241,10 @@ func stateFnActivePushCheckpoint(r *Replication) stateFn {
 	logg.LogTo("SYNCTUBE", "stateFnActivePushCheckpoint got event: %v", event)
 	switch event.Signal {
 	case REPLICATION_STOP:
+		notification := NewReplicationNotification(REPLICATION_STOPPED)
+		r.NotificationChan <- *notification
+		return nil
+	case PUSH_CHECKPOINT_FAILED:
 		notification := NewReplicationNotification(REPLICATION_STOPPED)
 		r.NotificationChan <- *notification
 		return nil

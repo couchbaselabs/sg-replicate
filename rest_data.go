@@ -74,6 +74,10 @@ type BulkDocsRequest struct {
 	DocumentBodies []DocumentBody `json:"docs"`
 }
 
+type PushCheckpointRequest struct {
+	LastSequence string `json:"lastSequence"`
+}
+
 func generateBulkGetRequest(revsDiff RevsDiffResponseMap) BulkGetRequest {
 	bulkDocsRequest := BulkGetRequest{}
 	docs := []DocumentRevisionPair{}
@@ -93,5 +97,11 @@ func generateBulkDocsRequest(documentBodies []DocumentBody) BulkDocsRequest {
 	return BulkDocsRequest{
 		NewEdits:       false,
 		DocumentBodies: documentBodies,
+	}
+}
+
+func generatePushCheckpointRequest(changes Changes) PushCheckpointRequest {
+	return PushCheckpointRequest{
+		LastSequence: string(changes.LastSequence),
 	}
 }
