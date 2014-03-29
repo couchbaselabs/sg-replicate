@@ -397,6 +397,52 @@ func TestOneShotReplicationBulkDocsFailed(t *testing.T) {
 
 }
 
+func TestOneShotReplicationBulkDocsHappyPath(t *testing.T) {
+
+	sourceServer, targetServer := fakeServers(6005, 6004)
+
+	params := replicationParams(sourceServer.URL, targetServer.URL)
+
+	notificationChan := make(chan ReplicationNotification)
+
+	// create a new replication and start it
+	replication := NewReplication(params, notificationChan)
+
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
+
+	// fake response to changes feed
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed())
+
+	// fake response to bulk get
+	boundary := fakeBoundary()
+	sourceServer.Response(200, jsonHeadersMultipart(boundary), fakeBulkGetResponse(boundary))
+
+	// fake response to revs_diff
+	targetServer.Response(200, jsonHeaders(), fakeRevsDiff())
+
+	// fake response to bulk docs
+	targetServer.Response(200, jsonHeaders(), fakeBulkDocsResponse())
+
+	replication.Start()
+
+	// expect to get a replication active event
+	replicationNotification := <-notificationChan
+	assert.Equals(t, replicationNotification.Status, REPLICATION_ACTIVE)
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
+
+	waitForNotification(replication, REPLICATION_FETCHED_REVS_DIFF)
+
+	waitForNotification(replication, REPLICATION_FETCHED_BULK_GET)
+
+	waitForNotification(replication, REPLICATION_PUSHED_BULK_DOCS)
+
+	waitForNotification(replication, REPLICATION_STOPPED)
+
+	assertNotificationChannelClosed(notificationChan)
+
+}
+
 func fakeCheckpointResponse(checkpointAddress string, lastSequence int) string {
 	return fmt.Sprintf(`{"id":"_local/%s","ok":true,"rev":"0-2","lastSequence":"%v"}`, checkpointAddress, lastSequence)
 
@@ -437,6 +483,10 @@ Content-Type: application/json
 {"_id":"doc2","_rev":"1-5e38","_revisions":{"ids":["5e38"],"start":1},"fakefield1":false,"fakefield2":1, "fakefield3":"blah"}
 --%s--
 `, boundary, boundary)
+}
+
+func fakeBulkDocsResponse() string {
+	return `[{"id":"doc2","rev":"1-5e38"}]`
 }
 
 func fakeEmptyChangesFeed() string {

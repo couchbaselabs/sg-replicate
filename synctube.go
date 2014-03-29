@@ -23,6 +23,7 @@ type Replication struct {
 	Changes                 Changes
 	RevsDiff                RevsDiffResponseMap
 	DocumentBodies          []DocumentBody
+	PushedBulkDocs          []DocumentRevisionPair
 }
 
 func NewReplication(params ReplicationParameters, notificationChan chan ReplicationNotification) *Replication {
@@ -370,6 +371,19 @@ func (r Replication) pushBulkDocs() {
 		r.EventChan <- *event
 		return
 	}
+
+	bulkDocsResponse := []DocumentRevisionPair{}
+	decoder := json.NewDecoder(resp.Body)
+	if err = decoder.Decode(&bulkDocsResponse); err != nil {
+		logg.LogTo("SYNCTUBE", "Error decoding json: %v", err)
+		event := NewReplicationEvent(PUSH_BULK_DOCS_FAILED)
+		r.EventChan <- *event
+		return
+	}
+
+	event := NewReplicationEvent(PUSH_BULK_DOCS_SUCCEEDED)
+	event.Data = bulkDocsResponse
+	r.EventChan <- *event
 
 }
 
