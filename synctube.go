@@ -254,20 +254,20 @@ func (r Replication) fetchBulkGet() {
 	defer transport.Close()
 
 	bulkGetUrl := r.getBulkGetUrl()
-	bulkDocsRequest := generateBulkDocsRequest(r.RevsDiff)
+	bulkGetRequest := generateBulkGetRequest(r.RevsDiff)
 
-	bulkDocsRequestJson, err := json.Marshal(bulkDocsRequest)
+	bulkGetRequestJson, err := json.Marshal(bulkGetRequest)
 	if err != nil {
-		logg.LogTo("SYNCTUBE", "Error marshaling %v", bulkDocsRequest)
+		logg.LogTo("SYNCTUBE", "Error marshaling %v", bulkGetRequest)
 		logg.LogError(err)
 		event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
 		r.EventChan <- *event
 		return
 	}
 
-	req, err := http.NewRequest("POST", bulkGetUrl, bytes.NewReader(bulkDocsRequestJson))
+	req, err := http.NewRequest("POST", bulkGetUrl, bytes.NewReader(bulkGetRequestJson))
 	if err != nil {
-		logg.LogTo("SYNCTUBE", "Error creating request %v", bulkDocsRequestJson)
+		logg.LogTo("SYNCTUBE", "Error creating request %v", bulkGetRequestJson)
 		logg.LogError(err)
 		event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
 		r.EventChan <- *event
@@ -328,6 +328,51 @@ func (r Replication) fetchBulkGet() {
 
 }
 
+func (r Replication) pushBulkDocs() {
+	transport := r.getTransport()
+	defer transport.Close()
+
+	bulkDocsUrl := r.getBulkDocsUrl()
+	bulkDocsRequest := generateBulkDocsRequest(r.DocumentBodies)
+
+	bulkDocsRequestJson, err := json.Marshal(bulkDocsRequest)
+	if err != nil {
+		logg.LogTo("SYNCTUBE", "Error marshaling %v", bulkDocsRequest)
+		logg.LogError(err)
+		event := NewReplicationEvent(PUSH_BULK_DOCS_FAILED)
+		r.EventChan <- *event
+		return
+	}
+
+	req, err := http.NewRequest("POST", bulkDocsUrl, bytes.NewReader(bulkDocsRequestJson))
+	if err != nil {
+		logg.LogTo("SYNCTUBE", "Error creating request %v", bulkDocsRequestJson)
+		logg.LogError(err)
+		event := NewReplicationEvent(PUSH_BULK_DOCS_FAILED)
+		r.EventChan <- *event
+		return
+	}
+
+	client := &http.Client{Transport: transport}
+
+	resp, err := client.Do(req)
+	logg.LogTo("SYNCTUBE", "bulk get resp: %v, err: %v", resp, err)
+	if err != nil {
+		logg.LogTo("SYNCTUBE", "Error getting bulk get: %v", err)
+		event := NewReplicationEvent(PUSH_BULK_DOCS_FAILED)
+		r.EventChan <- *event
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		logg.LogTo("SYNCTUBE", "Unexpected response getting bulk get: %v", resp)
+		event := NewReplicationEvent(PUSH_BULK_DOCS_FAILED)
+		r.EventChan <- *event
+		return
+	}
+
+}
+
 func (r Replication) getChangesFeedUrl() string {
 	// TODO: add since param
 
@@ -348,6 +393,13 @@ func (r Replication) getRevsDiffUrl() string {
 		"%s/_revs_diff",
 		dbUrl)
 
+}
+
+func (r Replication) getBulkDocsUrl() string {
+	dbUrl := r.Parameters.getTargetDbUrl()
+	return fmt.Sprintf(
+		"%s/_bulk_docs",
+		dbUrl)
 }
 
 func (r Replication) getBulkGetUrl() string {

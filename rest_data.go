@@ -65,12 +65,17 @@ type DocumentRevisionPair struct {
 	Revision string `json:"rev"`
 }
 
-type BulkDocsRequest struct {
+type BulkGetRequest struct {
 	Docs []DocumentRevisionPair `json:"docs"`
 }
 
-func generateBulkDocsRequest(revsDiff RevsDiffResponseMap) BulkDocsRequest {
-	bulkDocsRequest := BulkDocsRequest{}
+type BulkDocsRequest struct {
+	NewEdits       bool           `json:"new_edits"`
+	DocumentBodies []DocumentBody `json:"docs"`
+}
+
+func generateBulkGetRequest(revsDiff RevsDiffResponseMap) BulkGetRequest {
+	bulkDocsRequest := BulkGetRequest{}
 	docs := []DocumentRevisionPair{}
 	for docid, docResponse := range revsDiff {
 		for _, missingRev := range docResponse.Missing {
@@ -82,4 +87,11 @@ func generateBulkDocsRequest(revsDiff RevsDiffResponseMap) BulkDocsRequest {
 	}
 	bulkDocsRequest.Docs = docs
 	return bulkDocsRequest
+}
+
+func generateBulkDocsRequest(documentBodies []DocumentBody) BulkDocsRequest {
+	return BulkDocsRequest{
+		NewEdits:       false,
+		DocumentBodies: documentBodies,
+	}
 }

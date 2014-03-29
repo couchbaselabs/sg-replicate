@@ -170,12 +170,50 @@ func stateFnActiveFetchBulkGet(r *Replication) stateFn {
 		r.DocumentBodies = event.Data.([]DocumentBody)
 		notification := NewReplicationNotification(REPLICATION_FETCHED_BULK_GET)
 		r.NotificationChan <- *notification
-		return nil
+
+		if len(r.DocumentBodies) == 0 {
+			// nothing to do, so stop
+			notification := NewReplicationNotification(REPLICATION_STOPPED)
+			r.NotificationChan <- *notification
+			return nil
+		} else {
+			go r.pushBulkDocs()
+
+			logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchBulkGet -> stateFnActivePostBulkDocs")
+
+			return stateFnActivePushBulkDocs
+		}
+
 	default:
 		logg.LogTo("SYNCTUBE", "Unexpected event: %v", event)
 	}
 
 	time.Sleep(time.Second)
 	return stateFnActiveFetchBulkGet
+
+}
+
+func stateFnActivePushBulkDocs(r *Replication) stateFn {
+	logg.LogTo("SYNCTUBE", "stateFnActivePushBulkDocs")
+	event := <-r.EventChan
+	logg.LogTo("SYNCTUBE", "stateFnActivePushBulkDocs got event: %v", event)
+	switch event.Signal {
+	case REPLICATION_STOP:
+		notification := NewReplicationNotification(REPLICATION_STOPPED)
+		r.NotificationChan <- *notification
+		return nil
+	case PUSH_BULK_DOCS_FAILED:
+		notification := NewReplicationNotification(REPLICATION_STOPPED)
+		r.NotificationChan <- *notification
+		return nil
+	case PUSH_BULK_DOCS_SUCCEEDED:
+		return nil
+
+	default:
+		logg.LogTo("SYNCTUBE", "Unexpected event: %v", event)
+	}
+
+	time.Sleep(time.Second)
+	return stateFnActivePushBulkDocs
 
 }

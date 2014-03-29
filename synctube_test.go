@@ -345,6 +345,54 @@ func TestOneShotReplicationBulkGetHappyPath(t *testing.T) {
 	documentBody := replication.DocumentBodies[0]
 	assert.Equals(t, documentBody["_id"], "doc2")
 
+	replication.Stop()
+
+	waitForNotification(replication, REPLICATION_STOPPED)
+
+	assertNotificationChannelClosed(notificationChan)
+
+}
+
+func TestOneShotReplicationBulkDocsFailed(t *testing.T) {
+
+	sourceServer, targetServer := fakeServers(6003, 6002)
+
+	params := replicationParams(sourceServer.URL, targetServer.URL)
+
+	notificationChan := make(chan ReplicationNotification)
+
+	// create a new replication and start it
+	replication := NewReplication(params, notificationChan)
+
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
+
+	// fake response to changes feed
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed())
+
+	// fake response to bulk get
+	boundary := fakeBoundary()
+	sourceServer.Response(200, jsonHeadersMultipart(boundary), fakeBulkGetResponse(boundary))
+
+	// fake response to revs_diff
+	targetServer.Response(200, jsonHeaders(), fakeRevsDiff())
+
+	// failed response to bulk docs
+	targetServer.Response(500, jsonHeaders(), bogusJson())
+
+	replication.Start()
+
+	// expect to get a replication active event
+	replicationNotification := <-notificationChan
+	assert.Equals(t, replicationNotification.Status, REPLICATION_ACTIVE)
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
+
+	waitForNotification(replication, REPLICATION_FETCHED_REVS_DIFF)
+
+	waitForNotification(replication, REPLICATION_FETCHED_BULK_GET)
+
+	waitForNotification(replication, REPLICATION_STOPPED)
+
 	assertNotificationChannelClosed(notificationChan)
 
 }
