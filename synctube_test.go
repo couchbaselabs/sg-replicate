@@ -437,9 +437,19 @@ func TestOneShotReplicationBulkDocsHappyPath(t *testing.T) {
 
 	waitForNotification(replication, REPLICATION_PUSHED_BULK_DOCS)
 
+	logg.LogTo("TEST", "calling stop()")
+
+	replication.Stop()
+
+	logg.LogTo("TEST", "called stop(), wait for STOPPED")
+
 	waitForNotification(replication, REPLICATION_STOPPED)
 
+	logg.LogTo("TEST", "got STOPPED, wait for channel closed")
+
 	assertNotificationChannelClosed(notificationChan)
+
+	logg.LogTo("TEST", "channel closed")
 
 }
 

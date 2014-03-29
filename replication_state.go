@@ -207,11 +207,15 @@ func stateFnActivePushBulkDocs(r *Replication) stateFn {
 		r.NotificationChan <- *notification
 		return nil
 	case PUSH_BULK_DOCS_SUCCEEDED:
+
+		r.PushedBulkDocs = event.Data.([]DocumentRevisionPair)
+
 		notification := NewReplicationNotification(REPLICATION_PUSHED_BULK_DOCS)
 		r.NotificationChan <- *notification
 
 		if len(r.PushedBulkDocs) == 0 {
 			// nothing to do, so stop
+			logg.LogTo("SYNCTUBE", "nothing to do, so stop")
 			notification := NewReplicationNotification(REPLICATION_STOPPED)
 			r.NotificationChan <- *notification
 			return nil
@@ -220,7 +224,7 @@ func stateFnActivePushBulkDocs(r *Replication) stateFn {
 
 			logg.LogTo("SYNCTUBE", "Transition from stateFnActivePushBulkDocs -> stateFnActivePushCheckpoint")
 
-			return nil
+			return stateFnActivePushCheckpoint
 		}
 
 	default:
@@ -232,7 +236,9 @@ func stateFnActivePushBulkDocs(r *Replication) stateFn {
 }
 
 func stateFnActivePushCheckpoint(r *Replication) stateFn {
+	logg.LogTo("SYNCTUBE", "stateFnActivePushCheckpoint")
 	event := <-r.EventChan
+	logg.LogTo("SYNCTUBE", "stateFnActivePushCheckpoint got event: %v", event)
 	switch event.Signal {
 	case REPLICATION_STOP:
 		notification := NewReplicationNotification(REPLICATION_STOPPED)
