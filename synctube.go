@@ -465,18 +465,26 @@ func (r Replication) getCheckpointUrl() string {
 }
 
 func (r Replication) getChangesFeedUrl() string {
-	// TODO: add since param
 
 	dbUrl := r.Parameters.getSourceDbUrl()
-	return fmt.Sprintf(
-		"%s/_changes?feed=%s&limit=%s&heartbeat=%s&style=%s&since=%v",
+	changesFeedUrl := fmt.Sprintf(
+		"%s/_changes?feed=%s&limit=%s&heartbeat=%s&style=%s",
 		dbUrl,
 		r.Parameters.getChangesFeedType(),
 		r.Parameters.getChangesFeedLimit(),
 		r.Parameters.getChangesFeedHeartbeat(),
 		r.Parameters.getChangesFeedStyle(),
-		r.LastSequencePushed,
 	)
+
+	if r.LastSequencePushed > 0 {
+		changesFeedUrl = fmt.Sprintf(
+			"%s&since=%v",
+			changesFeedUrl,
+			r.LastSequencePushed,
+		)
+	}
+
+	return changesFeedUrl
 
 }
 
