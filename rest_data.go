@@ -1,6 +1,7 @@
 package synctube
 
 import (
+	"fmt"
 	"github.com/couchbaselabs/logg"
 	"strconv"
 )
@@ -108,6 +109,6 @@ func generateBulkDocsRequest(documentBodies []DocumentBody) BulkDocsRequest {
 
 func generatePushCheckpointRequest(changes Changes) PushCheckpointRequest {
 	return PushCheckpointRequest{
-		LastSequence: string(changes.LastSequence),
+		LastSequence: fmt.Sprintf("%v", changes.LastSequence),
 	}
 }

@@ -32,9 +32,10 @@ func NewReplication(params ReplicationParameters, notificationChan chan Replicat
 	eventChan := make(chan ReplicationEvent)
 
 	replication := &Replication{
-		Parameters:       params,
-		EventChan:        eventChan,
-		NotificationChan: notificationChan,
+		Parameters:         params,
+		EventChan:          eventChan,
+		NotificationChan:   notificationChan,
+		LastSequencePushed: -1,
 	}
 
 	// spawn a go-routine that reads from event channel and acts on events
@@ -397,6 +398,9 @@ func (r Replication) pushCheckpoint() {
 
 	checkpointUrl := r.getCheckpointUrl()
 	pushCheckpointRequest := generatePushCheckpointRequest(r.Changes)
+	logg.LogTo("SYNCTUBE", "pushCheckpointRequest %v", pushCheckpointRequest)
+	logg.LogTo("SYNCTUBE", "r.Changes %v", r.Changes)
+	logg.LogTo("SYNCTUBE", "r.Changes.LastSequence %v", r.Changes.LastSequence)
 
 	requestJson, err := json.Marshal(pushCheckpointRequest)
 	if err != nil {
@@ -407,7 +411,7 @@ func (r Replication) pushCheckpoint() {
 		return
 	}
 
-	req, err := http.NewRequest("POST", checkpointUrl, bytes.NewReader(requestJson))
+	req, err := http.NewRequest("PUT", checkpointUrl, bytes.NewReader(requestJson))
 	if err != nil {
 		logg.LogTo("SYNCTUBE", "Error creating request %v", requestJson)
 		logg.LogError(err)
