@@ -22,6 +22,7 @@ func replicationParams(sourceServerUrl *url.URL, targetServerUrl *url.URL) Repli
 	params.Target = targetServerUrl
 	params.TargetDb = "db"
 	params.Continuous = false
+	params.ChangesFeedLimit = 2
 	return params
 }
 
@@ -140,8 +141,7 @@ func TestOneShotReplicationGetChangesFeedHappyPath(t *testing.T) {
 	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
 
 	// response to changes feed
-	fakeChangesFeed := fakeChangesFeed()
-	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed)
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed())
 
 	replication.Start()
 
@@ -154,7 +154,7 @@ func TestOneShotReplicationGetChangesFeedHappyPath(t *testing.T) {
 	waitForNotification(replication, REPLICATION_FETCHED_CHANGES_FEED)
 
 	changes := replication.Changes
-	assert.Equals(t, len(changes.Results), 2)
+	assert.Equals(t, len(changes.Results), 3)
 
 	replication.Stop()
 
@@ -177,8 +177,7 @@ func TestOneShotReplicationGetChangesFeedEmpty(t *testing.T) {
 	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
 
 	// response to changes feed
-	fakeChangesFeed := fakeEmptyChangesFeed()
-	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed)
+	sourceServer.Response(200, jsonHeaders(), fakeEmptyChangesFeed())
 
 	replication.Start()
 
@@ -531,6 +530,8 @@ func TestOneShotReplicationPushCheckpointSucceeded(t *testing.T) {
 	// fake response to push checkpoint
 	targetServer.Response(200, jsonHeaders(), fakePushCheckpointResponse(replication.targetCheckpointAddress()))
 
+	// TODO: the fake server should return the last pushed checkpoint in this case
+
 	// fake second call to get checkpoint
 	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
 
@@ -582,7 +583,7 @@ func assertNotificationChannelClosed(notificationChan chan ReplicationNotificati
 }
 
 func fakeChangesFeed() string {
-	return `{"results":[{"seq":2,"id":"doc2","changes":[{"rev":"1-5e38"}]},{"seq":3,"id":"doc3","changes":[{"rev":"1-563b"}]}],"last_seq":3}`
+	return `{"results":[{"seq":2,"id":"doc2","changes":[{"rev":"1-5e38"}]},{"seq":3,"id":"doc3","changes":[{"rev":"1-563b"}]},{"seq":4,"id":"doc4","changes":[{"rev":"1-786e"}]}],"last_seq":4}`
 }
 
 func fakeRevsDiff() string {
@@ -607,7 +608,7 @@ func fakeBulkDocsResponse() string {
 }
 
 func fakeEmptyChangesFeed() string {
-	return `{"results":[],"last_seq":3}`
+	return `{"results":[],"last_seq":4}`
 }
 
 func waitForNotificationAndStop(replication *Replication, expected ReplicationStatus) {
@@ -667,7 +668,7 @@ func TestGetTargetCheckpoint(t *testing.T) {
 
 }
 
-func TestOneShotIntegrationReplication(t *testing.T) {
+func DISTestOneShotIntegrationReplication(t *testing.T) {
 
 	sourceServerUrlStr := "http://localhost:4984"
 	targetServerUrlStr := "http://localhost:4986"

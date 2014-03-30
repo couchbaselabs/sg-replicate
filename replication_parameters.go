@@ -5,12 +5,15 @@ import (
 	"net/url"
 )
 
+const DefaultChangesFeedLimit = 50
+
 type ReplicationParameters struct {
-	Source     *url.URL
-	SourceDb   string
-	Target     *url.URL
-	TargetDb   string
-	Continuous bool
+	Source           *url.URL
+	SourceDb         string
+	Target           *url.URL
+	TargetDb         string
+	Continuous       bool
+	ChangesFeedLimit int
 }
 
 func (params ReplicationParameters) getSourceDbUrl() string {
@@ -26,7 +29,12 @@ func (params ReplicationParameters) getChangesFeedType() string {
 }
 
 func (params ReplicationParameters) getChangesFeedLimit() string {
-	return "50"
+	if params.ChangesFeedLimit == 0 {
+		return fmt.Sprintf("%v", DefaultChangesFeedLimit)
+	} else {
+		return fmt.Sprintf("%v", params.ChangesFeedLimit)
+	}
+
 }
 
 func (params ReplicationParameters) getChangesFeedHeartbeat() string {
