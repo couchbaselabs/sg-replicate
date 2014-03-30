@@ -36,7 +36,7 @@ func fakeServers(sourcePort, targetPort int) (source *fakehttp.HTTPServer, targe
 	return
 }
 
-func disTestOneShotReplicationGetCheckpointFailed(t *testing.T) {
+func TestOneShotReplicationGetCheckpointFailed(t *testing.T) {
 
 	// the simulated sync gateway source only returns a _local doc
 	// with a checkpoint.  after that, the request to the _changes
@@ -68,7 +68,7 @@ func disTestOneShotReplicationGetCheckpointFailed(t *testing.T) {
 
 }
 
-func disTestOneShotReplicationGetCheckpointHappypath(t *testing.T) {
+func TestOneShotReplicationGetCheckpointHappypath(t *testing.T) {
 
 	sourceServer, targetServer := fakeServers(5989, 5988)
 
@@ -98,7 +98,7 @@ func disTestOneShotReplicationGetCheckpointHappypath(t *testing.T) {
 
 }
 
-func disTestOneShotReplicationGetChangesFeedFailed(t *testing.T) {
+func TestOneShotReplicationGetChangesFeedFailed(t *testing.T) {
 
 	sourceServer, targetServer := fakeServers(5987, 5986)
 
@@ -127,7 +127,7 @@ func disTestOneShotReplicationGetChangesFeedFailed(t *testing.T) {
 
 }
 
-func disTestOneShotReplicationGetChangesFeedHappyPath(t *testing.T) {
+func TestOneShotReplicationGetChangesFeedHappyPath(t *testing.T) {
 
 	sourceServer, targetServer := fakeServers(5991, 5990)
 
@@ -164,7 +164,7 @@ func disTestOneShotReplicationGetChangesFeedHappyPath(t *testing.T) {
 
 }
 
-func disTestOneShotReplicationGetChangesFeedEmpty(t *testing.T) {
+func TestOneShotReplicationGetChangesFeedEmpty(t *testing.T) {
 
 	sourceServer, targetServer := fakeServers(5993, 5992)
 
@@ -199,7 +199,7 @@ func disTestOneShotReplicationGetChangesFeedEmpty(t *testing.T) {
 
 }
 
-func disTestOneShotReplicationGetRevsDiffFailed(t *testing.T) {
+func TestOneShotReplicationGetRevsDiffFailed(t *testing.T) {
 
 	sourceServer, targetServer := fakeServers(5995, 5994)
 
@@ -232,7 +232,7 @@ func disTestOneShotReplicationGetRevsDiffFailed(t *testing.T) {
 
 }
 
-func disTestOneShotReplicationGetRevsDiffHappyPath(t *testing.T) {
+func TestOneShotReplicationGetRevsDiffHappyPath(t *testing.T) {
 
 	sourceServer, targetServer := fakeServers(5997, 5996)
 
@@ -269,7 +269,7 @@ func disTestOneShotReplicationGetRevsDiffHappyPath(t *testing.T) {
 
 }
 
-func disTestOneShotReplicationBulkGetFailed(t *testing.T) {
+func TestOneShotReplicationBulkGetFailed(t *testing.T) {
 	sourceServer, targetServer := fakeServers(5999, 5998)
 
 	params := replicationParams(sourceServer.URL, targetServer.URL)
@@ -306,7 +306,7 @@ func disTestOneShotReplicationBulkGetFailed(t *testing.T) {
 
 }
 
-func disTestOneShotReplicationBulkGetHappyPath(t *testing.T) {
+func TestOneShotReplicationBulkGetHappyPath(t *testing.T) {
 
 	sourceServer, targetServer := fakeServers(6001, 6000)
 
@@ -353,7 +353,7 @@ func disTestOneShotReplicationBulkGetHappyPath(t *testing.T) {
 
 }
 
-func disTestOneShotReplicationBulkDocsFailed(t *testing.T) {
+func TestOneShotReplicationBulkDocsFailed(t *testing.T) {
 
 	sourceServer, targetServer := fakeServers(6003, 6002)
 
@@ -397,7 +397,7 @@ func disTestOneShotReplicationBulkDocsFailed(t *testing.T) {
 
 }
 
-func disTestOneShotReplicationBulkDocsHappyPath(t *testing.T) {
+func TestOneShotReplicationBulkDocsHappyPath(t *testing.T) {
 
 	sourceServer, targetServer := fakeServers(6005, 6004)
 
@@ -453,7 +453,7 @@ func disTestOneShotReplicationBulkDocsHappyPath(t *testing.T) {
 
 }
 
-func disTestOneShotReplicationPushCheckpointFailed(t *testing.T) {
+func TestOneShotReplicationPushCheckpointFailed(t *testing.T) {
 
 	sourceServer, targetServer := fakeServers(6007, 6006)
 
@@ -502,7 +502,7 @@ func disTestOneShotReplicationPushCheckpointFailed(t *testing.T) {
 
 }
 
-func disTestOneShotReplicationPushCheckpointSucceeded(t *testing.T) {
+func TestOneShotReplicationPushCheckpointSucceeded(t *testing.T) {
 
 	sourceServer, targetServer := fakeServers(6009, 6008)
 
@@ -655,7 +655,7 @@ func bogusJson() string {
 	return `{"bogus": true}`
 }
 
-func disTestGetTargetCheckpoint(t *testing.T) {
+func TestGetTargetCheckpoint(t *testing.T) {
 
 	targetServer := fakehttp.NewHTTPServerWithPort(5986)
 
@@ -694,7 +694,7 @@ func TestOneShotIntegrationReplication(t *testing.T) {
 			logg.LogTo("TEST", "Got notification %v", replicationNotification)
 			if replicationNotification.Status == REPLICATION_STOPPED {
 				logg.LogTo("TEST", "Replication stopped")
-				// return
+				return
 			}
 		case <-time.After(time.Second * 10):
 			logg.LogPanic("Timeout waiting for a notification")
