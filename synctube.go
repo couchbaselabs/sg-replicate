@@ -24,6 +24,7 @@ type Replication struct {
 	RevsDiff                RevsDiffResponseMap
 	DocumentBodies          []DocumentBody
 	PushedBulkDocs          []DocumentRevisionPair
+	LastSequencePushed      int
 }
 
 func NewReplication(params ReplicationParameters, notificationChan chan ReplicationNotification) *Replication {
@@ -62,9 +63,9 @@ func (r *Replication) processEvents() {
 
 	for state := stateFnPreStarted; state != nil; {
 		state = state(r)
+		logg.LogTo("SYNCTUBE", "new state: %v", state)
 	}
-
-	logg.LogTo("SYNC", "processEvents() is done")
+	logg.LogTo("SYNCTUBE", "processEvents() is done")
 
 }
 
@@ -86,6 +87,7 @@ func (r Replication) fetchTargetCheckpoint() {
 	req, _ := http.NewRequest("GET", destUrl, nil)
 	resp, err := client.Do(req)
 	logg.LogTo("SYNCTUBE", "resp: %v, err: %v", resp, err)
+
 	if err != nil {
 		logg.LogTo("SYNCTUBE", "Error getting checkpoint: %v", err)
 		event := NewReplicationEvent(FETCH_CHECKPOINT_FAILED)
@@ -137,6 +139,7 @@ func (r Replication) fetchTargetCheckpoint() {
 		event := NewReplicationEvent(FETCH_CHECKPOINT_SUCCEEDED)
 		event.Data = checkpoint.LastSequence
 		logg.LogTo("SYNCTUBE", "event: %v", event)
+
 		r.EventChan <- *event
 
 	} else {
@@ -169,6 +172,7 @@ func (r Replication) fetchChangesFeed() {
 	if resp.StatusCode >= 400 {
 		logg.LogTo("SYNCTUBE", "Error getting changes feed.  Resp: %v", resp)
 		event := NewReplicationEvent(FETCH_CHANGES_FEED_FAILED)
+		logg.LogTo("SYNCTUBE", "channel: %v", r.EventChan)
 		r.EventChan <- *event
 		return
 	}
@@ -430,7 +434,7 @@ func (r Replication) pushCheckpoint() {
 		return
 	}
 
-	checkpointResponse := Checkpoint{}
+	checkpointResponse := PushCheckpointResponse{}
 	decoder := json.NewDecoder(resp.Body)
 	if err = decoder.Decode(&checkpointResponse); err != nil {
 		logg.LogTo("SYNCTUBE", "Error decoding json: %v", err)
@@ -447,7 +451,6 @@ func (r Replication) pushCheckpoint() {
 	}
 
 	event := NewReplicationEvent(PUSH_CHECKPOINT_SUCCEEDED)
-	event.Data = checkpointResponse
 	r.EventChan <- *event
 
 }

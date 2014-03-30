@@ -532,7 +532,7 @@ func TestOneShotReplicationPushCheckpointSucceeded(t *testing.T) {
 	targetServer.Response(200, jsonHeaders(), fakePushCheckpointResponse(replication.targetCheckpointAddress()))
 
 	// fake second call to get checkpoint
-	// targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
 
 	replication.Start()
 
@@ -549,8 +549,6 @@ func TestOneShotReplicationPushCheckpointSucceeded(t *testing.T) {
 	waitForNotification(replication, REPLICATION_PUSHED_BULK_DOCS)
 
 	waitForNotification(replication, REPLICATION_PUSHED_CHECKPOINT)
-
-	replication.Stop()
 
 	waitForNotification(replication, REPLICATION_STOPPED)
 
@@ -610,6 +608,27 @@ func fakeBulkDocsResponse() string {
 
 func fakeEmptyChangesFeed() string {
 	return `{"results":[],"last_seq":3}`
+}
+
+func waitForNotificationAndStop(replication *Replication, expected ReplicationStatus) {
+	logg.LogTo("TEST", "Waiting for %v", expected)
+	notificationChan := replication.NotificationChan
+
+	for {
+		select {
+		case replicationNotification := <-notificationChan:
+			if replicationNotification.Status == expected {
+				logg.LogTo("TEST", "Got %v", expected)
+				replication.Stop()
+				return
+			} else {
+				logg.LogTo("TEST", "Waiting for %v but got %v, igoring", expected, replicationNotification.Status)
+			}
+		case <-time.After(time.Second * 10):
+			logg.LogPanic("Timeout waiting for %v", expected)
+		}
+	}
+
 }
 
 func waitForNotification(replication *Replication, expected ReplicationStatus) {

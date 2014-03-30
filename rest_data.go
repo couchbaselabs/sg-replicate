@@ -11,6 +11,11 @@ type Checkpoint struct {
 	Ok           bool   `json:"ok"`
 }
 
+type PushCheckpointResponse struct {
+	Id string `json:"id"`
+	Ok bool   `json:"ok"`
+}
+
 func (checkpoint Checkpoint) LastCheckpointNumeric() (i int, err error) {
 	i, err = strconv.Atoi(checkpoint.LastSequence)
 	if err != nil {
