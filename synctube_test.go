@@ -561,7 +561,7 @@ func fakePushCheckpointResponse(checkpointAddress string) string {
 }
 
 func fakeCheckpointResponse(checkpointAddress string, lastSequence int) string {
-	return fmt.Sprintf(`{"id":"_local/%s","ok":true,"rev":"0-2","lastSequence":"%v"}`, checkpointAddress, lastSequence)
+	return fmt.Sprintf(`{"_id":"_local/%s","ok":true,"rev":"0-2","lastSequence":"%v"}`, checkpointAddress, lastSequence)
 
 }
 
@@ -694,7 +694,7 @@ func TestOneShotIntegrationReplication(t *testing.T) {
 			logg.LogTo("TEST", "Got notification %v", replicationNotification)
 			if replicationNotification.Status == REPLICATION_STOPPED {
 				logg.LogTo("TEST", "Replication stopped")
-				return
+				// return
 			}
 		case <-time.After(time.Second * 10):
 			logg.LogPanic("Timeout waiting for a notification")

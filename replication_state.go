@@ -45,12 +45,13 @@ func stateFnActiveFetchCheckpoint(r *Replication) stateFn {
 		logg.LogTo("SYNCTUBE", "going to return nil state")
 		return nil
 	case FETCH_CHECKPOINT_FAILED:
+		logg.LogTo("SYNCTUBE", "FETCH_CHECKPOINT_FAILED")
 		// TODO: add details to the notification with LastError
 		notification := NewReplicationNotification(REPLICATION_STOPPED)
 		r.NotificationChan <- *notification
 		return nil
 	case FETCH_CHECKPOINT_SUCCEEDED:
-		logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchCheckpoint -> stateFnActiveFetchChangesFeed")
+
 		dataString := event.Data.(string)
 		logg.LogTo("SYNCTUBE", "event.string: %v", dataString)
 		checkpoint := Checkpoint{LastSequence: dataString}
@@ -73,7 +74,10 @@ func stateFnActiveFetchCheckpoint(r *Replication) stateFn {
 			return nil
 		} else {
 			// otherwise, keep going
+			logg.LogTo("SYNCTUBE", "call fetchChangesFeed()")
 			go r.fetchChangesFeed()
+
+			logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchCheckpoint -> stateFnActiveFetchChangesFeed")
 
 			return stateFnActiveFetchChangesFeed
 		}
