@@ -533,7 +533,10 @@ func TestOneShotReplicationPushCheckpointSucceeded(t *testing.T) {
 	// TODO: the fake server should return the last pushed checkpoint in this case
 
 	// fake second call to get checkpoint
-	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 3))
+
+	// fake second response to changes feed
+	sourceServer.Response(200, jsonHeaders(), `{"results":[],"last_seq":4}`)
 
 	replication.Start()
 

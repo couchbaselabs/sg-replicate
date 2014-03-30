@@ -60,27 +60,12 @@ func stateFnActiveFetchCheckpoint(r *Replication) stateFn {
 		notification := NewReplicationNotification(REPLICATION_FETCHED_CHECKPOINT)
 		r.NotificationChan <- *notification
 
-		// are we caught up?  if so, we're done.
-		lastSequenceFetched, err := checkpoint.LastCheckpointNumeric()
-		if err != nil {
-			logg.LogPanic("Got non-numeric checkpoint: %v", checkpoint)
-		}
-		if r.LastSequencePushed >= lastSequenceFetched {
-			logg.LogTo("SYNCTUBE", "appear to be caught up, stopping replication")
-			logg.LogTo("SYNCTUBE", "r.LastSequencePushed: %v", r.LastSequencePushed)
-			logg.LogTo("SYNCTUBE", "lastSequenceFetched: %v", lastSequenceFetched)
-			notification := NewReplicationNotification(REPLICATION_STOPPED)
-			r.NotificationChan <- *notification
-			return nil
-		} else {
-			// otherwise, keep going
-			logg.LogTo("SYNCTUBE", "call fetchChangesFeed()")
-			go r.fetchChangesFeed()
+		logg.LogTo("SYNCTUBE", "call fetchChangesFeed()")
+		go r.fetchChangesFeed()
 
-			logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchCheckpoint -> stateFnActiveFetchChangesFeed")
+		logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchCheckpoint -> stateFnActiveFetchChangesFeed")
 
-			return stateFnActiveFetchChangesFeed
-		}
+		return stateFnActiveFetchChangesFeed
 
 	default:
 		logg.LogTo("SYNCTUBE", "Unexpected event: %v", event)

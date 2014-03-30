@@ -469,12 +469,14 @@ func (r Replication) getChangesFeedUrl() string {
 
 	dbUrl := r.Parameters.getSourceDbUrl()
 	return fmt.Sprintf(
-		"%s/_changes?feed=%s&limit=%s&heartbeat=%s&style=%s",
+		"%s/_changes?feed=%s&limit=%s&heartbeat=%s&style=%s&since=%v",
 		dbUrl,
 		r.Parameters.getChangesFeedType(),
 		r.Parameters.getChangesFeedLimit(),
 		r.Parameters.getChangesFeedHeartbeat(),
-		r.Parameters.getChangesFeedStyle())
+		r.Parameters.getChangesFeedStyle(),
+		r.LastSequencePushed,
+	)
 
 }
 
