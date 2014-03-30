@@ -502,6 +502,66 @@ func TestOneShotReplicationPushCheckpointFailed(t *testing.T) {
 
 }
 
+func TestOneShotReplicationPushCheckpointSucceeded(t *testing.T) {
+
+	sourceServer, targetServer := fakeServers(6009, 6008)
+
+	params := replicationParams(sourceServer.URL, targetServer.URL)
+
+	notificationChan := make(chan ReplicationNotification)
+
+	// create a new replication and start it
+	replication := NewReplication(params, notificationChan)
+
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
+
+	// fake response to changes feed
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed())
+
+	// fake response to bulk get
+	boundary := fakeBoundary()
+	sourceServer.Response(200, jsonHeadersMultipart(boundary), fakeBulkGetResponse(boundary))
+
+	// fake response to revs_diff
+	targetServer.Response(200, jsonHeaders(), fakeRevsDiff())
+
+	// fake response to bulk docs
+	targetServer.Response(200, jsonHeaders(), fakeBulkDocsResponse())
+
+	// fake response to push checkpoint
+	targetServer.Response(200, jsonHeaders(), fakePushCheckpointResponse(replication.targetCheckpointAddress()))
+
+	// fake second call to get checkpoint
+	// targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
+
+	replication.Start()
+
+	// expect to get a replication active event
+	replicationNotification := <-notificationChan
+	assert.Equals(t, replicationNotification.Status, REPLICATION_ACTIVE)
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
+
+	waitForNotification(replication, REPLICATION_FETCHED_REVS_DIFF)
+
+	waitForNotification(replication, REPLICATION_FETCHED_BULK_GET)
+
+	waitForNotification(replication, REPLICATION_PUSHED_BULK_DOCS)
+
+	waitForNotification(replication, REPLICATION_PUSHED_CHECKPOINT)
+
+	replication.Stop()
+
+	waitForNotification(replication, REPLICATION_STOPPED)
+
+	assertNotificationChannelClosed(notificationChan)
+
+}
+
+func fakePushCheckpointResponse(checkpointAddress string) string {
+	return fmt.Sprintf(`{"id":"_local/%s","ok":true,"rev":"0-1"}`, checkpointAddress)
+}
+
 func fakeCheckpointResponse(checkpointAddress string, lastSequence int) string {
 	return fmt.Sprintf(`{"id":"_local/%s","ok":true,"rev":"0-2","lastSequence":"%v"}`, checkpointAddress, lastSequence)
 

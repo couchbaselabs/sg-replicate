@@ -430,6 +430,26 @@ func (r Replication) pushCheckpoint() {
 		return
 	}
 
+	checkpointResponse := Checkpoint{}
+	decoder := json.NewDecoder(resp.Body)
+	if err = decoder.Decode(&checkpointResponse); err != nil {
+		logg.LogTo("SYNCTUBE", "Error decoding json: %v", err)
+		event := NewReplicationEvent(PUSH_CHECKPOINT_FAILED)
+		r.EventChan <- *event
+		return
+	}
+
+	if checkpointResponse.Ok != true {
+		logg.LogTo("SYNCTUBE", "Error, checkpoint response !ok")
+		event := NewReplicationEvent(PUSH_CHECKPOINT_FAILED)
+		r.EventChan <- *event
+		return
+	}
+
+	event := NewReplicationEvent(PUSH_CHECKPOINT_SUCCEEDED)
+	event.Data = checkpointResponse
+	r.EventChan <- *event
+
 }
 
 func (r Replication) getCheckpointUrl() string {

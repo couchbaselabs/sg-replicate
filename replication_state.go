@@ -248,6 +248,17 @@ func stateFnActivePushCheckpoint(r *Replication) stateFn {
 		notification := NewReplicationNotification(REPLICATION_STOPPED)
 		r.NotificationChan <- *notification
 		return nil
+	case PUSH_CHECKPOINT_SUCCEEDED:
+		notification := NewReplicationNotification(REPLICATION_PUSHED_CHECKPOINT)
+		r.NotificationChan <- *notification
+
+		// TOOD: r.resetExtendedState()
+
+		go r.fetchTargetCheckpoint()
+
+		logg.LogTo("SYNCTUBE", "Transition from stateFnActivePushCheckpoint -> stateFnActiveFetchCheckpoint")
+		return stateFnActiveFetchCheckpoint
+
 	default:
 		logg.LogTo("SYNCTUBE", "Unexpected event: %v", event)
 	}
