@@ -430,6 +430,8 @@ func TestOneShotReplicationBulkDocsHappyPath(t *testing.T) {
 
 	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
 
+	assert.Equals(t, replication.FetchedTargetCheckpoint.Revision, "0-2")
+
 	waitForNotification(replication, REPLICATION_FETCHED_REVS_DIFF)
 
 	waitForNotification(replication, REPLICATION_FETCHED_BULK_GET)
@@ -565,7 +567,7 @@ func fakePushCheckpointResponse(checkpointAddress string) string {
 }
 
 func fakeCheckpointResponse(checkpointAddress string, lastSequence int) string {
-	return fmt.Sprintf(`{"_id":"_local/%s","ok":true,"rev":"0-2","lastSequence":"%v"}`, checkpointAddress, lastSequence)
+	return fmt.Sprintf(`{"_id":"_local/%s","ok":true,"_rev":"0-2","lastSequence":"%v"}`, checkpointAddress, lastSequence)
 
 }
 

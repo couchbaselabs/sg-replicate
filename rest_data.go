@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"github.com/couchbaselabs/logg"
 	"strconv"
+	"strings"
 )
 
 type Checkpoint struct {
 	LastSequence string `json:"lastSequence"`
+	Revision     string `json:"_rev"`
 	Id           string `json:"_id"`
 }
 
@@ -82,6 +84,7 @@ type BulkDocsRequest struct {
 
 type PushCheckpointRequest struct {
 	LastSequence string `json:"lastSequence"`
+	Revision     string `json:"_rev"`
 }
 
 func generateBulkGetRequest(revsDiff RevsDiffResponseMap) BulkGetRequest {
@@ -106,8 +109,14 @@ func generateBulkDocsRequest(documentBodies []DocumentBody) BulkDocsRequest {
 	}
 }
 
-func generatePushCheckpointRequest(changes Changes) PushCheckpointRequest {
-	return PushCheckpointRequest{
-		LastSequence: fmt.Sprintf("%v", changes.LastSequence),
+// Given "0-1", return "0-2"
+func incrementLocalRevision(previousRevision string) string {
+	components := strings.Split(previousRevision, "-")
+	secondComponent := components[1]
+	secondComponentInt, err := strconv.Atoi(secondComponent)
+	if err != nil {
+		logg.LogPanic("Error incrementing: %v error: %v", previousRevision, err)
 	}
+
+	return fmt.Sprintf("%v-%v", components[0], secondComponentInt+1)
 }

@@ -23,3 +23,8 @@ func TestGenerateRevsMap(t *testing.T) {
 	assert.Equals(t, len(revsDiffMap["doc3"]), 1)
 	logg.LogTo("TEST", "revsDiffMap: %v", revsDiffMap)
 }
+
+func TestIncrementLocalRevision(t *testing.T) {
+	assert.Equals(t, incrementLocalRevision("0-0"), "0-1")
+	assert.Equals(t, incrementLocalRevision("0-1"), "0-2")
+}

@@ -101,7 +101,7 @@ func (r Replication) fetchTargetCheckpoint() {
 		logg.LogTo("SYNCTUBE", "404 trying to get checkpoint, continue..")
 		event := NewReplicationEvent(FETCH_CHECKPOINT_SUCCEEDED)
 		checkpoint := Checkpoint{LastSequence: "0"}
-		event.Data = checkpoint.LastSequence
+		event.Data = checkpoint
 		r.EventChan <- *event
 	} else if resp.StatusCode >= 400 {
 		// we got an error, lets abort
@@ -138,7 +138,7 @@ func (r Replication) fetchTargetCheckpoint() {
 		}
 		logg.LogTo("SYNCTUBE", "checkpoint: %v", checkpoint.LastSequence)
 		event := NewReplicationEvent(FETCH_CHECKPOINT_SUCCEEDED)
-		event.Data = checkpoint.LastSequence
+		event.Data = checkpoint
 		logg.LogTo("SYNCTUBE", "event: %v", event)
 
 		r.EventChan <- *event
@@ -391,13 +391,21 @@ func (r Replication) pushBulkDocs() {
 
 }
 
+func (r Replication) generatePushCheckpointRequest() PushCheckpointRequest {
+	newRevision := incrementLocalRevision(r.FetchedTargetCheckpoint.Revision)
+	return PushCheckpointRequest{
+		LastSequence: fmt.Sprintf("%v", r.Changes.LastSequence),
+		Revision:     newRevision,
+	}
+}
+
 func (r Replication) pushCheckpoint() {
 
 	transport := r.getTransport()
 	defer transport.Close()
 
 	checkpointUrl := r.getCheckpointUrl()
-	pushCheckpointRequest := generatePushCheckpointRequest(r.Changes)
+	pushCheckpointRequest := r.generatePushCheckpointRequest()
 	logg.LogTo("SYNCTUBE", "pushCheckpointRequest %v", pushCheckpointRequest)
 	logg.LogTo("SYNCTUBE", "r.Changes %v", r.Changes)
 	logg.LogTo("SYNCTUBE", "r.Changes.LastSequence %v", r.Changes.LastSequence)
