@@ -476,11 +476,16 @@ func (r Replication) getChangesFeedUrl() string {
 		r.Parameters.getChangesFeedStyle(),
 	)
 
+	checkpoint, err := r.FetchedTargetCheckpoint.LastCheckpointNumeric()
+	if err != nil {
+		logg.LogPanic("got non-numeric checkpoint: %v", r.FetchedTargetCheckpoint)
+	}
+
 	if r.LastSequencePushed > 0 {
 		changesFeedUrl = fmt.Sprintf(
 			"%s&since=%v",
 			changesFeedUrl,
-			r.LastSequencePushed,
+			checkpoint,
 		)
 	}
 
