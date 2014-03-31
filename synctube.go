@@ -25,6 +25,7 @@ type Replication struct {
 	DocumentBodies          []DocumentBody
 	PushedBulkDocs          []DocumentRevisionPair
 	LastSequencePushed      int
+	LastError               *ReplicationError
 }
 
 func NewReplication(params ReplicationParameters, notificationChan chan ReplicationNotification) *Replication {
@@ -405,6 +406,7 @@ func (r Replication) pushCheckpoint() {
 	defer transport.Close()
 
 	checkpointUrl := r.getCheckpointUrl()
+	logg.LogTo("SYNCTUBE", "calling pushCheckpointRequest. r.FetchedTargetCheckpoint: %v", r.FetchedTargetCheckpoint)
 	pushCheckpointRequest := r.generatePushCheckpointRequest()
 	logg.LogTo("SYNCTUBE", "pushCheckpointRequest %v", pushCheckpointRequest)
 	logg.LogTo("SYNCTUBE", "r.Changes %v", r.Changes)

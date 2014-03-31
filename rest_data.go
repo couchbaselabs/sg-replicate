@@ -18,6 +18,20 @@ type PushCheckpointResponse struct {
 	Ok bool   `json:"ok"`
 }
 
+type ReplicationError struct {
+	Description string
+}
+
+func (replicationError ReplicationError) String() string {
+	return replicationError.Description
+}
+
+func NewReplicationError(description string) *ReplicationError {
+	return &ReplicationError{
+		Description: description,
+	}
+}
+
 func (checkpoint Checkpoint) LastCheckpointNumeric() (i int, err error) {
 	i, err = strconv.Atoi(checkpoint.LastSequence)
 	if err != nil {
@@ -111,6 +125,9 @@ func generateBulkDocsRequest(documentBodies []DocumentBody) BulkDocsRequest {
 
 // Given "0-1", return "0-2"
 func incrementLocalRevision(previousRevision string) string {
+	if len(previousRevision) == 0 {
+		return "0-1"
+	}
 	components := strings.Split(previousRevision, "-")
 	secondComponent := components[1]
 	secondComponentInt, err := strconv.Atoi(secondComponent)
@@ -118,5 +135,7 @@ func incrementLocalRevision(previousRevision string) string {
 		logg.LogPanic("Error incrementing: %v error: %v", previousRevision, err)
 	}
 
-	return fmt.Sprintf("%v-%v", components[0], secondComponentInt+1)
+	// introduce error so that unit tests can be enhanced to catch it
+	// return fmt.Sprintf("%v-%v", components[0], secondComponentInt+1)
+	return fmt.Sprintf("%v-%v", components[0], secondComponentInt)
 }

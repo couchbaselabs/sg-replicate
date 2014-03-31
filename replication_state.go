@@ -249,6 +249,9 @@ func stateFnActivePushCheckpoint(r *Replication) stateFn {
 		r.NotificationChan <- *notification
 		return nil
 	case PUSH_CHECKPOINT_FAILED:
+
+		r.LastError = NewReplicationError("PUSH_CHECKPOINT_FAILED")
+
 		notification := NewReplicationNotification(REPLICATION_STOPPED)
 		r.NotificationChan <- *notification
 		return nil

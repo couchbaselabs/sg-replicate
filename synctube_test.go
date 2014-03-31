@@ -438,19 +438,11 @@ func TestOneShotReplicationBulkDocsHappyPath(t *testing.T) {
 
 	waitForNotification(replication, REPLICATION_PUSHED_BULK_DOCS)
 
-	logg.LogTo("TEST", "calling stop()")
-
 	replication.Stop()
-
-	logg.LogTo("TEST", "called stop(), wait for STOPPED")
 
 	waitForNotification(replication, REPLICATION_STOPPED)
 
-	logg.LogTo("TEST", "got STOPPED, wait for channel closed")
-
 	assertNotificationChannelClosed(notificationChan)
-
-	logg.LogTo("TEST", "channel closed")
 
 }
 
@@ -559,6 +551,16 @@ func TestOneShotReplicationPushCheckpointSucceeded(t *testing.T) {
 	waitForNotification(replication, REPLICATION_STOPPED)
 
 	assertNotificationChannelClosed(notificationChan)
+
+	for _, savedReq := range targetServer.SavedRequests {
+		logg.LogTo("TEST", "tgt savedReq: %v", savedReq.Request)
+		logg.LogTo("TEST", "savedReq body: %v", string(savedReq.Data))
+	}
+
+	for _, savedReq := range sourceServer.SavedRequests {
+		logg.LogTo("TEST", "src savedReq: %v", savedReq.Request)
+		logg.LogTo("TEST", "savedReq body: %v", string(savedReq.Data))
+	}
 
 }
 
@@ -700,6 +702,7 @@ func TestOneShotIntegrationReplication(t *testing.T) {
 			logg.LogTo("TEST", "Got notification %v", replicationNotification)
 			if replicationNotification.Status == REPLICATION_STOPPED {
 				logg.LogTo("TEST", "Replication stopped")
+				assert.True(t, replication.LastError == nil)
 				return
 			}
 		case <-time.After(time.Second * 10):
