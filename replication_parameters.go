@@ -25,7 +25,7 @@ func (params ReplicationParameters) getTargetDbUrl() string {
 }
 
 func (params ReplicationParameters) getChangesFeedType() string {
-	return "longpoll"
+	return "normal"
 }
 
 func (params ReplicationParameters) getChangesFeedLimit() string {
