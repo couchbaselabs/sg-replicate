@@ -652,8 +652,6 @@ func TestOneShotReplicationHappyPath(t *testing.T) {
 
 	assertNotificationChannelClosed(notificationChan)
 
-	// TODO: make assertions about since param
-
 	putCheckpointRequestIndex := 0
 	for _, savedReq := range targetServer.SavedRequests {
 
@@ -694,6 +692,46 @@ func TestOneShotReplicationHappyPath(t *testing.T) {
 				assert.True(t, len(params["since"]) > 0)
 			}
 			getChangesRequestIndex += 1
+		}
+	}
+
+}
+
+func TestOneShotIntegrationReplication(t *testing.T) {
+
+	sourceServerUrlStr := "http://localhost:4984"
+	targetServerUrlStr := "http://localhost:4986"
+
+	sourceServerUrl, err := url.Parse(sourceServerUrlStr)
+	if err != nil {
+		logg.LogPanic("could not parse url: %v", sourceServerUrlStr)
+	}
+
+	targetServerUrl, err := url.Parse(targetServerUrlStr)
+	if err != nil {
+		logg.LogPanic("could not parse url: %v", targetServerUrlStr)
+	}
+	params := replicationParams(sourceServerUrl, targetServerUrl)
+
+	notificationChan := make(chan ReplicationNotification)
+
+	replication := NewReplication(params, notificationChan)
+	replication.Start()
+
+	for {
+		select {
+		case replicationNotification := <-notificationChan:
+			logg.LogTo("TEST", "Got notification %v", replicationNotification)
+			if replicationNotification.Status == REPLICATION_ABORTED {
+				logg.LogPanic("Got REPLICATION_ABORTED")
+				return
+			}
+			if replicationNotification.Status == REPLICATION_STOPPED {
+				logg.LogTo("TEST", "Replication stopped")
+				return
+			}
+		case <-time.After(time.Second * 10):
+			logg.LogPanic("Timeout waiting for a notification")
 		}
 	}
 
@@ -843,46 +881,6 @@ func TestGetTargetCheckpoint(t *testing.T) {
 	replication := NewReplication(params, nil)
 	targetCheckpoint := replication.targetCheckpointAddress()
 	logg.LogTo("TEST", "checkpoint: %v", targetCheckpoint)
-
-}
-
-func DISTestOneShotIntegrationReplication(t *testing.T) {
-
-	sourceServerUrlStr := "http://localhost:4984"
-	targetServerUrlStr := "http://localhost:4986"
-
-	sourceServerUrl, err := url.Parse(sourceServerUrlStr)
-	if err != nil {
-		logg.LogPanic("could not parse url: %v", sourceServerUrlStr)
-	}
-
-	targetServerUrl, err := url.Parse(targetServerUrlStr)
-	if err != nil {
-		logg.LogPanic("could not parse url: %v", targetServerUrlStr)
-	}
-	params := replicationParams(sourceServerUrl, targetServerUrl)
-
-	notificationChan := make(chan ReplicationNotification)
-
-	replication := NewReplication(params, notificationChan)
-	replication.Start()
-
-	for {
-		select {
-		case replicationNotification := <-notificationChan:
-			logg.LogTo("TEST", "Got notification %v", replicationNotification)
-			if replicationNotification.Status == REPLICATION_ABORTED {
-				logg.LogPanic("Got REPLICATION_ABORTED")
-				return
-			}
-			if replicationNotification.Status == REPLICATION_STOPPED {
-				logg.LogTo("TEST", "Replication stopped")
-				return
-			}
-		case <-time.After(time.Second * 10):
-			logg.LogPanic("Timeout waiting for a notification")
-		}
-	}
 
 }
 
