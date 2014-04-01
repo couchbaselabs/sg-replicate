@@ -41,13 +41,13 @@ func stateFnActiveFetchCheckpoint(r *Replication) stateFn {
 	switch event.Signal {
 	case REPLICATION_STOP:
 		notification := NewReplicationNotification(REPLICATION_STOPPED)
+		logg.LogTo("SYNCTUBE", "stateFnActiveFetchCheckpoint: %v", notification)
 		r.NotificationChan <- *notification
 		logg.LogTo("SYNCTUBE", "going to return nil state")
 		return nil
 	case FETCH_CHECKPOINT_FAILED:
-		logg.LogTo("SYNCTUBE", "FETCH_CHECKPOINT_FAILED")
-		// TODO: add details to the notification with LastError
-		notification := NewReplicationNotification(REPLICATION_STOPPED)
+		notification := NewReplicationNotification(REPLICATION_ABORTED)
+		notification.Error = NewReplicationError(FETCH_CHECKPOINT_FAILED)
 		r.NotificationChan <- *notification
 		return nil
 	case FETCH_CHECKPOINT_SUCCEEDED:
@@ -81,10 +81,12 @@ func stateFnActiveFetchChangesFeed(r *Replication) stateFn {
 	switch event.Signal {
 	case REPLICATION_STOP:
 		notification := NewReplicationNotification(REPLICATION_STOPPED)
+		logg.LogTo("SYNCTUBE", "stateFnActiveFetchChangesFeed: %v", notification)
 		r.NotificationChan <- *notification
 		return nil
 	case FETCH_CHANGES_FEED_FAILED:
-		notification := NewReplicationNotification(REPLICATION_STOPPED)
+		notification := NewReplicationNotification(REPLICATION_ABORTED)
+		notification.Error = NewReplicationError(FETCH_CHECKPOINT_FAILED)
 		r.NotificationChan <- *notification
 		return nil
 	case FETCH_CHANGES_FEED_SUCCEEDED:
@@ -97,6 +99,7 @@ func stateFnActiveFetchChangesFeed(r *Replication) stateFn {
 		if len(r.Changes.Results) == 0 {
 			// nothing to do, so stop
 			notification := NewReplicationNotification(REPLICATION_STOPPED)
+			logg.LogTo("SYNCTUBE", "stateFnActiveFetchChangesFeed: %v", notification)
 			r.NotificationChan <- *notification
 			return nil
 		} else {
@@ -123,10 +126,12 @@ func stateFnActiveFetchRevDiffs(r *Replication) stateFn {
 	switch event.Signal {
 	case REPLICATION_STOP:
 		notification := NewReplicationNotification(REPLICATION_STOPPED)
+		logg.LogTo("SYNCTUBE", "stateFnActiveFetchRevDiffs: %v", notification)
 		r.NotificationChan <- *notification
 		return nil
 	case FETCH_REVS_DIFF_FAILED:
-		notification := NewReplicationNotification(REPLICATION_STOPPED)
+		notification := NewReplicationNotification(REPLICATION_ABORTED)
+		notification.Error = NewReplicationError(FETCH_REVS_DIFF_FAILED)
 		r.NotificationChan <- *notification
 		return nil
 	case FETCH_REVS_DIFF_SUCCEEDED:
@@ -137,8 +142,8 @@ func stateFnActiveFetchRevDiffs(r *Replication) stateFn {
 		r.NotificationChan <- *notification
 
 		if len(r.RevsDiff) == 0 {
-			// nothing to do, so stop
 			notification := NewReplicationNotification(REPLICATION_STOPPED)
+			logg.LogTo("SYNCTUBE", "stateFnActiveFetchRevDiffs: %v", notification)
 			r.NotificationChan <- *notification
 			return nil
 		} else {
@@ -164,10 +169,12 @@ func stateFnActiveFetchBulkGet(r *Replication) stateFn {
 	switch event.Signal {
 	case REPLICATION_STOP:
 		notification := NewReplicationNotification(REPLICATION_STOPPED)
+		logg.LogTo("SYNCTUBE", "stateFnActiveFetchBulkGet: %v", notification)
 		r.NotificationChan <- *notification
 		return nil
 	case FETCH_BULK_GET_FAILED:
-		notification := NewReplicationNotification(REPLICATION_STOPPED)
+		notification := NewReplicationNotification(REPLICATION_ABORTED)
+		notification.Error = NewReplicationError(FETCH_BULK_GET_FAILED)
 		r.NotificationChan <- *notification
 		return nil
 	case FETCH_BULK_GET_SUCCEEDED:
@@ -176,8 +183,8 @@ func stateFnActiveFetchBulkGet(r *Replication) stateFn {
 		r.NotificationChan <- *notification
 
 		if len(r.DocumentBodies) == 0 {
-			// nothing to do, so stop
 			notification := NewReplicationNotification(REPLICATION_STOPPED)
+			logg.LogTo("SYNCTUBE", "stateFnActiveFetchBulkGet: %v", notification)
 			r.NotificationChan <- *notification
 			return nil
 		} else {
@@ -204,10 +211,12 @@ func stateFnActivePushBulkDocs(r *Replication) stateFn {
 	switch event.Signal {
 	case REPLICATION_STOP:
 		notification := NewReplicationNotification(REPLICATION_STOPPED)
+		logg.LogTo("SYNCTUBE", "stateFnActivePushBulkDocs: %v", notification)
 		r.NotificationChan <- *notification
 		return nil
 	case PUSH_BULK_DOCS_FAILED:
-		notification := NewReplicationNotification(REPLICATION_STOPPED)
+		notification := NewReplicationNotification(REPLICATION_ABORTED)
+		notification.Error = NewReplicationError(PUSH_BULK_DOCS_FAILED)
 		r.NotificationChan <- *notification
 		return nil
 	case PUSH_BULK_DOCS_SUCCEEDED:
@@ -218,9 +227,8 @@ func stateFnActivePushBulkDocs(r *Replication) stateFn {
 		r.NotificationChan <- *notification
 
 		if len(r.PushedBulkDocs) == 0 {
-			// nothing to do, so stop
-			logg.LogTo("SYNCTUBE", "nothing to do, so stop")
 			notification := NewReplicationNotification(REPLICATION_STOPPED)
+			logg.LogTo("SYNCTUBE", "stateFnActivePushBulkDocs: %v", notification)
 			r.NotificationChan <- *notification
 			return nil
 		} else {
@@ -246,13 +254,12 @@ func stateFnActivePushCheckpoint(r *Replication) stateFn {
 	switch event.Signal {
 	case REPLICATION_STOP:
 		notification := NewReplicationNotification(REPLICATION_STOPPED)
+		logg.LogTo("SYNCTUBE", "stateFnActivePushCheckpoint: %v", notification)
 		r.NotificationChan <- *notification
 		return nil
 	case PUSH_CHECKPOINT_FAILED:
-
-		r.LastError = NewReplicationError("PUSH_CHECKPOINT_FAILED")
-
-		notification := NewReplicationNotification(REPLICATION_STOPPED)
+		notification := NewReplicationNotification(REPLICATION_ABORTED)
+		notification.Error = NewReplicationError(PUSH_CHECKPOINT_FAILED)
 		r.NotificationChan <- *notification
 		return nil
 	case PUSH_CHECKPOINT_SUCCEEDED:

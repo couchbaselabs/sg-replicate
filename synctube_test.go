@@ -63,7 +63,9 @@ func TestOneShotReplicationGetCheckpointFailed(t *testing.T) {
 	// since the attempt to get the checkpoint from the target
 	// server will fail, expect to get a replication stopped event
 	replicationNotification = <-notificationChan
-	assert.Equals(t, replicationNotification.Status, REPLICATION_STOPPED)
+
+	assert.Equals(t, replicationNotification.Status, REPLICATION_ABORTED)
+	assert.True(t, replicationNotification.Error != nil)
 
 	assertNotificationChannelClosed(notificationChan)
 
@@ -122,7 +124,7 @@ func TestOneShotReplicationGetChangesFeedFailed(t *testing.T) {
 
 	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
 
-	waitForNotification(replication, REPLICATION_STOPPED)
+	waitForNotification(replication, REPLICATION_ABORTED)
 
 	assertNotificationChannelClosed(notificationChan)
 
@@ -225,8 +227,7 @@ func TestOneShotReplicationGetRevsDiffFailed(t *testing.T) {
 
 	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
 
-	waitForNotification(replication, REPLICATION_STOPPED)
-
+	waitForNotification(replication, REPLICATION_ABORTED)
 	assertNotificationChannelClosed(notificationChan)
 
 }
@@ -299,7 +300,7 @@ func TestOneShotReplicationBulkGetFailed(t *testing.T) {
 
 	waitForNotification(replication, REPLICATION_FETCHED_REVS_DIFF)
 
-	waitForNotification(replication, REPLICATION_STOPPED)
+	waitForNotification(replication, REPLICATION_ABORTED)
 
 	assertNotificationChannelClosed(notificationChan)
 
@@ -390,7 +391,7 @@ func TestOneShotReplicationBulkDocsFailed(t *testing.T) {
 
 	waitForNotification(replication, REPLICATION_FETCHED_BULK_GET)
 
-	waitForNotification(replication, REPLICATION_STOPPED)
+	waitForNotification(replication, REPLICATION_ABORTED)
 
 	assertNotificationChannelClosed(notificationChan)
 
@@ -489,7 +490,7 @@ func TestOneShotReplicationPushCheckpointFailed(t *testing.T) {
 
 	waitForNotification(replication, REPLICATION_PUSHED_BULK_DOCS)
 
-	waitForNotification(replication, REPLICATION_STOPPED)
+	waitForNotification(replication, REPLICATION_ABORTED)
 
 	assertNotificationChannelClosed(notificationChan)
 
@@ -645,13 +646,24 @@ func waitForNotification(replication *Replication, expected ReplicationStatus) {
 
 	for {
 		select {
-		case replicationNotification := <-notificationChan:
+		case replicationNotification, ok := <-notificationChan:
+			if !ok {
+				logg.LogPanic("TEST", "notifictionChan appears to be closed")
+				return
+			}
+			if replicationNotification.Status == REPLICATION_ABORTED {
+
+				if replicationNotification.Error == nil {
+					logg.LogPanic("TEST", "expected replicationNotification.Error != nil")
+				}
+			}
 			if replicationNotification.Status == expected {
 				logg.LogTo("TEST", "Got %v", expected)
 				return
 			} else {
 				logg.LogTo("TEST", "Waiting for %v but got %v, igoring", expected, replicationNotification.Status)
 			}
+
 		case <-time.After(time.Second * 10):
 			logg.LogPanic("Timeout waiting for %v", expected)
 		}
@@ -700,9 +712,12 @@ func TestOneShotIntegrationReplication(t *testing.T) {
 		select {
 		case replicationNotification := <-notificationChan:
 			logg.LogTo("TEST", "Got notification %v", replicationNotification)
+			if replicationNotification.Status == REPLICATION_ABORTED {
+				logg.LogPanic("Got REPLICATION_ABORTED")
+				return
+			}
 			if replicationNotification.Status == REPLICATION_STOPPED {
 				logg.LogTo("TEST", "Replication stopped")
-				assert.True(t, replication.LastError == nil)
 				return
 			}
 		case <-time.After(time.Second * 10):

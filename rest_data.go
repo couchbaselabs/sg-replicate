@@ -19,16 +19,12 @@ type PushCheckpointResponse struct {
 }
 
 type ReplicationError struct {
-	Description string
+	ReplicationEventSignal ReplicationEventSignal
 }
 
-func (replicationError ReplicationError) String() string {
-	return replicationError.Description
-}
-
-func NewReplicationError(description string) *ReplicationError {
+func NewReplicationError(eventSignal ReplicationEventSignal) *ReplicationError {
 	return &ReplicationError{
-		Description: description,
+		ReplicationEventSignal: eventSignal,
 	}
 }
 

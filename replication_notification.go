@@ -3,7 +3,9 @@ package synctube
 type ReplicationStatus int
 
 const (
-	REPLICATION_STOPPED = ReplicationStatus(iota)
+	REPLICATION_UNKNOWN_STATUS = ReplicationStatus(iota)
+	REPLICATION_STOPPED
+	REPLICATION_ABORTED
 	REPLICATION_PAUSED
 	REPLICATION_IDLE
 	REPLICATION_ACTIVE
@@ -17,11 +19,43 @@ const (
 
 type ReplicationNotification struct {
 	Status ReplicationStatus
-	// could have other stuff associated w/ notification
+	Error  *ReplicationError
 }
 
 func NewReplicationNotification(status ReplicationStatus) *ReplicationNotification {
 	return &ReplicationNotification{
 		Status: status,
 	}
+}
+
+func (status ReplicationStatus) String() string {
+	switch status {
+	case REPLICATION_UNKNOWN_STATUS:
+		return "REPLICATION_UNKNOWN_STATUS"
+	case REPLICATION_STOPPED:
+		return "REPLICATION_STOPPED"
+	case REPLICATION_ABORTED:
+		return "REPLICATION_ABORTED"
+	case REPLICATION_PAUSED:
+		return "REPLICATION_PAUSED"
+	case REPLICATION_IDLE:
+		return "REPLICATION_IDLE"
+	case REPLICATION_ACTIVE:
+		return "REPLICATION_ACTIVE"
+	case REPLICATION_FETCHED_CHECKPOINT:
+		return "REPLICATION_FETCHED_CHECKPOINT"
+	case REPLICATION_FETCHED_CHANGES_FEED:
+		return "REPLICATION_FETCHED_CHANGES_FEED"
+	case REPLICATION_FETCHED_REVS_DIFF:
+		return "REPLICATION_FETCHED_REVS_DIFF"
+	case REPLICATION_FETCHED_BULK_GET:
+		return "REPLICATION_FETCHED_BULK_GET"
+	case REPLICATION_PUSHED_BULK_DOCS:
+		return "REPLICATION_PUSHED_BULK_DOCS"
+	case REPLICATION_PUSHED_CHECKPOINT:
+		return "REPLICATION_PUSHED_CHECKPOINT"
+
+	}
+	return "ERROR_RESOLVING_REPLICATION_STATUS"
+
 }

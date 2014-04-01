@@ -25,7 +25,6 @@ type Replication struct {
 	DocumentBodies          []DocumentBody
 	PushedBulkDocs          []DocumentRevisionPair
 	LastSequencePushed      int
-	LastError               *ReplicationError
 }
 
 func NewReplication(params ReplicationParameters, notificationChan chan ReplicationNotification) *Replication {
@@ -260,6 +259,7 @@ func (r Replication) fetchBulkGet() {
 	defer transport.Close()
 
 	bulkGetUrl := r.getBulkGetUrl()
+	logg.LogTo("SYNCTUBE", "bulkGetUrl %v", bulkGetUrl)
 	bulkGetRequest := generateBulkGetRequest(r.RevsDiff)
 
 	bulkGetRequestJson, err := json.Marshal(bulkGetRequest)
@@ -272,6 +272,7 @@ func (r Replication) fetchBulkGet() {
 	}
 
 	req, err := http.NewRequest("POST", bulkGetUrl, bytes.NewReader(bulkGetRequestJson))
+	logg.LogTo("SYNCTUBE", "bulkGet req %v", req)
 	if err != nil {
 		logg.LogTo("SYNCTUBE", "Error creating request %v", bulkGetRequestJson)
 		logg.LogError(err)
@@ -316,7 +317,11 @@ func (r Replication) fetchBulkGet() {
 			break
 		}
 		documentBody := DocumentBody{}
+		// bytes, _ := ioutil.ReadAll(mainPart)
+		// bodyString := string(bytes)
+		// logg.LogTo("SYNCTUBE", "bodyString: %v", bodyString)
 		decoder := json.NewDecoder(mainPart)
+
 		if err = decoder.Decode(&documentBody); err != nil {
 			logg.LogTo("SYNCTUBE", "Error decoding part: %v", err)
 			event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
