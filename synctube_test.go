@@ -575,6 +575,85 @@ func TestOneShotReplicationPushCheckpointSucceeded(t *testing.T) {
 
 }
 
+func TestOneShotReplicationHappyPath(t *testing.T) {
+
+	sourceServer, targetServer := fakeServers(6011, 6010)
+
+	params := replicationParams(sourceServer.URL, targetServer.URL)
+
+	notificationChan := make(chan ReplicationNotification)
+
+	// create a new replication and start it
+	replication := NewReplication(params, notificationChan)
+
+	// fake response to get checkpoint
+	targetServer.Response(404, jsonHeaders(), bogusJson())
+
+	// fake response to changes feed
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed())
+
+	// fake response to bulk get
+	boundary := fakeBoundary()
+	sourceServer.Response(200, jsonHeadersMultipart(boundary), fakeBulkGetResponse(boundary))
+
+	// fake response to revs_diff
+	targetServer.Response(200, jsonHeaders(), fakeRevsDiff())
+
+	// fake response to bulk docs
+	targetServer.Response(200, jsonHeaders(), fakeBulkDocsResponse())
+
+	// fake response to push checkpoint
+	targetServer.Response(200, jsonHeaders(), fakePushCheckpointResponse(replication.targetCheckpointAddress()))
+
+	// TODO: the fake server should return the last pushed checkpoint in this case
+	// rather than hardcoding to 3
+
+	// fake second call to get checkpoint
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 3))
+
+	// fake second response to changes feed
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed2())
+
+	// fake second reponse to bulk get
+	sourceServer.Response(200, jsonHeadersMultipart(boundary), fakeBulkGetResponse2(boundary))
+
+	// fake second response to revs_diff
+	targetServer.Response(200, jsonHeaders(), fakeRevsDiff2())
+
+	// fake second response to bulk docs
+	targetServer.Response(200, jsonHeaders(), fakeBulkDocsResponse2())
+
+	// fake second response to push checkpoint
+	targetServer.Response(200, jsonHeaders(), fakePushCheckpointResponse(replication.targetCheckpointAddress()))
+
+	// fake third response to get checkpoint
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 4))
+
+	// fake third response to changes feed
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeedEmpty())
+
+	replication.Start()
+
+	// expect to get a replication active event
+	replicationNotification := <-notificationChan
+	assert.Equals(t, replicationNotification.Status, REPLICATION_ACTIVE)
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
+
+	waitForNotification(replication, REPLICATION_FETCHED_REVS_DIFF)
+
+	waitForNotification(replication, REPLICATION_FETCHED_BULK_GET)
+
+	waitForNotification(replication, REPLICATION_PUSHED_BULK_DOCS)
+
+	waitForNotification(replication, REPLICATION_PUSHED_CHECKPOINT)
+
+	waitForNotification(replication, REPLICATION_STOPPED)
+
+	assertNotificationChannelClosed(notificationChan)
+
+}
+
 func fakePushCheckpointResponse(checkpointAddress string) string {
 	return fmt.Sprintf(`{"id":"_local/%s","ok":true,"rev":"0-1"}`, checkpointAddress)
 }
@@ -601,11 +680,23 @@ func assertNotificationChannelClosed(notificationChan chan ReplicationNotificati
 }
 
 func fakeChangesFeed() string {
-	return `{"results":[{"seq":2,"id":"doc2","changes":[{"rev":"1-5e38"}]},{"seq":3,"id":"doc3","changes":[{"rev":"1-563b"}]},{"seq":4,"id":"doc4","changes":[{"rev":"1-786e"}]}],"last_seq":4}`
+	return `{"results":[{"seq":2,"id":"doc2","changes":[{"rev":"1-5e38"}]},{"seq":3,"id":"doc3","changes":[{"rev":"1-563b"}]}],"last_seq":3}`
+}
+
+func fakeChangesFeed2() string {
+	return `{"results":[{"seq":4,"id":"doc4","changes":[{"rev":"1-786e"}]}],"last_seq":4}`
+}
+
+func fakeChangesFeedEmpty() string {
+	return `{"results":[]}`
 }
 
 func fakeRevsDiff() string {
 	return `{"doc2":{"missing":["1-5e38"]}}`
+}
+
+func fakeRevsDiff2() string {
+	return `{"doc4":{"missing":["1-786e"]}}`
 }
 
 func fakeBoundary() string {
@@ -621,8 +712,21 @@ Content-Type: application/json
 `, boundary, boundary)
 }
 
+func fakeBulkGetResponse2(boundary string) string {
+	return fmt.Sprintf(`--%s
+Content-Type: application/json
+
+{"_id":"doc4","_rev":"1-786e","_revisions":{"ids":["786e"],"start":1},"fakefield1":true,"fakefield2":3, "fakefield3":"woof"}
+--%s--
+`, boundary, boundary)
+}
+
 func fakeBulkDocsResponse() string {
 	return `[{"id":"doc2","rev":"1-5e38"}]`
+}
+
+func fakeBulkDocsResponse2() string {
+	return `[{"id":"doc4","rev":"1-786e"}]`
 }
 
 func fakeEmptyChangesFeed() string {
@@ -697,7 +801,7 @@ func TestGetTargetCheckpoint(t *testing.T) {
 
 }
 
-func TestOneShotIntegrationReplication(t *testing.T) {
+func DISTestOneShotIntegrationReplication(t *testing.T) {
 
 	sourceServerUrlStr := "http://localhost:4984"
 	targetServerUrlStr := "http://localhost:4986"
