@@ -654,12 +654,8 @@ func TestOneShotReplicationHappyPath(t *testing.T) {
 
 	// TODO: make assertions about since param
 
-	// TODO: make assertions about the push checkpoint rev changing
-
 	putCheckpointRequestIndex := 0
 	for _, savedReq := range targetServer.SavedRequests {
-		logg.LogTo("TEST", "tgt req: %v", savedReq.Request)
-		logg.LogTo("TEST", "tgt req.Data: %v", string(savedReq.Data))
 
 		path := savedReq.Request.URL.Path
 		if strings.Contains(path, "/db/_local") {
@@ -688,9 +684,17 @@ func TestOneShotReplicationHappyPath(t *testing.T) {
 
 	}
 
+	getChangesRequestIndex := 0
 	for _, savedReq := range sourceServer.SavedRequests {
-		logg.LogTo("TEST", "src req: %v", savedReq.Request)
-		logg.LogTo("TEST", "src req.Data: %v", string(savedReq.Data))
+		path := savedReq.Request.URL.Path
+		if strings.Contains(path, "/db/_changes") {
+			params, err := url.ParseQuery(savedReq.Request.URL.RawQuery)
+			assert.True(t, err == nil)
+			if getChangesRequestIndex > 0 {
+				assert.True(t, len(params["since"]) > 0)
+			}
+			getChangesRequestIndex += 1
+		}
 	}
 
 }
