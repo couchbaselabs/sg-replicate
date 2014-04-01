@@ -1,10 +1,8 @@
 package synctube
 
 import (
-	"fmt"
 	"github.com/couchbaselabs/logg"
 	"strconv"
-	"strings"
 )
 
 type Checkpoint struct {
@@ -121,21 +119,4 @@ func generateBulkDocsRequest(documentBodies []DocumentBody) BulkDocsRequest {
 		NewEdits:       false,
 		DocumentBodies: documentBodies,
 	}
-}
-
-// Given "0-1", return "0-2"
-func incrementLocalRevision(previousRevision string) string {
-	if len(previousRevision) == 0 {
-		return "0-1"
-	}
-	components := strings.Split(previousRevision, "-")
-	secondComponent := components[1]
-	secondComponentInt, err := strconv.Atoi(secondComponent)
-	if err != nil {
-		logg.LogPanic("Error incrementing: %v error: %v", previousRevision, err)
-	}
-
-	// introduce error so that unit tests can be enhanced to catch it
-	// return fmt.Sprintf("%v-%v", components[0], secondComponentInt+1)
-	return fmt.Sprintf("%v-%v", components[0], secondComponentInt)
 }

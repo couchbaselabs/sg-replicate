@@ -158,7 +158,7 @@ func TestOneShotReplicationGetChangesFeedHappyPath(t *testing.T) {
 	waitForNotification(replication, REPLICATION_FETCHED_CHANGES_FEED)
 
 	changes := replication.Changes
-	assert.Equals(t, len(changes.Results), 3)
+	assert.Equals(t, len(changes.Results), 2)
 
 	replication.Stop()
 
@@ -433,7 +433,7 @@ func TestOneShotReplicationBulkDocsHappyPath(t *testing.T) {
 
 	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
 
-	assert.Equals(t, replication.FetchedTargetCheckpoint.Revision, "0-2")
+	assert.Equals(t, replication.FetchedTargetCheckpoint.Revision, "0-1")
 
 	waitForNotification(replication, REPLICATION_FETCHED_REVS_DIFF)
 
@@ -652,6 +652,47 @@ func TestOneShotReplicationHappyPath(t *testing.T) {
 
 	assertNotificationChannelClosed(notificationChan)
 
+	// TODO: make assertions about since param
+
+	// TODO: make assertions about the push checkpoint rev changing
+
+	putCheckpointRequestIndex := 0
+	for _, savedReq := range targetServer.SavedRequests {
+		logg.LogTo("TEST", "tgt req: %v", savedReq.Request)
+		logg.LogTo("TEST", "tgt req.Data: %v", string(savedReq.Data))
+
+		path := savedReq.Request.URL.Path
+		if strings.Contains(path, "/db/_local") {
+			if savedReq.Request.Method == "PUT" {
+
+				pushCheckpointRequest := PushCheckpointRequest{}
+				err := json.Unmarshal(savedReq.Data, &pushCheckpointRequest)
+				assert.True(t, err == nil)
+
+				if putCheckpointRequestIndex == 0 {
+					// since the checkpoint response above was a 404,
+					// the first time we push a checkpoint there should be no
+					// revision field.
+					assert.True(t, len(pushCheckpointRequest.Revision) == 0)
+
+				} else if putCheckpointRequestIndex == 1 {
+					// since second fake checkpoint is "0-1", expect
+					// to push with "0-1" as rev
+					assert.True(t, pushCheckpointRequest.Revision == "0-1")
+
+				}
+				putCheckpointRequestIndex += 1
+
+			}
+		}
+
+	}
+
+	for _, savedReq := range sourceServer.SavedRequests {
+		logg.LogTo("TEST", "src req: %v", savedReq.Request)
+		logg.LogTo("TEST", "src req.Data: %v", string(savedReq.Data))
+	}
+
 }
 
 func fakePushCheckpointResponse(checkpointAddress string) string {
@@ -659,7 +700,7 @@ func fakePushCheckpointResponse(checkpointAddress string) string {
 }
 
 func fakeCheckpointResponse(checkpointAddress string, lastSequence int) string {
-	return fmt.Sprintf(`{"_id":"_local/%s","ok":true,"_rev":"0-2","lastSequence":"%v"}`, checkpointAddress, lastSequence)
+	return fmt.Sprintf(`{"_id":"_local/%s","ok":true,"_rev":"0-1","lastSequence":"%v"}`, checkpointAddress, lastSequence)
 
 }
 

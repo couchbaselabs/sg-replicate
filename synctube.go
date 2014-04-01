@@ -401,8 +401,7 @@ func (r Replication) generatePushCheckpointRequest() PushCheckpointRequest {
 	}
 
 	if !r.FetchedTargetCheckpoint.IsEmpty() {
-		newRevision := incrementLocalRevision(r.FetchedTargetCheckpoint.Revision)
-		pushCheckpointRequest.Revision = newRevision
+		pushCheckpointRequest.Revision = r.FetchedTargetCheckpoint.Revision
 	}
 	return pushCheckpointRequest
 }
