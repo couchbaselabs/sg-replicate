@@ -7,6 +7,7 @@ import (
 	"github.com/couchbaselabs/logg"
 	"github.com/tleyden/fakehttp"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -238,6 +239,8 @@ func TestOneShotReplicationGetRevsDiffHappyPath(t *testing.T) {
 
 	sourceServer, targetServer := fakeServers(5997, 5996)
 
+	lastSequence := 1
+
 	params := replicationParams(sourceServer.URL, targetServer.URL)
 
 	notificationChan := make(chan ReplicationNotification)
@@ -245,7 +248,7 @@ func TestOneShotReplicationGetRevsDiffHappyPath(t *testing.T) {
 	// create a new replication and start it
 	replication := NewReplication(params, notificationChan)
 
-	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), lastSequence))
 
 	// fake response to changes feed
 	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed())
@@ -268,6 +271,18 @@ func TestOneShotReplicationGetRevsDiffHappyPath(t *testing.T) {
 	waitForNotification(replication, REPLICATION_STOPPED)
 
 	assertNotificationChannelClosed(notificationChan)
+
+	for _, savedReq := range sourceServer.SavedRequests {
+		path := savedReq.Request.URL.Path
+		if strings.Contains(path, "/db/_changes") {
+
+			params, err := url.ParseQuery(savedReq.Request.URL.RawQuery)
+			logg.LogTo("TEST", "params: %v", params)
+			assert.True(t, err == nil)
+			assert.Equals(t, params["since"][0], strconv.Itoa(lastSequence))
+		}
+
+	}
 
 }
 
@@ -689,7 +704,7 @@ func TestOneShotReplicationHappyPath(t *testing.T) {
 			params, err := url.ParseQuery(savedReq.Request.URL.RawQuery)
 			assert.True(t, err == nil)
 			if getChangesRequestIndex > 0 {
-				assert.True(t, len(params["since"]) > 0)
+				assert.True(t, len(params["since"][0]) > 0)
 			}
 			getChangesRequestIndex += 1
 		}

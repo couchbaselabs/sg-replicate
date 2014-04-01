@@ -497,7 +497,7 @@ func (r Replication) getChangesFeedUrl() string {
 		logg.LogPanic("got non-numeric checkpoint: %v", r.FetchedTargetCheckpoint)
 	}
 
-	if r.LastSequencePushed > 0 {
+	if !r.FetchedTargetCheckpoint.IsEmpty() {
 		changesFeedUrl = fmt.Sprintf(
 			"%s&since=%v",
 			changesFeedUrl,
