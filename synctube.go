@@ -317,9 +317,6 @@ func (r Replication) fetchBulkGet() {
 			break
 		}
 		documentBody := DocumentBody{}
-		// bytes, _ := ioutil.ReadAll(mainPart)
-		// bodyString := string(bytes)
-		// logg.LogTo("SYNCTUBE", "bodyString: %v", bodyString)
 		decoder := json.NewDecoder(mainPart)
 
 		if err = decoder.Decode(&documentBody); err != nil {
@@ -398,11 +395,16 @@ func (r Replication) pushBulkDocs() {
 }
 
 func (r Replication) generatePushCheckpointRequest() PushCheckpointRequest {
-	newRevision := incrementLocalRevision(r.FetchedTargetCheckpoint.Revision)
-	return PushCheckpointRequest{
+
+	pushCheckpointRequest := PushCheckpointRequest{
 		LastSequence: fmt.Sprintf("%v", r.Changes.LastSequence),
-		Revision:     newRevision,
 	}
+
+	if !r.FetchedTargetCheckpoint.IsEmpty() {
+		newRevision := incrementLocalRevision(r.FetchedTargetCheckpoint.Revision)
+		pushCheckpointRequest.Revision = newRevision
+	}
+	return pushCheckpointRequest
 }
 
 func (r Replication) pushCheckpoint() {

@@ -36,6 +36,10 @@ func (checkpoint Checkpoint) LastCheckpointNumeric() (i int, err error) {
 	return
 }
 
+func (checkpoint Checkpoint) IsEmpty() bool {
+	return len(checkpoint.Id) == 0
+}
+
 type ChangedRev struct {
 	Revision string `json:"rev"`
 }

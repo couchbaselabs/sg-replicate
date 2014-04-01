@@ -1,11 +1,13 @@
 package synctube
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/couchbaselabs/go.assert"
 	"github.com/couchbaselabs/logg"
 	"github.com/tleyden/fakehttp"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 )
@@ -507,7 +509,8 @@ func TestOneShotReplicationPushCheckpointSucceeded(t *testing.T) {
 	// create a new replication and start it
 	replication := NewReplication(params, notificationChan)
 
-	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
+	// fake response to get checkpoint
+	targetServer.Response(404, jsonHeaders(), bogusJson())
 
 	// fake response to changes feed
 	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed())
@@ -554,13 +557,20 @@ func TestOneShotReplicationPushCheckpointSucceeded(t *testing.T) {
 	assertNotificationChannelClosed(notificationChan)
 
 	for _, savedReq := range targetServer.SavedRequests {
-		logg.LogTo("TEST", "tgt savedReq: %v", savedReq.Request)
-		logg.LogTo("TEST", "savedReq body: %v", string(savedReq.Data))
-	}
+		path := savedReq.Request.URL.Path
+		if strings.Contains(path, "/db/_local") {
+			if savedReq.Request.Method == "PUT" {
+				// since the checkpoint response above was a 404,
+				// when we push a checkpoint there should be no
+				// revision field.
+				pushCheckpointRequest := PushCheckpointRequest{}
+				err := json.Unmarshal(savedReq.Data, &pushCheckpointRequest)
+				assert.True(t, err == nil)
+				assert.True(t, len(pushCheckpointRequest.Revision) == 0)
 
-	for _, savedReq := range sourceServer.SavedRequests {
-		logg.LogTo("TEST", "src savedReq: %v", savedReq.Request)
-		logg.LogTo("TEST", "savedReq body: %v", string(savedReq.Data))
+			}
+		}
+
 	}
 
 }
@@ -724,6 +734,20 @@ func TestOneShotIntegrationReplication(t *testing.T) {
 			logg.LogPanic("Timeout waiting for a notification")
 		}
 	}
+
+}
+
+func TestGeneratePushCheckpointRequest(t *testing.T) {
+
+	// codereview: how to get the pushCheckpointRequest to not have the
+	// rev field at all, as opposed to having an empty string
+
+	// with an empty fetchedtargetcheckpoint, the pushCheckpointRequest
+	// should _not_ have a _rev version
+	replication := NewReplication(ReplicationParameters{}, nil)
+	pushCheckpointRequest := replication.generatePushCheckpointRequest()
+	logg.LogTo("TEST", "pushCheckpointRequest: %v", pushCheckpointRequest)
+	assert.True(t, len(pushCheckpointRequest.Revision) == 0)
 
 }
 
