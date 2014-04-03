@@ -40,6 +40,39 @@ func fakeServers(sourcePort, targetPort int) (source *fakehttp.HTTPServer, targe
 	return
 }
 
+func TestOneShotReplicationCancelImmediately(t *testing.T) {
+
+	sourceServer, targetServer := fakeServers(5977, 5976)
+
+	params := replicationParams(sourceServer.URL, targetServer.URL)
+
+	notificationChan := make(chan ReplicationNotification)
+
+	replication := NewReplication(params, notificationChan)
+
+	lastSequence := 1
+	jsonResponse := fakeCheckpointResponse(replication.targetCheckpointAddress(), lastSequence)
+	targetServer.Response(200, jsonHeaders(), jsonResponse)
+
+	// fake response to changes feed
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed())
+
+	replication.Start()
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
+
+	// get the fetched checkpoint and make sure it matches
+	lastSequenceFetched, err := replication.FetchedTargetCheckpoint.LastCheckpointNumeric()
+	assert.True(t, err == nil)
+	assert.Equals(t, lastSequence, lastSequenceFetched)
+
+	replication.Stop()
+	waitForNotification(replication, REPLICATION_STOPPED)
+
+	assertNotificationChannelClosed(notificationChan)
+
+}
+
 func TestOneShotReplicationGetCheckpointFailed(t *testing.T) {
 
 	// the simulated sync gateway source only returns a _local doc
@@ -712,7 +745,7 @@ func TestOneShotReplicationHappyPath(t *testing.T) {
 
 }
 
-func TestOneShotIntegrationReplication(t *testing.T) {
+func DISTestOneShotIntegrationReplication(t *testing.T) {
 
 	sourceServerUrlStr := "http://localhost:4984"
 	targetServerUrlStr := "http://localhost:4986"
