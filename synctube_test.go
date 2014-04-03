@@ -57,7 +57,8 @@ func TestOneShotReplicationCancelImmediately(t *testing.T) {
 	// fake response to changes feed
 	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed())
 
-	replication.Start()
+	err := replication.Start()
+	assert.True(t, err == nil)
 
 	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
 
@@ -66,14 +67,21 @@ func TestOneShotReplicationCancelImmediately(t *testing.T) {
 	assert.True(t, err == nil)
 	assert.Equals(t, lastSequence, lastSequenceFetched)
 
-	replication.Stop()
+	err = replication.Stop()
+	assert.True(t, err == nil)
+
 	waitForNotification(replication, REPLICATION_STOPPED)
 
 	assertNotificationChannelClosed(notificationChan)
 
-	// if we try to call Start(), it should block forever
+	// if we try to call Start() or Stop(), it should give an error
+	err = replication.Start()
+	assert.True(t, err != nil)
+	err = replication.Stop()
+	assert.True(t, err != nil)
 
 }
+
 func TestOneShotReplicationGetCheckpointFailed(t *testing.T) {
 
 	// the simulated sync gateway source only returns a _local doc

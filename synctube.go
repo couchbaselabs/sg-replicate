@@ -46,15 +46,13 @@ func NewReplication(params ReplicationParameters, notificationChan chan Replicat
 }
 
 // Start this replication
-func (r *Replication) Start() {
-	event := NewReplicationEvent(REPLICATION_START)
-	r.EventChan <- *event
+func (r Replication) Start() error {
+	return r.sendEventWithTimeout(NewReplicationEvent(REPLICATION_START))
 }
 
 // Stop this replication
-func (r *Replication) Stop() {
-	event := NewReplicationEvent(REPLICATION_STOP)
-	r.EventChan <- *event
+func (r *Replication) Stop() error {
+	return r.sendEventWithTimeout(NewReplicationEvent(REPLICATION_STOP))
 }
 
 func (r *Replication) processEvents() {
@@ -82,13 +80,23 @@ func (r Replication) targetCheckpointAddress() string {
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
-func (r Replication) sendEventWithTimeout(event *ReplicationEvent) {
+func (r Replication) sendEventWithTimeout(event *ReplicationEvent) error {
+
+	// if the event channel has already been nil'd out, no point
+	// in even trying
+	if r.EventChan == nil {
+		return NewReplicationError(REPLICATION_STOP)
+	}
+
 	select {
 	case r.EventChan <- *event:
 		// event was sent
+		return nil
 	case <-time.After(10 * time.Second):
 		// timed out ..
 	}
+	return NewReplicationError(REPLICATION_STOP)
+
 }
 
 func (r Replication) fetchTargetCheckpoint() {

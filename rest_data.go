@@ -1,6 +1,7 @@
 package synctube
 
 import (
+	"fmt"
 	"github.com/couchbaselabs/logg"
 	"strconv"
 )
@@ -24,6 +25,10 @@ func NewReplicationError(eventSignal ReplicationEventSignal) *ReplicationError {
 	return &ReplicationError{
 		ReplicationEventSignal: eventSignal,
 	}
+}
+
+func (error ReplicationError) Error() string {
+	return fmt.Sprintf("%v", error.ReplicationEventSignal)
 }
 
 func (checkpoint Checkpoint) LastCheckpointNumeric() (i int, err error) {
