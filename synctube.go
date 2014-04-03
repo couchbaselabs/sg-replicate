@@ -59,7 +59,12 @@ func (r *Replication) Stop() {
 
 func (r *Replication) processEvents() {
 
-	defer close(r.EventChan)        // No more events
+	// nil out the EventChan after the event loop has finished.
+	// originally this closed the channel, but any outstanding
+	// goroutines running an http request would then try to
+	// write their result to the closed channel and cause a panic
+	defer func() { r.EventChan = nil }()
+
 	defer close(r.NotificationChan) // No more notifications
 
 	for state := stateFnPreStarted; state != nil; {
@@ -77,6 +82,15 @@ func (r Replication) targetCheckpointAddress() string {
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
+func (r Replication) sendEventWithTimeout(event *ReplicationEvent) {
+	select {
+	case r.EventChan <- *event:
+		// event was sent
+	case <-time.After(10 * time.Second):
+		// timed out ..
+	}
+}
+
 func (r Replication) fetchTargetCheckpoint() {
 
 	destUrl := r.getCheckpointUrl()
@@ -92,7 +106,7 @@ func (r Replication) fetchTargetCheckpoint() {
 	if err != nil {
 		logg.LogTo("SYNCTUBE", "Error getting checkpoint: %v", err)
 		event := NewReplicationEvent(FETCH_CHECKPOINT_FAILED)
-		r.EventChan <- *event
+		r.sendEventWithTimeout(event)
 		return
 	}
 	defer resp.Body.Close()
@@ -102,12 +116,12 @@ func (r Replication) fetchTargetCheckpoint() {
 		event := NewReplicationEvent(FETCH_CHECKPOINT_SUCCEEDED)
 		checkpoint := Checkpoint{LastSequence: "0"}
 		event.Data = checkpoint
-		r.EventChan <- *event
+		r.sendEventWithTimeout(event)
 	} else if resp.StatusCode >= 400 {
 		// we got an error, lets abort
 		logg.LogTo("SYNCTUBE", "4xx error(not 404) getting checkpoint")
 		event := NewReplicationEvent(FETCH_CHECKPOINT_FAILED)
-		r.EventChan <- *event
+		r.sendEventWithTimeout(event)
 	} else if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		// looks like we got a valid checkpoint
 		logg.LogTo("SYNCTUBE", "valid checkpoint")
@@ -120,20 +134,20 @@ func (r Replication) fetchTargetCheckpoint() {
 			logg.LogTo("SYNCTUBE", "Error unmarshalling checkpoint")
 			logg.LogError(err)
 			event := NewReplicationEvent(FETCH_CHECKPOINT_FAILED)
-			r.EventChan <- *event
+			r.sendEventWithTimeout(event)
 			return
 		}
 		if len(checkpoint.LastSequence) == 0 {
 			logg.LogTo("SYNCTUBE", "Invalid checkpoint, no lastsequence")
 			event := NewReplicationEvent(FETCH_CHECKPOINT_FAILED)
-			r.EventChan <- *event
+			r.sendEventWithTimeout(event)
 			return
 		}
 		expectedId := fmt.Sprintf("_local/%s", r.targetCheckpointAddress())
 		if checkpoint.Id != expectedId {
 			logg.LogTo("SYNCTUBE", "Got %s, expected %s", checkpoint.Id, expectedId)
 			event := NewReplicationEvent(FETCH_CHECKPOINT_FAILED)
-			r.EventChan <- *event
+			r.sendEventWithTimeout(event)
 			return
 		}
 		logg.LogTo("SYNCTUBE", "checkpoint: %v", checkpoint.LastSequence)
@@ -141,13 +155,13 @@ func (r Replication) fetchTargetCheckpoint() {
 		event.Data = checkpoint
 		logg.LogTo("SYNCTUBE", "event: %v", event)
 
-		r.EventChan <- *event
+		r.sendEventWithTimeout(event)
 
 	} else {
 		// unexpected http status, abort
 		logg.LogTo("SYNCTUBE", "unexpected http status %v", resp.StatusCode)
 		event := NewReplicationEvent(FETCH_CHECKPOINT_FAILED)
-		r.EventChan <- *event
+		r.sendEventWithTimeout(event)
 	}
 
 }
@@ -166,7 +180,7 @@ func (r Replication) fetchChangesFeed() {
 	if err != nil {
 		logg.LogTo("SYNCTUBE", "Error getting changes feed: %v", err)
 		event := NewReplicationEvent(FETCH_CHANGES_FEED_FAILED)
-		r.EventChan <- *event
+		r.sendEventWithTimeout(event)
 		return
 	}
 	defer resp.Body.Close()
@@ -174,7 +188,7 @@ func (r Replication) fetchChangesFeed() {
 		logg.LogTo("SYNCTUBE", "Error getting changes feed.  Resp: %v", resp)
 		event := NewReplicationEvent(FETCH_CHANGES_FEED_FAILED)
 		logg.LogTo("SYNCTUBE", "channel: %v", r.EventChan)
-		r.EventChan <- *event
+		r.sendEventWithTimeout(event)
 		return
 	}
 
@@ -185,12 +199,12 @@ func (r Replication) fetchChangesFeed() {
 		logg.LogTo("SYNCTUBE", "Error unmarshalling change")
 		logg.LogError(err)
 		event := NewReplicationEvent(FETCH_CHANGES_FEED_FAILED)
-		r.EventChan <- *event
+		r.sendEventWithTimeout(event)
 	}
 	event := NewReplicationEvent(FETCH_CHANGES_FEED_SUCCEEDED)
 	event.Data = changes
 	logg.LogTo("SYNCTUBE", "event: %v", event)
-	r.EventChan <- *event
+	r.sendEventWithTimeout(event)
 
 }
 
@@ -206,7 +220,7 @@ func (r Replication) fetchRevsDiff() {
 		logg.LogTo("SYNCTUBE", "Error marshaling %v", revsDiffMap)
 		logg.LogError(err)
 		event := NewReplicationEvent(FETCH_REVS_DIFF_FAILED)
-		r.EventChan <- *event
+		r.sendEventWithTimeout(event)
 		return
 	}
 
@@ -215,7 +229,7 @@ func (r Replication) fetchRevsDiff() {
 		logg.LogTo("SYNCTUBE", "Error creating request %v", revsDiffMapJson)
 		logg.LogError(err)
 		event := NewReplicationEvent(FETCH_REVS_DIFF_FAILED)
-		r.EventChan <- *event
+		r.sendEventWithTimeout(event)
 		return
 	}
 
@@ -226,14 +240,14 @@ func (r Replication) fetchRevsDiff() {
 	if err != nil {
 		logg.LogTo("SYNCTUBE", "Error getting revs diff: %v", err)
 		event := NewReplicationEvent(FETCH_REVS_DIFF_FAILED)
-		r.EventChan <- *event
+		r.sendEventWithTimeout(event)
 		return
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
 		logg.LogTo("SYNCTUBE", "Unexpected response getting revs diff: %v", resp)
 		event := NewReplicationEvent(FETCH_REVS_DIFF_FAILED)
-		r.EventChan <- *event
+		r.sendEventWithTimeout(event)
 		return
 	}
 
@@ -244,13 +258,13 @@ func (r Replication) fetchRevsDiff() {
 		logg.LogTo("SYNCTUBE", "Error unmarshalling json")
 		logg.LogError(err)
 		event := NewReplicationEvent(FETCH_REVS_DIFF_FAILED)
-		r.EventChan <- *event
+		r.sendEventWithTimeout(event)
 		return
 	}
 	event := NewReplicationEvent(FETCH_REVS_DIFF_SUCCEEDED)
 	event.Data = revsDiffJson
 	logg.LogTo("SYNCTUBE", "event: %v", event)
-	r.EventChan <- *event
+	r.sendEventWithTimeout(event)
 
 }
 
@@ -267,7 +281,7 @@ func (r Replication) fetchBulkGet() {
 		logg.LogTo("SYNCTUBE", "Error marshaling %v", bulkGetRequest)
 		logg.LogError(err)
 		event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
-		r.EventChan <- *event
+		r.sendEventWithTimeout(event)
 		return
 	}
 
@@ -277,7 +291,7 @@ func (r Replication) fetchBulkGet() {
 		logg.LogTo("SYNCTUBE", "Error creating request %v", bulkGetRequestJson)
 		logg.LogError(err)
 		event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
-		r.EventChan <- *event
+		r.sendEventWithTimeout(event)
 		return
 	}
 
@@ -288,14 +302,14 @@ func (r Replication) fetchBulkGet() {
 	if err != nil {
 		logg.LogTo("SYNCTUBE", "Error getting bulk get: %v", err)
 		event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
-		r.EventChan <- *event
+		r.sendEventWithTimeout(event)
 		return
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
 		logg.LogTo("SYNCTUBE", "Unexpected response getting bulk get: %v", resp)
 		event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
-		r.EventChan <- *event
+		r.sendEventWithTimeout(event)
 		return
 	}
 
@@ -322,7 +336,7 @@ func (r Replication) fetchBulkGet() {
 		if err = decoder.Decode(&documentBody); err != nil {
 			logg.LogTo("SYNCTUBE", "Error decoding part: %v", err)
 			event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
-			r.EventChan <- *event
+			r.sendEventWithTimeout(event)
 			return
 		}
 		documentBodies = append(documentBodies, documentBody)
@@ -332,7 +346,7 @@ func (r Replication) fetchBulkGet() {
 
 	event := NewReplicationEvent(FETCH_BULK_GET_SUCCEEDED)
 	event.Data = documentBodies
-	r.EventChan <- *event
+	r.sendEventWithTimeout(event)
 
 }
 
@@ -348,7 +362,7 @@ func (r Replication) pushBulkDocs() {
 		logg.LogTo("SYNCTUBE", "Error marshaling %v", bulkDocsRequest)
 		logg.LogError(err)
 		event := NewReplicationEvent(PUSH_BULK_DOCS_FAILED)
-		r.EventChan <- *event
+		r.sendEventWithTimeout(event)
 		return
 	}
 
@@ -357,7 +371,7 @@ func (r Replication) pushBulkDocs() {
 		logg.LogTo("SYNCTUBE", "Error creating request %v", bulkDocsRequestJson)
 		logg.LogError(err)
 		event := NewReplicationEvent(PUSH_BULK_DOCS_FAILED)
-		r.EventChan <- *event
+		r.sendEventWithTimeout(event)
 		return
 	}
 
@@ -368,14 +382,14 @@ func (r Replication) pushBulkDocs() {
 	if err != nil {
 		logg.LogTo("SYNCTUBE", "Error getting bulk get: %v", err)
 		event := NewReplicationEvent(PUSH_BULK_DOCS_FAILED)
-		r.EventChan <- *event
+		r.sendEventWithTimeout(event)
 		return
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
 		logg.LogTo("SYNCTUBE", "Unexpected response getting bulk get: %v", resp)
 		event := NewReplicationEvent(PUSH_BULK_DOCS_FAILED)
-		r.EventChan <- *event
+		r.sendEventWithTimeout(event)
 		return
 	}
 
@@ -384,13 +398,13 @@ func (r Replication) pushBulkDocs() {
 	if err = decoder.Decode(&bulkDocsResponse); err != nil {
 		logg.LogTo("SYNCTUBE", "Error decoding json: %v", err)
 		event := NewReplicationEvent(PUSH_BULK_DOCS_FAILED)
-		r.EventChan <- *event
+		r.sendEventWithTimeout(event)
 		return
 	}
 
 	event := NewReplicationEvent(PUSH_BULK_DOCS_SUCCEEDED)
 	event.Data = bulkDocsResponse
-	r.EventChan <- *event
+	r.sendEventWithTimeout(event)
 
 }
 
@@ -423,7 +437,7 @@ func (r Replication) pushCheckpoint() {
 		logg.LogTo("SYNCTUBE", "Error marshaling %v", pushCheckpointRequest)
 		logg.LogError(err)
 		event := NewReplicationEvent(PUSH_CHECKPOINT_FAILED)
-		r.EventChan <- *event
+		r.sendEventWithTimeout(event)
 		return
 	}
 
@@ -432,7 +446,7 @@ func (r Replication) pushCheckpoint() {
 		logg.LogTo("SYNCTUBE", "Error creating request %v", requestJson)
 		logg.LogError(err)
 		event := NewReplicationEvent(PUSH_CHECKPOINT_FAILED)
-		r.EventChan <- *event
+		r.sendEventWithTimeout(event)
 		return
 	}
 
@@ -443,14 +457,14 @@ func (r Replication) pushCheckpoint() {
 	if err != nil {
 		logg.LogTo("SYNCTUBE", "Error pushing checkpoint: %v", err)
 		event := NewReplicationEvent(PUSH_CHECKPOINT_FAILED)
-		r.EventChan <- *event
+		r.sendEventWithTimeout(event)
 		return
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
 		logg.LogTo("SYNCTUBE", "Unexpected response pushing checkpoint: %v", resp)
 		event := NewReplicationEvent(PUSH_CHECKPOINT_FAILED)
-		r.EventChan <- *event
+		r.sendEventWithTimeout(event)
 		return
 	}
 
@@ -459,19 +473,19 @@ func (r Replication) pushCheckpoint() {
 	if err = decoder.Decode(&checkpointResponse); err != nil {
 		logg.LogTo("SYNCTUBE", "Error decoding json: %v", err)
 		event := NewReplicationEvent(PUSH_CHECKPOINT_FAILED)
-		r.EventChan <- *event
+		r.sendEventWithTimeout(event)
 		return
 	}
 
 	if checkpointResponse.Ok != true {
 		logg.LogTo("SYNCTUBE", "Error, checkpoint response !ok")
 		event := NewReplicationEvent(PUSH_CHECKPOINT_FAILED)
-		r.EventChan <- *event
+		r.sendEventWithTimeout(event)
 		return
 	}
 
 	event := NewReplicationEvent(PUSH_CHECKPOINT_SUCCEEDED)
-	r.EventChan <- *event
+	r.sendEventWithTimeout(event)
 
 }
 

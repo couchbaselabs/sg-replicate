@@ -71,8 +71,9 @@ func TestOneShotReplicationCancelImmediately(t *testing.T) {
 
 	assertNotificationChannelClosed(notificationChan)
 
-}
+	// if we try to call Start(), it should block forever
 
+}
 func TestOneShotReplicationGetCheckpointFailed(t *testing.T) {
 
 	// the simulated sync gateway source only returns a _local doc
