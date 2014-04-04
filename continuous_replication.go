@@ -12,6 +12,16 @@ const (
 	STOP
 )
 
+func (event ContinuousReplicationEvent) String() string {
+	switch event {
+	case STOP:
+		return "STOP"
+	default:
+		return "UNKNOWN_EVENT"
+	}
+	return "UNKNOWN_EVENT"
+}
+
 type ContinuousReplicationNotification int
 
 const (
@@ -22,6 +32,24 @@ const (
 	ABORTED_WAITING_TO_RETRY
 	FAILED
 )
+
+func (notification ContinuousReplicationNotification) String() string {
+	switch notification {
+	case CATCHING_UP:
+		return "CATCHING_UP"
+	case CAUGHT_UP:
+		return "CAUGHT_UP"
+	case CANCELLED:
+		return "CANCELLED"
+	case ABORTED_WAITING_TO_RETRY:
+		return "ABORTED_WAITING_TO_RETRY"
+	case FAILED:
+		return "FAILED"
+	default:
+		return "UNKNOWN_NOTIFICATION"
+	}
+	return "UNKNOWN_NOTIFICATION"
+}
 
 // Wraps a Replication (which should be renamed to "OneShotReplication") and
 // drives it, creating a "pseudo-continuous replication".  It's "pseudo", because
@@ -72,12 +100,15 @@ func (r ContinuousReplication) Stop() {
 
 func (r *ContinuousReplication) processEvents() {
 
+	logg.LogTo("SYNCTUBE", "ContinuousReplication.processEvents()")
+
 	// nil out the EventChan after the event loop has finished.
 	defer func() { r.EventChan = nil }()
 
 	defer close(r.NotificationChan) // No more notifications
 
 	for state := stateFnCatchingUp; state != nil; {
+		logg.LogTo("SYNCTUBE", "continuous repl state: %v", state)
 		state = state(r)
 		logg.LogTo("SYNCTUBE", "continuous repl new state: %v", state)
 	}
@@ -120,6 +151,7 @@ func stateFnCatchingUp(r *ContinuousReplication) stateFnContinuous {
 	notificationChan := r.startOneShotReplication()
 
 	for {
+		logg.LogTo("SYNCTUBE", "stateFnCatchingUp, waiting for event")
 		select {
 		case event := <-r.EventChan:
 			switch event {
@@ -137,6 +169,8 @@ func stateFnCatchingUp(r *ContinuousReplication) stateFnContinuous {
 			case REPLICATION_ABORTED:
 				logg.LogTo("SYNCTUBE", "Replication aborted .. try again")
 				return stateFnBackoffRetry
+			default:
+				logg.LogTo("SYNCTUBE", "Unexpected notification, ignore")
 			}
 		}
 
@@ -185,6 +219,8 @@ func stateFnWaitNewChanges(r *ContinuousReplication) stateFnContinuous {
 }
 
 func stateFnBackoffRetry(r *ContinuousReplication) stateFnContinuous {
+
+	logg.LogTo("SYNCTUBE", "entered stateFnBackoffRertry")
 
 	r.NotificationChan <- ABORTED_WAITING_TO_RETRY
 
