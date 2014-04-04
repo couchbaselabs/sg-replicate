@@ -37,9 +37,18 @@ type ContinuousReplication struct {
 
 	// internal events
 	EventChan chan ContinuousReplicationEvent
+
+	// factory to create replications
+	Factory ReplicationFactory
 }
 
-func NewContinuousReplication(params ReplicationParameters, notificationChan chan ContinuousReplicationNotification) *ContinuousReplication {
+type Runnable interface {
+	Start() error
+}
+
+type ReplicationFactory func(ReplicationParameters, chan ReplicationNotification) Runnable
+
+func NewContinuousReplication(params ReplicationParameters, factory ReplicationFactory, notificationChan chan ContinuousReplicationNotification) *ContinuousReplication {
 
 	eventChan := make(chan ContinuousReplicationEvent)
 
@@ -47,6 +56,7 @@ func NewContinuousReplication(params ReplicationParameters, notificationChan cha
 		ReplicationParameters: params,
 		NotificationChan:      notificationChan,
 		EventChan:             eventChan,
+		Factory:               factory,
 	}
 
 	// spawn a go-routine that reads from event channel and acts on events
@@ -83,6 +93,22 @@ func (r ContinuousReplication) fetchLongpollChanges(responseChan chan bool) {
 
 }
 
+func (r ContinuousReplication) startOneShotReplication() chan ReplicationNotification {
+
+	notificationChan := make(chan ReplicationNotification)
+	replication := r.Factory(r.ReplicationParameters, notificationChan)
+	replication.Start()
+	return notificationChan
+
+	/*
+		notificationChan := make(chan ReplicationNotification)
+		replication := NewReplication(r.ReplicationParameters, notificationChan)
+		replication.Start()
+		return notificationChan
+	*/
+
+}
+
 // represents the state as a function that returns the next state.
 type stateFnContinuous func(*ContinuousReplication) stateFnContinuous
 
@@ -91,9 +117,7 @@ func stateFnCatchingUp(r *ContinuousReplication) stateFnContinuous {
 	r.NotificationChan <- CATCHING_UP
 
 	// run a replication to catch up
-	notificationChan := make(chan ReplicationNotification)
-	replication := NewReplication(r.ReplicationParameters, notificationChan)
-	replication.Start()
+	notificationChan := r.startOneShotReplication()
 
 	for {
 		select {
