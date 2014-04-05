@@ -13,9 +13,14 @@ func init() {
 
 type MockOneShotReplication struct {
 	NotificationChan chan ReplicationNotification
+
+	// if true, it will stop.  if false, will abort
+	stopWhenFinished bool
 }
 
 func (r MockOneShotReplication) Start() error {
+
+	logg.LogTo("TEST", "MockOneShotReplicatin.Start() called. ")
 
 	go r.pretendToBeAOneShotReplicator()
 
@@ -24,29 +29,53 @@ func (r MockOneShotReplication) Start() error {
 
 func (r MockOneShotReplication) pretendToBeAOneShotReplicator() {
 
-	logg.LogTo("TEST", "wait 2 seconds")
+	logg.LogTo("TEST", "%v pretendToBeAOneShotReplicator() called.", r)
 
-	<-time.After(2 * time.Second)
+	// <-time.After(2 * time.Second)
 
-	logg.LogTo("TEST", "send REPLICATION_ABORTED to %v", r.NotificationChan)
+	if r.stopWhenFinished {
+		logg.LogTo("TEST", "send REPLICATION_STOPPED to %v", r.NotificationChan)
 
-	r.NotificationChan <- *(NewReplicationNotification(REPLICATION_ABORTED))
+		r.NotificationChan <- *(NewReplicationNotification(REPLICATION_STOPPED))
 
-	logg.LogTo("TEST", "sent REPLICATION_ABORTED")
+		logg.LogTo("TEST", "sent REPLICATION_STOPPED")
+	} else {
+		logg.LogTo("TEST", "send REPLICATION_ABORTED to %v", r.NotificationChan)
 
-	<-time.After(5 * time.Second)
+		r.NotificationChan <- *(NewReplicationNotification(REPLICATION_ABORTED))
 
-	logg.LogTo("TEST", "send REPLICATION_STOPPED")
+		logg.LogTo("TEST", "sent REPLICATION_ABORTED")
 
-	r.NotificationChan <- *(NewReplicationNotification(REPLICATION_STOPPED))
-
-	<-time.After(25 * time.Second)
-
-	r.NotificationChan <- *(NewReplicationNotification(REPLICATION_STOPPED))
+	}
 
 }
 
-func TestContinuousReplication(t *testing.T) {
+func waitForContinuousNotification(notificationChan chan ContinuousReplicationNotification, expected ContinuousReplicationNotification) {
+
+	logg.LogTo("TEST", "Waiting for %v", expected)
+
+	for {
+		select {
+		case notification, ok := <-notificationChan:
+			if !ok {
+				logg.LogPanic("TEST", "notificationChan appears to be closed")
+				return
+			}
+			if notification == expected {
+				logg.LogTo("TEST", "Got %v", expected)
+				return
+			} else {
+				logg.LogTo("TEST", "Waiting for %v but got %v, igoring", expected, notification)
+			}
+
+		case <-time.After(time.Second * 10):
+			logg.LogPanic("Timeout waiting for %v", expected)
+		}
+	}
+
+}
+
+func TestHealthyContinuousReplication(t *testing.T) {
 
 	logg.LogTo("TEST", "TestContinuousReplication")
 
@@ -58,8 +87,10 @@ func TestContinuousReplication(t *testing.T) {
 
 	factory := func(params ReplicationParameters, notificationChan chan ReplicationNotification) Runnable {
 
+		logg.LogTo("TEST", "Creating new MockOneShotReplication")
 		return &MockOneShotReplication{
 			NotificationChan: notificationChan,
+			stopWhenFinished: true,
 		}
 
 	}
@@ -67,8 +98,14 @@ func TestContinuousReplication(t *testing.T) {
 	replication := NewContinuousReplication(params, factory, notificationChan)
 	logg.LogTo("TEST", "created replication: %v", replication)
 
-	for notification := range notificationChan {
-		logg.LogTo("TEST", "got notification: %v", notification)
-	}
+	waitForContinuousNotification(notificationChan, CATCHING_UP)
+	waitForContinuousNotification(notificationChan, CAUGHT_UP)
+	waitForContinuousNotification(notificationChan, CATCHING_UP)
+	waitForContinuousNotification(notificationChan, CAUGHT_UP)
+
+	replication.Stop()
+	waitForContinuousNotification(notificationChan, CANCELLED)
+
+	logg.LogTo("TEST", "replication done: %v", replication)
 
 }

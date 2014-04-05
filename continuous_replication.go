@@ -119,7 +119,7 @@ func (r *ContinuousReplication) processEvents() {
 func (r ContinuousReplication) fetchLongpollChanges(responseChan chan bool) {
 
 	// TODO: remove fake and do real impl
-	<-time.After(10 * time.Second)
+	<-time.After(1 * time.Millisecond)
 	responseChan <- true
 
 }
@@ -130,13 +130,6 @@ func (r ContinuousReplication) startOneShotReplication() chan ReplicationNotific
 	replication := r.Factory(r.ReplicationParameters, notificationChan)
 	replication.Start()
 	return notificationChan
-
-	/*
-		notificationChan := make(chan ReplicationNotification)
-		replication := NewReplication(r.ReplicationParameters, notificationChan)
-		replication.Start()
-		return notificationChan
-	*/
 
 }
 
@@ -190,6 +183,7 @@ func stateFnWaitNewChanges(r *ContinuousReplication) stateFnContinuous {
 		resultChan := make(chan bool)
 		go r.fetchLongpollChanges(resultChan)
 
+		logg.LogTo("SYNCTUBE", "stateFnWaitNewChanges, waiting for event")
 		select {
 		case event := <-r.EventChan:
 			switch event {
