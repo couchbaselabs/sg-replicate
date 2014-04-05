@@ -68,6 +68,9 @@ type ContinuousReplication struct {
 
 	// factory to create replications
 	Factory ReplicationFactory
+
+	// the amount of time to wait after an aborted replication before retrying
+	AbortedReplicationRetryTime time.Duration
 }
 
 type Runnable interface {
@@ -76,15 +79,16 @@ type Runnable interface {
 
 type ReplicationFactory func(ReplicationParameters, chan ReplicationNotification) Runnable
 
-func NewContinuousReplication(params ReplicationParameters, factory ReplicationFactory, notificationChan chan ContinuousReplicationNotification) *ContinuousReplication {
+func NewContinuousReplication(params ReplicationParameters, factory ReplicationFactory, notificationChan chan ContinuousReplicationNotification, retryTime time.Duration) *ContinuousReplication {
 
 	eventChan := make(chan ContinuousReplicationEvent)
 
 	replication := &ContinuousReplication{
-		ReplicationParameters: params,
-		NotificationChan:      notificationChan,
-		EventChan:             eventChan,
-		Factory:               factory,
+		ReplicationParameters:       params,
+		NotificationChan:            notificationChan,
+		EventChan:                   eventChan,
+		Factory:                     factory,
+		AbortedReplicationRetryTime: retryTime,
 	}
 
 	// spawn a go-routine that reads from event channel and acts on events
@@ -228,7 +232,7 @@ func stateFnBackoffRetry(r *ContinuousReplication) stateFnContinuous {
 			default:
 				logg.LogTo("SYNCTUBE", "Got unknown event, ignoring: %v", event)
 			}
-		case <-time.After(15 * time.Second):
+		case <-time.After(r.AbortedReplicationRetryTime):
 			logg.LogTo("SYNCTUBE", "Done waiting to retry")
 			return stateFnCatchingUp
 

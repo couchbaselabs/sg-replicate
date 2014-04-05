@@ -77,8 +77,6 @@ func waitForContinuousNotification(notificationChan chan ContinuousReplicationNo
 
 func TestHealthyContinuousReplication(t *testing.T) {
 
-	logg.LogTo("TEST", "TestContinuousReplication")
-
 	sourceServer, targetServer := fakeServers(5975, 5974)
 
 	params := replicationParams(sourceServer.URL, targetServer.URL)
@@ -87,7 +85,6 @@ func TestHealthyContinuousReplication(t *testing.T) {
 
 	factory := func(params ReplicationParameters, notificationChan chan ReplicationNotification) Runnable {
 
-		logg.LogTo("TEST", "Creating new MockOneShotReplication")
 		return &MockOneShotReplication{
 			NotificationChan: notificationChan,
 			stopWhenFinished: true,
@@ -95,8 +92,9 @@ func TestHealthyContinuousReplication(t *testing.T) {
 
 	}
 
-	replication := NewContinuousReplication(params, factory, notificationChan)
-	logg.LogTo("TEST", "created replication: %v", replication)
+	retryTime := time.Millisecond
+
+	replication := NewContinuousReplication(params, factory, notificationChan, retryTime)
 
 	waitForContinuousNotification(notificationChan, CATCHING_UP)
 	waitForContinuousNotification(notificationChan, CAUGHT_UP)
@@ -106,6 +104,33 @@ func TestHealthyContinuousReplication(t *testing.T) {
 	replication.Stop()
 	waitForContinuousNotification(notificationChan, CANCELLED)
 
-	logg.LogTo("TEST", "replication done: %v", replication)
+}
+
+func TestUnHealthyContinuousReplication(t *testing.T) {
+
+	sourceServer, targetServer := fakeServers(5973, 5972)
+
+	params := replicationParams(sourceServer.URL, targetServer.URL)
+
+	notificationChan := make(chan ContinuousReplicationNotification)
+
+	factory := func(params ReplicationParameters, notificationChan chan ReplicationNotification) Runnable {
+
+		return &MockOneShotReplication{
+			NotificationChan: notificationChan,
+			stopWhenFinished: false,
+		}
+
+	}
+	retryTime := time.Millisecond
+	replication := NewContinuousReplication(params, factory, notificationChan, retryTime)
+
+	waitForContinuousNotification(notificationChan, CATCHING_UP)
+	waitForContinuousNotification(notificationChan, ABORTED_WAITING_TO_RETRY)
+	waitForContinuousNotification(notificationChan, CATCHING_UP)
+	waitForContinuousNotification(notificationChan, ABORTED_WAITING_TO_RETRY)
+
+	replication.Stop()
+	waitForContinuousNotification(notificationChan, CANCELLED)
 
 }
