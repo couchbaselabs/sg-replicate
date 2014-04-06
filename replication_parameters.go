@@ -16,31 +16,24 @@ type ReplicationParameters struct {
 	ChangesFeedLimit int
 }
 
-func (params ReplicationParameters) getSourceDbUrl() string {
-	return fmt.Sprintf("%s/%s", params.Source, params.SourceDb)
+func (rp ReplicationParameters) getSourceDbUrl() string {
+	return fmt.Sprintf("%s/%s", rp.Source, rp.SourceDb)
 }
 
-func (params ReplicationParameters) getTargetDbUrl() string {
-	return fmt.Sprintf("%s/%s", params.Target, params.TargetDb)
+func (rp ReplicationParameters) getTargetDbUrl() string {
+	return fmt.Sprintf("%s/%s", rp.Target, rp.TargetDb)
 }
 
-func (params ReplicationParameters) getChangesFeedType() string {
-	return "normal"
-}
+func (rp ReplicationParameters) getSourceChangesFeedUrl(p ChangesFeedParams) string {
+	dbUrl := rp.getSourceDbUrl()
+	changesFeedUrl := fmt.Sprintf(
+		"%s/_changes?feed=%s&limit=%s&heartbeat=%s&style=%s",
+		dbUrl,
+		p.FeedType(),
+		p.Limit(),
+		p.HeartbeatTimeMillis(),
+		p.FeedStyle(),
+	)
+	return changesFeedUrl
 
-func (params ReplicationParameters) getChangesFeedLimit() string {
-	if params.ChangesFeedLimit == 0 {
-		return fmt.Sprintf("%v", DefaultChangesFeedLimit)
-	} else {
-		return fmt.Sprintf("%v", params.ChangesFeedLimit)
-	}
-
-}
-
-func (params ReplicationParameters) getChangesFeedHeartbeat() string {
-	return "300000"
-}
-
-func (params ReplicationParameters) getChangesFeedStyle() string {
-	return "all_docs"
 }

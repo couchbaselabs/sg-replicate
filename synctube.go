@@ -74,6 +74,10 @@ func (r *Replication) processEvents() {
 }
 
 func (r Replication) targetCheckpointAddress() string {
+
+	// TODO: this needs to take into account other aspects
+	// of replication (filters, filterparams, etc)
+
 	targetUrlString := r.Parameters.getTargetDbUrl()
 	hash := crypto.SHA1.New()
 	hash.Sum([]byte(targetUrlString))
@@ -504,15 +508,8 @@ func (r Replication) getCheckpointUrl() string {
 
 func (r Replication) getChangesFeedUrl() string {
 
-	dbUrl := r.Parameters.getSourceDbUrl()
-	changesFeedUrl := fmt.Sprintf(
-		"%s/_changes?feed=%s&limit=%s&heartbeat=%s&style=%s",
-		dbUrl,
-		r.Parameters.getChangesFeedType(),
-		r.Parameters.getChangesFeedLimit(),
-		r.Parameters.getChangesFeedHeartbeat(),
-		r.Parameters.getChangesFeedStyle(),
-	)
+	changesFeedParams := NewChangesFeedParams()
+	changesFeedUrl := r.Parameters.getSourceChangesFeedUrl(*changesFeedParams)
 
 	checkpoint, err := r.FetchedTargetCheckpoint.LastCheckpointNumeric()
 	if err != nil {

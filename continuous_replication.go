@@ -122,6 +122,16 @@ func (r *ContinuousReplication) processEvents() {
 
 func (r ContinuousReplication) fetchLongpollChanges(responseChan chan bool) {
 
+	// use underlying replication parameters to get source changes feed url
+	// with longpoll
+
+	// TODO: add timeout to feed url parameter with hearbeat (ms)
+
+	// Problem: how to mock this out for testing purposes??
+	// Solution: the same way as always!  a mock http server.
+	// Note that code-reuse can be obtained via putting url creator
+	// on the replciationparams object.
+
 	// TODO: remove fake and do real impl
 	<-time.After(1 * time.Millisecond)
 	responseChan <- true
