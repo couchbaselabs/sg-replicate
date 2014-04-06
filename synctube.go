@@ -180,7 +180,7 @@ func (r Replication) fetchTargetCheckpoint() {
 
 func (r Replication) fetchChangesFeed() {
 
-	destUrl := r.getChangesFeedUrl()
+	destUrl := r.getNormalChangesFeedUrl()
 
 	transport := r.getTransport()
 	defer transport.Close()
@@ -506,11 +506,20 @@ func (r Replication) getCheckpointUrl() string {
 	return fmt.Sprintf("%s/_local/%s", r.Parameters.getTargetDbUrl(), checkpointAddress)
 }
 
-func (r Replication) getChangesFeedUrl() string {
-
+func (r Replication) getNormalChangesFeedUrl() string {
 	changesFeedParams := NewChangesFeedParams()
-	changesFeedUrl := r.Parameters.getSourceChangesFeedUrl(*changesFeedParams)
+	return r.getChangesFeedUrl(*changesFeedParams)
+}
 
+func (r Replication) getLongpollChangesFeedUrl() string {
+	changesFeedParams := NewChangesFeedParams()
+	changesFeedParams.feedType = FEED_TYPE_LONGPOLL
+	return r.getChangesFeedUrl(*changesFeedParams)
+}
+
+func (r Replication) getChangesFeedUrl(changesFeedParams ChangesFeedParams) string {
+
+	changesFeedUrl := r.Parameters.getSourceChangesFeedUrl(changesFeedParams)
 	checkpoint, err := r.FetchedTargetCheckpoint.LastCheckpointNumeric()
 	if err != nil {
 		logg.LogPanic("got non-numeric checkpoint: %v", r.FetchedTargetCheckpoint)

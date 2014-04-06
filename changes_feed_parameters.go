@@ -4,6 +4,9 @@ import (
 	"fmt"
 )
 
+const FEED_TYPE_LONGPOLL = "longpoll"
+const FEED_TYPE_NORMAL = "normal"
+
 type ChangesFeedParams struct {
 	feedType            string // eg, "normal" or "longpoll"
 	limit               int    // eg, 50
@@ -13,7 +16,7 @@ type ChangesFeedParams struct {
 
 func NewChangesFeedParams() *ChangesFeedParams {
 	return &ChangesFeedParams{
-		feedType:            "longpoll",
+		feedType:            FEED_TYPE_NORMAL,
 		limit:               DefaultChangesFeedLimit,
 		heartbeatTimeMillis: 300000,
 		feedStyle:           "all_docs",
