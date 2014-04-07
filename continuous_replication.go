@@ -125,6 +125,8 @@ func (r ContinuousReplication) fetchLongpollChanges(responseChan chan bool) {
 	// use underlying replication parameters to get source changes feed url
 	// with longpoll
 
+	// TODO: where are we gonna get the since parameter checkpoint??
+
 	// TODO: add timeout to feed url parameter with hearbeat (ms)
 
 	// Problem: how to mock this out for testing purposes??
@@ -172,6 +174,15 @@ func stateFnCatchingUp(r *ContinuousReplication) stateFnContinuous {
 			switch notification.Status {
 			case REPLICATION_STOPPED:
 				logg.LogTo("SYNCTUBE", "Replication stopped, caught up")
+				// TODO: get the replication object from the notification
+				// and then call getSinceParam() on it.
+				// Alternatively, we could save a reference to it
+				// after creating it.
+				// Rabbit hole: for either of these to work w/ test, I guess we'll
+				// need to create a "Replication" interface that both the
+				// mock replication and the real Replication can satisfy.
+				// Alternative to interface and sticking whole replication
+				// into the event.  Could just add a parameter to the REPLICATION_STOPPED event which has the LastPushedSeq.  In that case, should also distinguish between REPLICATION_STOPPED vs REPLICATION_CANCELLED
 				return stateFnWaitNewChanges
 			case REPLICATION_ABORTED:
 				logg.LogTo("SYNCTUBE", "Replication aborted .. try again")

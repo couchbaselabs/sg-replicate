@@ -70,7 +70,7 @@ func TestOneShotReplicationCancelImmediately(t *testing.T) {
 	err = replication.Stop()
 	assert.True(t, err == nil)
 
-	waitForNotification(replication, REPLICATION_STOPPED)
+	waitForNotification(replication, REPLICATION_CANCELLED)
 
 	assertNotificationChannelClosed(notificationChan)
 
@@ -140,7 +140,7 @@ func TestOneShotReplicationGetCheckpointHappypath(t *testing.T) {
 	assert.Equals(t, lastSequence, lastSequenceFetched)
 
 	replication.Stop()
-	waitForNotification(replication, REPLICATION_STOPPED)
+	waitForNotification(replication, REPLICATION_CANCELLED)
 
 	assertNotificationChannelClosed(notificationChan)
 
@@ -205,7 +205,7 @@ func TestOneShotReplicationGetChangesFeedHappyPath(t *testing.T) {
 
 	replication.Stop()
 
-	waitForNotification(replication, REPLICATION_STOPPED)
+	waitForNotification(replication, REPLICATION_CANCELLED)
 
 	assertNotificationChannelClosed(notificationChan)
 
@@ -310,7 +310,7 @@ func TestOneShotReplicationGetRevsDiffHappyPath(t *testing.T) {
 
 	replication.Stop()
 
-	waitForNotification(replication, REPLICATION_STOPPED)
+	waitForNotification(replication, REPLICATION_CANCELLED)
 
 	assertNotificationChannelClosed(notificationChan)
 
@@ -406,7 +406,7 @@ func TestOneShotReplicationBulkGetHappyPath(t *testing.T) {
 
 	replication.Stop()
 
-	waitForNotification(replication, REPLICATION_STOPPED)
+	waitForNotification(replication, REPLICATION_CANCELLED)
 
 	assertNotificationChannelClosed(notificationChan)
 
@@ -500,7 +500,7 @@ func TestOneShotReplicationBulkDocsHappyPath(t *testing.T) {
 
 	replication.Stop()
 
-	waitForNotification(replication, REPLICATION_STOPPED)
+	waitForNotification(replication, REPLICATION_CANCELLED)
 
 	assertNotificationChannelClosed(notificationChan)
 
@@ -591,7 +591,7 @@ func TestOneShotReplicationPushCheckpointSucceeded(t *testing.T) {
 	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 3))
 
 	// fake second response to changes feed
-	sourceServer.Response(200, jsonHeaders(), `{"results":[],"last_seq":4}`)
+	sourceServer.Response(200, jsonHeaders(), `{"results":[],"last_seq":3}`)
 
 	replication.Start()
 
@@ -609,7 +609,23 @@ func TestOneShotReplicationPushCheckpointSucceeded(t *testing.T) {
 
 	waitForNotification(replication, REPLICATION_PUSHED_CHECKPOINT)
 
-	waitForNotification(replication, REPLICATION_STOPPED)
+	for {
+		select {
+		case replicationNotification, ok := <-replication.NotificationChan:
+			if !ok {
+				logg.LogPanic("notifictionChan appears to be closed")
+				return
+			}
+			if replicationNotification.Status == REPLICATION_STOPPED {
+				lastSequencePushed := replicationNotification.Data.(int)
+				assert.Equals(t, lastSequencePushed, 3)
+				logg.LogTo("TEST", "lastSequencePushed %v", lastSequencePushed)
+				return
+			}
+		case <-time.After(time.Second * 10):
+			logg.LogPanic("Timeout")
+		}
+	}
 
 	assertNotificationChannelClosed(notificationChan)
 

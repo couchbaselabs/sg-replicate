@@ -24,7 +24,6 @@ const (
 type ReplicationEvent struct {
 	Signal ReplicationEventSignal
 	Data   interface{}
-	// could have other stuff associated w/ event
 }
 
 func NewReplicationEvent(signal ReplicationEventSignal) *ReplicationEvent {

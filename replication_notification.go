@@ -4,11 +4,19 @@ type ReplicationStatus int
 
 const (
 	REPLICATION_UNKNOWN_STATUS = ReplicationStatus(iota)
+
+	// the replication finished "naturally", eg, successfully
 	REPLICATION_STOPPED
+
+	// the replication aborted due to some error or unexpected event
 	REPLICATION_ABORTED
-	REPLICATION_PAUSED
-	REPLICATION_IDLE
+
+	// the replication stopped due to being cancelled by client
+	REPLICATION_CANCELLED
+
+	// after replication.Start() is called, this will be emitted
 	REPLICATION_ACTIVE
+
 	REPLICATION_FETCHED_CHECKPOINT
 	REPLICATION_FETCHED_CHANGES_FEED
 	REPLICATION_FETCHED_REVS_DIFF
@@ -20,6 +28,7 @@ const (
 type ReplicationNotification struct {
 	Status ReplicationStatus
 	Error  *ReplicationError
+	Data   interface{}
 }
 
 func NewReplicationNotification(status ReplicationStatus) *ReplicationNotification {
@@ -34,12 +43,10 @@ func (status ReplicationStatus) String() string {
 		return "REPLICATION_UNKNOWN_STATUS"
 	case REPLICATION_STOPPED:
 		return "REPLICATION_STOPPED"
+	case REPLICATION_CANCELLED:
+		return "REPLICATION_CANCELLED"
 	case REPLICATION_ABORTED:
 		return "REPLICATION_ABORTED"
-	case REPLICATION_PAUSED:
-		return "REPLICATION_PAUSED"
-	case REPLICATION_IDLE:
-		return "REPLICATION_IDLE"
 	case REPLICATION_ACTIVE:
 		return "REPLICATION_ACTIVE"
 	case REPLICATION_FETCHED_CHECKPOINT:
