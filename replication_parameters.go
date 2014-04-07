@@ -27,12 +27,9 @@ func (rp ReplicationParameters) getTargetDbUrl() string {
 func (rp ReplicationParameters) getSourceChangesFeedUrl(p ChangesFeedParams) string {
 	dbUrl := rp.getSourceDbUrl()
 	changesFeedUrl := fmt.Sprintf(
-		"%s/_changes?feed=%s&limit=%s&heartbeat=%s&style=%s",
+		"%s/_changes?%s",
 		dbUrl,
-		p.FeedType(),
-		p.Limit(),
-		p.HeartbeatTimeMillis(),
-		p.FeedStyle(),
+		p.String(),
 	)
 	return changesFeedUrl
 

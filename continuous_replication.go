@@ -19,7 +19,6 @@ func (event ContinuousReplicationEvent) String() string {
 	default:
 		return "UNKNOWN_EVENT"
 	}
-	return "UNKNOWN_EVENT"
 }
 
 type ContinuousReplicationNotification int
@@ -48,7 +47,6 @@ func (notification ContinuousReplicationNotification) String() string {
 	default:
 		return "UNKNOWN_NOTIFICATION"
 	}
-	return "UNKNOWN_NOTIFICATION"
 }
 
 // Wraps a Replication (which should be renamed to "OneShotReplication") and
@@ -71,6 +69,9 @@ type ContinuousReplication struct {
 
 	// the amount of time to wait after an aborted replication before retrying
 	AbortedReplicationRetryTime time.Duration
+
+	// The last sequenced pushed by last wrapped replication that was run
+	LastSequencePushed sequenceNumber
 }
 
 type Runnable interface {
@@ -122,12 +123,9 @@ func (r *ContinuousReplication) processEvents() {
 
 func (r ContinuousReplication) fetchLongpollChanges(responseChan chan bool) {
 
-	// use underlying replication parameters to get source changes feed url
-	// with longpoll
-
-	// TODO: where are we gonna get the since parameter checkpoint??
-
-	// TODO: add timeout to feed url parameter with hearbeat (ms)
+	changesFeedParams := NewChangesFeedParams()
+	changesFeedParams.feedType = FEED_TYPE_LONGPOLL
+	changesFeedParams.since = r.LastSequencePushed
 
 	// Problem: how to mock this out for testing purposes??
 	// Solution: the same way as always!  a mock http server.
@@ -174,15 +172,8 @@ func stateFnCatchingUp(r *ContinuousReplication) stateFnContinuous {
 			switch notification.Status {
 			case REPLICATION_STOPPED:
 				logg.LogTo("SYNCTUBE", "Replication stopped, caught up")
-				// TODO: get the replication object from the notification
-				// and then call getSinceParam() on it.
-				// Alternatively, we could save a reference to it
-				// after creating it.
-				// Rabbit hole: for either of these to work w/ test, I guess we'll
-				// need to create a "Replication" interface that both the
-				// mock replication and the real Replication can satisfy.
-				// Alternative to interface and sticking whole replication
-				// into the event.  Could just add a parameter to the REPLICATION_STOPPED event which has the LastPushedSeq.  In that case, should also distinguish between REPLICATION_STOPPED vs REPLICATION_CANCELLED
+				lastSequencePushed := notification.Data.(int)
+				r.LastSequencePushed = *(NewSequenceNumber(lastSequencePushed))
 				return stateFnWaitNewChanges
 			case REPLICATION_ABORTED:
 				logg.LogTo("SYNCTUBE", "Replication aborted .. try again")
@@ -193,9 +184,6 @@ func stateFnCatchingUp(r *ContinuousReplication) stateFnContinuous {
 		}
 
 	}
-
-	// should never make it this far
-	return nil
 
 }
 
@@ -232,9 +220,6 @@ func stateFnWaitNewChanges(r *ContinuousReplication) stateFnContinuous {
 
 	}
 
-	// should never get here
-	return nil
-
 }
 
 func stateFnBackoffRetry(r *ContinuousReplication) stateFnContinuous {
@@ -260,8 +245,5 @@ func stateFnBackoffRetry(r *ContinuousReplication) stateFnContinuous {
 		}
 
 	}
-
-	// should never get here
-	return nil
 
 }

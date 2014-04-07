@@ -2,24 +2,27 @@ package synctube
 
 import (
 	"fmt"
+	"github.com/couchbaselabs/logg"
 )
 
 const FEED_TYPE_LONGPOLL = "longpoll"
 const FEED_TYPE_NORMAL = "normal"
 
 type ChangesFeedParams struct {
-	feedType            string // eg, "normal" or "longpoll"
-	limit               int    // eg, 50
-	heartbeatTimeMillis int    // eg, 300000
-	feedStyle           string // eg, "all_docs"
+	feedType            string         // eg, "normal" or "longpoll"
+	limit               int            // eg, 50
+	heartbeatTimeMillis int            // eg, 300000
+	feedStyle           string         // eg, "all_docs"
+	since               sequenceNumber // eg, "3"
 }
 
 func NewChangesFeedParams() *ChangesFeedParams {
 	return &ChangesFeedParams{
 		feedType:            FEED_TYPE_NORMAL,
 		limit:               DefaultChangesFeedLimit,
-		heartbeatTimeMillis: 300000,
+		heartbeatTimeMillis: 30 * 1000,
 		feedStyle:           "all_docs",
+		since:               *(NewSequenceNumber(EMPTY_SEQUENCE_NUMBER)),
 	}
 }
 
@@ -37,4 +40,23 @@ func (p ChangesFeedParams) HeartbeatTimeMillis() string {
 
 func (p ChangesFeedParams) FeedStyle() string {
 	return p.feedStyle
+}
+
+func (p ChangesFeedParams) SequenceNumber() string {
+	return p.since.String()
+}
+
+func (p ChangesFeedParams) String() string {
+	params := fmt.Sprintf(
+		"feed=%s&limit=%s&heartbeat=%s&style=%s",
+		p.FeedType(),
+		p.Limit(),
+		p.HeartbeatTimeMillis(),
+		p.FeedStyle(),
+	)
+	if len(p.SequenceNumber()) > 0 {
+		params = fmt.Sprintf("%v&since=%s", params, p.SequenceNumber())
+	}
+	logg.LogTo("TEST", "changesFeedParams: %v", params)
+	return params
 }

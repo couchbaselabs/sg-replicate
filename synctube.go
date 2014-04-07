@@ -518,21 +518,14 @@ func (r Replication) getLongpollChangesFeedUrl() string {
 }
 
 func (r Replication) getChangesFeedUrl(changesFeedParams ChangesFeedParams) string {
-
-	changesFeedUrl := r.Parameters.getSourceChangesFeedUrl(changesFeedParams)
 	checkpoint, err := r.FetchedTargetCheckpoint.LastCheckpointNumeric()
 	if err != nil {
 		logg.LogPanic("got non-numeric checkpoint: %v", r.FetchedTargetCheckpoint)
 	}
-
 	if !r.FetchedTargetCheckpoint.IsEmpty() {
-		changesFeedUrl = fmt.Sprintf(
-			"%s&since=%v",
-			changesFeedUrl,
-			checkpoint,
-		)
+		changesFeedParams.since = *(NewSequenceNumber(checkpoint))
 	}
-
+	changesFeedUrl := r.Parameters.getSourceChangesFeedUrl(changesFeedParams)
 	return changesFeedUrl
 
 }

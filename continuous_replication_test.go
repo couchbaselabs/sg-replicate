@@ -36,7 +36,9 @@ func (r MockOneShotReplication) pretendToBeAOneShotReplicator() {
 	if r.stopWhenFinished {
 		logg.LogTo("TEST", "send REPLICATION_STOPPED to %v", r.NotificationChan)
 
-		r.NotificationChan <- *(NewReplicationNotification(REPLICATION_STOPPED))
+		notification := *(NewReplicationNotification(REPLICATION_STOPPED))
+		notification.Data = 1 // fake lastPushedSequence
+		r.NotificationChan <- notification
 
 		logg.LogTo("TEST", "sent REPLICATION_STOPPED")
 	} else {
