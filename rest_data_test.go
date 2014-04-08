@@ -13,7 +13,8 @@ func init() {
 }
 
 func TestGenerateRevsMap(t *testing.T) {
-	fakeChangesFeed := fakeChangesFeed()
+	lastSequence := 3
+	fakeChangesFeed := fakeChangesFeed(lastSequence)
 	changes := Changes{}
 	err := json.Unmarshal([]byte(fakeChangesFeed), &changes)
 	assert.True(t, err == nil)

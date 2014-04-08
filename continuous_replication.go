@@ -1,7 +1,10 @@
 package synctube
 
 import (
+	"encoding/json"
 	"github.com/couchbaselabs/logg"
+	"io/ioutil"
+	"net/http"
 	"time"
 )
 
@@ -126,15 +129,38 @@ func (r ContinuousReplication) fetchLongpollChanges(responseChan chan bool) {
 	changesFeedParams := NewChangesFeedParams()
 	changesFeedParams.feedType = FEED_TYPE_LONGPOLL
 	changesFeedParams.since = r.LastSequencePushed
+	changesFeedUrl := r.ReplicationParameters.getSourceChangesFeedUrl(*changesFeedParams)
 
-	// Problem: how to mock this out for testing purposes??
-	// Solution: the same way as always!  a mock http server.
-	// Note that code-reuse can be obtained via putting url creator
-	// on the replciationparams object.
+	logg.LogTo("SYNCTUBE", "fetching longpoll changes at url: %v", changesFeedUrl)
 
-	// TODO: remove fake and do real impl
-	<-time.After(1 * time.Millisecond)
-	responseChan <- true
+	client := &http.Client{}
+	req, _ := http.NewRequest("GET", changesFeedUrl, nil)
+	resp, err := client.Do(req)
+	logg.LogTo("SYNCTUBE", "longpoll changes feed resp: %v, err: %v", resp, err)
+	if err != nil {
+		logg.LogTo("SYNCTUBE", "Error getting longpoll changes feed: %v", err)
+		responseChan <- false
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		logg.LogTo("SYNCTUBE", "Error getting longpoll changes feed.  Resp: %v", resp)
+		responseChan <- false
+		return
+	}
+
+	bodyText, _ := ioutil.ReadAll(resp.Body)
+	changes := Changes{}
+	err = json.Unmarshal(bodyText, &changes)
+	if err != nil {
+		logg.LogTo("SYNCTUBE", "Error unmarshalling longpoll changes")
+		logg.LogError(err)
+		responseChan <- false
+		return
+	}
+
+	gotChanges := len(changes.Results) > 0
+	responseChan <- gotChanges
 
 }
 
