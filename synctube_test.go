@@ -619,23 +619,8 @@ func TestOneShotReplicationPushCheckpointSucceeded(t *testing.T) {
 
 	waitForNotification(replication, REPLICATION_PUSHED_CHECKPOINT)
 
-	for {
-		select {
-		case replicationNotification, ok := <-replication.NotificationChan:
-			if !ok {
-				logg.LogPanic("notifictionChan appears to be closed")
-				return
-			}
-			if replicationNotification.Status == REPLICATION_STOPPED {
-				lastSequencePushed := replicationNotification.Data.(int)
-				assert.Equals(t, lastSequencePushed, 3)
-				logg.LogTo("TEST", "lastSequencePushed %v", lastSequencePushed)
-				return
-			}
-		case <-time.After(time.Second * 10):
-			logg.LogPanic("Timeout")
-		}
-	}
+	remoteCheckpoint := waitForReplicationStoppedNotification(replication)
+	assert.Equals(t, remoteCheckpoint, 3)
 
 	assertNotificationChannelClosed(notificationChan)
 
@@ -782,7 +767,42 @@ func TestOneShotReplicationHappyPath(t *testing.T) {
 
 }
 
-func TestOneShotIntegrationReplication(t *testing.T) {
+// Test against mock source server that has no changes, nothing to sync.
+func TestOneShotReplicationNoOp(t *testing.T) {
+
+	sourceServer, targetServer := fakeServers(6011, 6010)
+
+	params := replicationParams(sourceServer.URL, targetServer.URL)
+
+	notificationChan := make(chan ReplicationNotification)
+
+	// create a new replication and start it
+	replication := NewReplication(params, notificationChan)
+
+	// fake response to get checkpoint
+	targetServer.Response(404, jsonHeaders(), bogusJson())
+
+	// fake response to changes feed
+	lastSequence := 3
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeedEmpty(lastSequence))
+
+	replication.Start()
+
+	// expect to get a replication active event
+	replicationNotification := <-notificationChan
+	assert.Equals(t, replicationNotification.Status, REPLICATION_ACTIVE)
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHANGES_FEED)
+
+	remoteCheckpoint := waitForReplicationStoppedNotification(replication)
+	assert.Equals(t, remoteCheckpoint, lastSequence)
+
+}
+
+// Integration test.  Not fully automated; should be commented out.
+func DISTestOneShotIntegrationReplication(t *testing.T) {
 
 	sourceServerUrlStr := "http://localhost:4984"
 	targetServerUrlStr := "http://localhost:4986"
@@ -917,6 +937,26 @@ func waitForNotificationAndStop(replication *Replication, expected ReplicationSt
 			}
 		case <-time.After(time.Second * 10):
 			logg.LogPanic("Timeout waiting for %v", expected)
+		}
+	}
+
+}
+
+func waitForReplicationStoppedNotification(replication *Replication) (remoteCheckpoint int) {
+
+	for {
+		select {
+		case replicationNotification, ok := <-replication.NotificationChan:
+			if !ok {
+				logg.LogPanic("notifictionChan appears to be closed")
+				return
+			}
+			if replicationNotification.Status == REPLICATION_STOPPED {
+				remoteCheckpoint = replicationNotification.Data.(int)
+				return
+			}
+		case <-time.After(time.Second * 10):
+			logg.LogPanic("Timeout")
 		}
 	}
 
