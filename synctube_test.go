@@ -24,7 +24,6 @@ func replicationParams(sourceServerUrl *url.URL, targetServerUrl *url.URL) Repli
 	params.SourceDb = "db"
 	params.Target = targetServerUrl
 	params.TargetDb = "db"
-	params.Continuous = false
 	params.ChangesFeedLimit = 2
 	return params
 }
