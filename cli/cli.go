@@ -16,8 +16,8 @@ func init() {
 func main() {
 	fmt.Printf("hey")
 
-	sourceServerUrlStr := "http://localhost:4984"
-	targetServerUrlStr := "http://localhost:4986"
+	sourceServerUrlStr := "http://checkers.sync.couchbasecloud.com"
+	targetServerUrlStr := "http://localhost:4984"
 
 	sourceServerUrl, err := url.Parse(sourceServerUrlStr)
 	if err != nil {
@@ -31,10 +31,9 @@ func main() {
 
 	params := synctube.ReplicationParameters{}
 	params.Source = sourceServerUrl
-	params.SourceDb = "db"
+	params.SourceDb = "checkers"
 	params.Target = targetServerUrl
 	params.TargetDb = "db"
-	params.Continuous = false
 	params.ChangesFeedLimit = 50
 
 	notificationChan := make(chan synctube.ContinuousReplicationNotification)

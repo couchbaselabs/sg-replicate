@@ -12,7 +12,6 @@ type ReplicationParameters struct {
 	SourceDb         string
 	Target           *url.URL
 	TargetDb         string
-	Continuous       bool
 	ChangesFeedLimit int
 }
 
