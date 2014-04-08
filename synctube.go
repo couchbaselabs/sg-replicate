@@ -24,7 +24,6 @@ type Replication struct {
 	RevsDiff                RevsDiffResponseMap
 	DocumentBodies          []DocumentBody
 	PushedBulkDocs          []DocumentRevisionPair
-	LastSequencePushed      int
 }
 
 func NewReplication(params ReplicationParameters, notificationChan chan ReplicationNotification) *Replication {
@@ -32,10 +31,9 @@ func NewReplication(params ReplicationParameters, notificationChan chan Replicat
 	eventChan := make(chan ReplicationEvent)
 
 	replication := &Replication{
-		Parameters:         params,
-		EventChan:          eventChan,
-		NotificationChan:   notificationChan,
-		LastSequencePushed: -1,
+		Parameters:       params,
+		EventChan:        eventChan,
+		NotificationChan: notificationChan,
 	}
 
 	// spawn a go-routine that reads from event channel and acts on events

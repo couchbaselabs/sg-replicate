@@ -98,7 +98,7 @@ func stateFnActiveFetchChangesFeed(r *Replication) stateFn {
 		if len(r.Changes.Results) == 0 {
 			// nothing to do, so stop
 			notification := NewReplicationNotification(REPLICATION_STOPPED)
-			notification.Data = r.LastSequencePushed
+			notification.Data = r.Changes.LastSequence
 			r.NotificationChan <- *notification
 			return nil
 		} else {
@@ -266,9 +266,8 @@ func stateFnActivePushCheckpoint(r *Replication) stateFn {
 		return nil
 	case PUSH_CHECKPOINT_SUCCEEDED:
 
-		r.LastSequencePushed = r.Changes.LastSequence
-
 		notification := NewReplicationNotification(REPLICATION_PUSHED_CHECKPOINT)
+		notification.Data = r.Changes.LastSequence
 		r.NotificationChan <- *notification
 
 		// TOOD: r.resetExtendedState()
