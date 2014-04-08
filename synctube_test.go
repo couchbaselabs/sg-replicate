@@ -781,7 +781,7 @@ func TestOneShotReplicationHappyPath(t *testing.T) {
 
 }
 
-func DISTestOneShotIntegrationReplication(t *testing.T) {
+func TestOneShotIntegrationReplication(t *testing.T) {
 
 	sourceServerUrlStr := "http://localhost:4984"
 	targetServerUrlStr := "http://localhost:4986"

@@ -153,3 +153,45 @@ func TestUnHealthyContinuousReplication(t *testing.T) {
 	waitForContinuousNotification(notificationChan, CANCELLED)
 
 }
+
+func DISTestContinuousReplicationIntegration(t *testing.T) {
+
+	sourceServerUrlStr := "http://localhost:4984"
+	targetServerUrlStr := "http://localhost:4986"
+
+	sourceServerUrl, err := url.Parse(sourceServerUrlStr)
+	if err != nil {
+		logg.LogPanic("could not parse url: %v", sourceServerUrlStr)
+	}
+
+	targetServerUrl, err := url.Parse(targetServerUrlStr)
+	if err != nil {
+		logg.LogPanic("could not parse url: %v", targetServerUrlStr)
+	}
+	params := replicationParams(sourceServerUrl, targetServerUrl)
+
+	notificationChan := make(chan ContinuousReplicationNotification)
+
+	factory := func(params ReplicationParameters, notificationChan chan ReplicationNotification) Runnable {
+		return NewReplication(params, notificationChan)
+	}
+
+	retryTime := time.Millisecond
+	replication := NewContinuousReplication(params, factory, notificationChan, retryTime)
+	logg.LogTo("TEST", "created continuous replication: %v", replication)
+
+	for {
+		select {
+		case notification, ok := <-notificationChan:
+			if !ok {
+				logg.LogPanic("TEST", "notificationChan appears to be closed")
+				return
+			}
+			logg.LogTo("TEST", "Got notification %v", notification)
+
+		case <-time.After(time.Second * 120):
+			logg.LogPanic("Timeout")
+		}
+	}
+
+}
