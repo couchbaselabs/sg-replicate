@@ -210,6 +210,7 @@ func (r Replication) fetchChangesFeed() {
 		logg.LogError(err)
 		event := NewReplicationEvent(FETCH_CHANGES_FEED_FAILED)
 		r.sendEventWithTimeout(event)
+		return
 	}
 	event := NewReplicationEvent(FETCH_CHANGES_FEED_SUCCEEDED)
 	event.Data = changes
