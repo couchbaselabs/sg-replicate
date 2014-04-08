@@ -20,6 +20,9 @@ type MockOneShotReplication struct {
 
 	// if true, it will stop.  if false, will abort
 	stopWhenFinished bool
+
+	// fake checkpoint sent in the REPLICATION_STOPPED notification
+	fakeCheckpoint int
 }
 
 func (r MockOneShotReplication) Start() error {
@@ -41,7 +44,7 @@ func (r MockOneShotReplication) pretendToBeAOneShotReplicator() {
 		logg.LogTo("TEST", "send REPLICATION_STOPPED to %v", r.NotificationChan)
 
 		notification := *(NewReplicationNotification(REPLICATION_STOPPED))
-		notification.Data = 1 // fake lastPushedSequence
+		notification.Data = r.fakeCheckpoint
 		r.NotificationChan <- notification
 
 		logg.LogTo("TEST", "sent REPLICATION_STOPPED")
@@ -81,7 +84,51 @@ func waitForContinuousNotification(notificationChan chan ContinuousReplicationNo
 
 }
 
-func TestHealthyContinuousReplication(t *testing.T) {
+// Test against mock servers which are already in sync
+func TestNoOpContinuousReplication(t *testing.T) {
+
+	sourceServer, targetServer := fakeServers(5975, 5974)
+
+	// fake changes feed - empty
+	lastSequence := 7
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeedEmpty(lastSequence))
+
+	params := replicationParams(sourceServer.URL, targetServer.URL)
+
+	notificationChan := make(chan ContinuousReplicationNotification)
+
+	factory := func(params ReplicationParameters, notificationChan chan ReplicationNotification) Runnable {
+
+		return &MockOneShotReplication{
+			NotificationChan: notificationChan,
+			stopWhenFinished: true,
+			fakeCheckpoint:   lastSequence,
+		}
+
+	}
+
+	retryTime := time.Millisecond
+
+	replication := NewContinuousReplication(params, factory, notificationChan, retryTime)
+
+	waitForContinuousNotification(notificationChan, CATCHING_UP)
+	waitForContinuousNotification(notificationChan, CAUGHT_UP)
+
+	replication.Stop()
+	waitForContinuousNotification(notificationChan, CANCELLED)
+
+	for _, savedReq := range sourceServer.SavedRequests {
+		path := savedReq.Request.URL.Path
+		if strings.Contains(path, "/db/_changes") {
+			params, err := url.ParseQuery(savedReq.Request.URL.RawQuery)
+			assert.True(t, err == nil)
+			assert.Equals(t, params["since"][0], strconv.Itoa(lastSequence))
+		}
+	}
+
+}
+
+func TestHappyPathContinuousReplication(t *testing.T) {
 
 	sourceServer, targetServer := fakeServers(5975, 5974)
 
@@ -98,6 +145,7 @@ func TestHealthyContinuousReplication(t *testing.T) {
 		return &MockOneShotReplication{
 			NotificationChan: notificationChan,
 			stopWhenFinished: true,
+			fakeCheckpoint:   1,
 		}
 
 	}
@@ -125,6 +173,10 @@ func TestHealthyContinuousReplication(t *testing.T) {
 
 }
 
+// Test against a mock source server that emulates a wrapped replication
+// that always aborts replications.  (NOTE: if we extend the continuous replication
+// to abort when there are enough abort events from wrapped replication, we'll
+// need to update this test)
 func TestUnHealthyContinuousReplication(t *testing.T) {
 
 	sourceServer, targetServer := fakeServers(5973, 5972)
@@ -138,6 +190,7 @@ func TestUnHealthyContinuousReplication(t *testing.T) {
 		return &MockOneShotReplication{
 			NotificationChan: notificationChan,
 			stopWhenFinished: false,
+			fakeCheckpoint:   1,
 		}
 
 	}
@@ -154,6 +207,7 @@ func TestUnHealthyContinuousReplication(t *testing.T) {
 
 }
 
+// Integration test.  Not automated yet, should be commented out.
 func DISTestContinuousReplicationIntegration(t *testing.T) {
 
 	sourceServerUrlStr := "http://localhost:4984"

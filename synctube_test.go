@@ -711,10 +711,11 @@ func TestOneShotReplicationHappyPath(t *testing.T) {
 	targetServer.Response(200, jsonHeaders(), fakePushCheckpointResponse(replication.targetCheckpointAddress()))
 
 	// fake third response to get checkpoint
-	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 4))
+	lastSequence = 4
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), lastSequence))
 
 	// fake third response to changes feed
-	sourceServer.Response(200, jsonHeaders(), fakeChangesFeedEmpty())
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeedEmpty(lastSequence))
 
 	replication.Start()
 
@@ -854,8 +855,8 @@ func fakeChangesFeed2() string {
 	return `{"results":[{"seq":4,"id":"doc4","changes":[{"rev":"1-786e"}]}],"last_seq":4}`
 }
 
-func fakeChangesFeedEmpty() string {
-	return `{"results":[]}`
+func fakeChangesFeedEmpty(lastSequence int) string {
+	return fmt.Sprintf(`{"results":[],"last_seq":%v}`, lastSequence)
 }
 
 func fakeRevsDiff() string {
