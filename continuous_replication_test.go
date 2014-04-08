@@ -87,7 +87,7 @@ func waitForContinuousNotification(notificationChan chan ContinuousReplicationNo
 // Test against mock servers which are already in sync
 func TestNoOpContinuousReplication(t *testing.T) {
 
-	sourceServer, targetServer := fakeServers(5975, 5974)
+	sourceServer, targetServer := fakeServers(5971, 5970)
 
 	// fake changes feed - empty
 	lastSequence := 7

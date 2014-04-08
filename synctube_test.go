@@ -770,7 +770,7 @@ func TestOneShotReplicationHappyPath(t *testing.T) {
 // Test against mock source server that has no changes, nothing to sync.
 func TestOneShotReplicationNoOp(t *testing.T) {
 
-	sourceServer, targetServer := fakeServers(6011, 6010)
+	sourceServer, targetServer := fakeServers(6013, 6012)
 
 	params := replicationParams(sourceServer.URL, targetServer.URL)
 
