@@ -6,22 +6,15 @@ import (
 
 const EMPTY_SEQUENCE_NUMBER = -1
 
-type sequenceNumber struct {
-	wrappedInt int
-}
-
-func NewSequenceNumber(seqNumber int) *sequenceNumber {
-	return &sequenceNumber{
-		wrappedInt: seqNumber,
-	}
-}
+type sequenceNumber int
 
 func (s sequenceNumber) String() string {
-	switch s.wrappedInt {
+	switch s {
 	case EMPTY_SEQUENCE_NUMBER:
 		return ""
 	default:
-		return fmt.Sprintf("%v", s.wrappedInt)
+		intVal := int(s)
+		return fmt.Sprintf("%v", intVal)
 	}
 
 }

@@ -522,7 +522,7 @@ func (r Replication) getChangesFeedUrl(changesFeedParams ChangesFeedParams) stri
 		logg.LogPanic("got non-numeric checkpoint: %v", r.FetchedTargetCheckpoint)
 	}
 	if !r.FetchedTargetCheckpoint.IsEmpty() {
-		changesFeedParams.since = *(NewSequenceNumber(checkpoint))
+		changesFeedParams.since = sequenceNumber(checkpoint)
 	}
 	changesFeedUrl := r.Parameters.getSourceChangesFeedUrl(changesFeedParams)
 	return changesFeedUrl

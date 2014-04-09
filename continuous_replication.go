@@ -198,8 +198,7 @@ func stateFnCatchingUp(r *ContinuousReplication) stateFnContinuous {
 			switch notification.Status {
 			case REPLICATION_STOPPED:
 				logg.LogTo("SYNCTUBE", "Replication stopped, caught up")
-				lastSequencePushed := notification.Data.(int)
-				r.LastSequencePushed = *(NewSequenceNumber(lastSequencePushed))
+				r.LastSequencePushed = sequenceNumber(notification.Data.(int))
 				return stateFnWaitNewChanges
 			case REPLICATION_ABORTED:
 				logg.LogTo("SYNCTUBE", "Replication aborted .. try again")

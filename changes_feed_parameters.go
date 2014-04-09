@@ -22,7 +22,7 @@ func NewChangesFeedParams() *ChangesFeedParams {
 		limit:               DefaultChangesFeedLimit,
 		heartbeatTimeMillis: 30 * 1000,
 		feedStyle:           "all_docs",
-		since:               *(NewSequenceNumber(EMPTY_SEQUENCE_NUMBER)),
+		since:               EMPTY_SEQUENCE_NUMBER,
 	}
 }
 
@@ -54,6 +54,7 @@ func (p ChangesFeedParams) String() string {
 		p.HeartbeatTimeMillis(),
 		p.FeedStyle(),
 	)
+	logg.LogTo("TEST", "p.since.String: %v", p.since.String())
 	if len(p.SequenceNumber()) > 0 {
 		params = fmt.Sprintf("%v&since=%s", params, p.SequenceNumber())
 	}
