@@ -341,17 +341,26 @@ func (r Replication) fetchBulkGet() {
 		if err != nil {
 			break
 		}
-		documentBody := DocumentBody{}
-		decoder := json.NewDecoder(mainPart)
+		logg.LogTo("SYNCTUBE", "mainPart: %v.  Header: %v", mainPart, mainPart.Header)
+		mainPartContentTypes := mainPart.Header["Content-Type"] // why a slice?
+		mainPartContentType := mainPartContentTypes[0]
+		logg.LogTo("SYNCTUBE", "mainPartContentType: %v", mainPartContentType)
+		switch mainPartContentType {
+		case "application/json":
+			documentBody := DocumentBody{}
+			decoder := json.NewDecoder(mainPart)
 
-		if err = decoder.Decode(&documentBody); err != nil {
-			logg.LogTo("SYNCTUBE", "Error decoding part: %v", err)
-			event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
-			r.sendEventWithTimeout(event)
-			return
+			if err = decoder.Decode(&documentBody); err != nil {
+				logg.LogTo("SYNCTUBE", "Error decoding part: %v", err)
+				event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
+				r.sendEventWithTimeout(event)
+				return
+			}
+			documentBodies = append(documentBodies, documentBody)
+			mainPart.Close()
+		default:
+			logg.LogTo("SYNCTUBE", "ignoring non-json content, probably an attachment")
 		}
-		documentBodies = append(documentBodies, documentBody)
-		mainPart.Close()
 
 	}
 
