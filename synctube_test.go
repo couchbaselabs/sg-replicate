@@ -765,6 +765,14 @@ func TestOneShotReplicationHappyPath(t *testing.T) {
 		}
 	}
 
+	for _, savedReq := range targetServer.SavedRequests {
+		path := savedReq.Request.URL.Path
+		logg.LogTo("TEST", "path: %v", path)
+		if strings.Contains(path, "/db/_bulk_docs") {
+			logg.LogTo("TEST", "data: %v", string(savedReq.Data))
+		}
+	}
+
 }
 
 // Test against mock source server that has no changes, nothing to sync.
@@ -905,7 +913,8 @@ Content-Type: application/json
 }
 
 func fakeBulkGetResponseWithTextAttachment(boundary1, boundary2 string) string {
-	return fmt.Sprintf(`--%s
+
+	response := fmt.Sprintf(`--%s
 Content-Type: application/json
 
 {"_id":"doc1","_rev":"1-6b5f","_revisions":{"ids":["6b5f"],"start":1},"fakefield1":true,"fakefield2":2}
@@ -924,7 +933,9 @@ Content-Disposition: attachment; filename="attachment.txt"
 
 0123456789
 --%s--
-`, boundary1, boundary1, boundary2, boundary2, boundary2, boundary2, boundary2)
+--%s--
+`, boundary1, boundary1, boundary2, boundary2, boundary2, boundary2, boundary1)
+	return response
 }
 
 func fakeBulkGetResponse2(boundary string) string {

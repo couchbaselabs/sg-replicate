@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/couchbaselabs/logg"
 	"github.com/mreiferson/go-httpclient"
+	"io"
 	"io/ioutil"
 	"mime"
 	"mime/multipart"
@@ -338,9 +339,16 @@ func (r Replication) fetchBulkGet() {
 
 	for {
 		mainPart, err := reader.NextPart()
-		if err != nil {
+		if err == io.EOF {
 			break
+		} else if err != nil {
+			logg.LogTo("SYNCTUBE", "Error getting next part: %v", err)
+			event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
+			event.Data = err
+			r.sendEventWithTimeout(event)
+			return
 		}
+
 		logg.LogTo("SYNCTUBE", "mainPart: %v.  Header: %v", mainPart, mainPart.Header)
 		mainPartContentTypes := mainPart.Header["Content-Type"] // why a slice?
 		mainPartContentType := mainPartContentTypes[0]
@@ -353,13 +361,37 @@ func (r Replication) fetchBulkGet() {
 			if err = decoder.Decode(&documentBody); err != nil {
 				logg.LogTo("SYNCTUBE", "Error decoding part: %v", err)
 				event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
+				event.Data = err
 				r.sendEventWithTimeout(event)
 				return
 			}
 			documentBodies = append(documentBodies, documentBody)
 			mainPart.Close()
 		default:
-			logg.LogTo("SYNCTUBE", "ignoring non-json content, probably an attachment")
+			logg.LogTo("SYNCTUBE", "ignoring non-json content with content type: %v, probably an attachment", mainPartContentType)
+			contentType, attrs, _ := mime.ParseMediaType(mainPartContentType)
+			logg.LogTo("SYNCTUBE", "contentType: %v", contentType)
+			logg.LogTo("SYNCTUBE", "boundary: %v", attrs["boundary"])
+
+			nestedReader := multipart.NewReader(mainPart, attrs["boundary"])
+			logg.LogTo("SYNCTUBE", "nestedReader: %v", nestedReader)
+
+			for {
+				nestedPart, err := nestedReader.NextPart()
+				if err == io.EOF {
+					break
+				} else if err != nil {
+					logg.LogTo("SYNCTUBE", "err nested nextpart: %v", err)
+					event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
+					event.Data = err
+					r.sendEventWithTimeout(event)
+					return
+				}
+				logg.LogTo("SYNCTUBE", "nestedPart: %v.  Header: %v", nestedPart, nestedPart.Header)
+
+			}
+
+			mainPart.Close()
 		}
 
 	}
