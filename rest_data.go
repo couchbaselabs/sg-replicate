@@ -78,12 +78,7 @@ type DocumentBody map[string]interface{}
 
 type Document struct {
 	Body        DocumentBody
-	Attachments []Attachment
-}
-
-type Attachment struct {
-	Headers map[string]string
-	Data    []byte
+	Attachments []*Attachment
 }
 
 func generateRevsDiffMap(changes Changes) RevsDiffQueryMap {
@@ -135,6 +130,11 @@ func generateBulkDocsRequest(documents []Document) BulkDocsRequest {
 	for _, document := range documents {
 		if len(document.Attachments) == 0 {
 			documentBodies = append(documentBodies, document.Body)
+		} else {
+			for _, attachment := range document.Attachments {
+				logg.LogTo("SYNCTUBE", "attachment.Headers :%v", attachment.Headers)
+				logg.LogTo("SYNCTUBE", "attachment.Data :%v", string(attachment.Data))
+			}
 		}
 	}
 	return BulkDocsRequest{

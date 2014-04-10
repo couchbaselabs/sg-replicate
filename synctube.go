@@ -375,7 +375,7 @@ func (r Replication) fetchBulkGet() {
 		case "multipart/related":
 			nestedReader := multipart.NewReader(mainPart, attrs["boundary"])
 			nestedDoc := Document{}
-			nestedAttachments := []Attachment{}
+			nestedAttachments := []*Attachment{}
 			for {
 				nestedPart, err := nestedReader.NextPart()
 				if err == io.EOF {
@@ -410,7 +410,14 @@ func (r Replication) fetchBulkGet() {
 
 				default:
 					// handle attachment
-					attachment := Attachment{}
+					attachment, err := NewAttachment(nestedPart)
+					if err != nil {
+						logg.LogTo("SYNCTUBE", "Error decoding attachment: %v", err)
+						event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
+						event.Data = err
+						r.sendEventWithTimeout(event)
+						return
+					}
 					nestedAttachments = append(nestedAttachments, attachment)
 				}
 
