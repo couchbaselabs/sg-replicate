@@ -405,8 +405,8 @@ func TestOneShotReplicationBulkGetHappyPath(t *testing.T) {
 
 	waitForNotification(replication, REPLICATION_FETCHED_BULK_GET)
 
-	assert.Equals(t, len(replication.DocumentBodies), 1)
-	documentBody := replication.DocumentBodies[0]
+	assert.Equals(t, len(replication.Documents), 1)
+	documentBody := replication.Documents[0].Body
 	assert.Equals(t, documentBody["_id"], "doc2")
 
 	replication.Stop()
@@ -765,6 +765,9 @@ func TestOneShotReplicationHappyPath(t *testing.T) {
 		}
 	}
 
+	// TODO: add assertions:
+	// * should be bulk doc requests for doc1 and doc4
+	// * should be a PUT request for doc2
 	for _, savedReq := range targetServer.SavedRequests {
 		path := savedReq.Request.URL.Path
 		logg.LogTo("TEST", "path: %v", path)

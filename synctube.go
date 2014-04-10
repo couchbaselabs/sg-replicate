@@ -23,7 +23,7 @@ type Replication struct {
 	FetchedTargetCheckpoint Checkpoint
 	Changes                 Changes
 	RevsDiff                RevsDiffResponseMap
-	DocumentBodies          []DocumentBody
+	Documents               []Document
 	PushedBulkDocs          []DocumentRevisionPair
 }
 
@@ -335,7 +335,7 @@ func (r Replication) fetchBulkGet() {
 	}
 
 	reader := multipart.NewReader(resp.Body, boundary)
-	documentBodies := []DocumentBody{}
+	documents := []Document{}
 
 	for {
 		mainPart, err := reader.NextPart()
@@ -352,8 +352,10 @@ func (r Replication) fetchBulkGet() {
 		logg.LogTo("SYNCTUBE", "mainPart: %v.  Header: %v", mainPart, mainPart.Header)
 		mainPartContentTypes := mainPart.Header["Content-Type"] // why a slice?
 		mainPartContentType := mainPartContentTypes[0]
-		logg.LogTo("SYNCTUBE", "mainPartContentType: %v", mainPartContentType)
-		switch mainPartContentType {
+		contentType, attrs, _ := mime.ParseMediaType(mainPartContentType)
+		logg.LogTo("SYNCTUBE", "contentType: %v", contentType)
+		logg.LogTo("SYNCTUBE", "boundary: %v", attrs["boundary"])
+		switch contentType {
 		case "application/json":
 			documentBody := DocumentBody{}
 			decoder := json.NewDecoder(mainPart)
@@ -365,17 +367,13 @@ func (r Replication) fetchBulkGet() {
 				r.sendEventWithTimeout(event)
 				return
 			}
-			documentBodies = append(documentBodies, documentBody)
+			document := Document{
+				Body: documentBody,
+			}
+			documents = append(documents, document)
 			mainPart.Close()
-		default:
-			logg.LogTo("SYNCTUBE", "ignoring non-json content with content type: %v, probably an attachment", mainPartContentType)
-			contentType, attrs, _ := mime.ParseMediaType(mainPartContentType)
-			logg.LogTo("SYNCTUBE", "contentType: %v", contentType)
-			logg.LogTo("SYNCTUBE", "boundary: %v", attrs["boundary"])
-
+		case "multipart/related":
 			nestedReader := multipart.NewReader(mainPart, attrs["boundary"])
-			logg.LogTo("SYNCTUBE", "nestedReader: %v", nestedReader)
-
 			for {
 				nestedPart, err := nestedReader.NextPart()
 				if err == io.EOF {
@@ -392,12 +390,15 @@ func (r Replication) fetchBulkGet() {
 			}
 
 			mainPart.Close()
+		default:
+			logg.LogTo("SYNCTUBE", "ignoring unexpected content type: %v", contentType)
+
 		}
 
 	}
 
 	event := NewReplicationEvent(FETCH_BULK_GET_SUCCEEDED)
-	event.Data = documentBodies
+	event.Data = documents
 	r.sendEventWithTimeout(event)
 
 }
@@ -407,7 +408,7 @@ func (r Replication) pushBulkDocs() {
 	defer transport.Close()
 
 	bulkDocsUrl := r.getBulkDocsUrl()
-	bulkDocsRequest := generateBulkDocsRequest(r.DocumentBodies)
+	bulkDocsRequest := generateBulkDocsRequest(r.Documents)
 
 	bulkDocsRequestJson, err := json.Marshal(bulkDocsRequest)
 	if err != nil {

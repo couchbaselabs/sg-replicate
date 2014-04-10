@@ -76,6 +76,16 @@ type RevsDiffQueryMap map[string][]string
 
 type DocumentBody map[string]interface{}
 
+type Document struct {
+	Body        DocumentBody
+	Attachments []Attachment
+}
+
+type Attachment struct {
+	Headers map[string]string
+	Data    []byte
+}
+
 func generateRevsDiffMap(changes Changes) RevsDiffQueryMap {
 
 	revsDiffMap := RevsDiffQueryMap{}
@@ -119,7 +129,14 @@ func generateBulkGetRequest(revsDiff RevsDiffResponseMap) BulkGetRequest {
 	return bulkDocsRequest
 }
 
-func generateBulkDocsRequest(documentBodies []DocumentBody) BulkDocsRequest {
+func generateBulkDocsRequest(documents []Document) BulkDocsRequest {
+	documentBodies := []DocumentBody{}
+	// we can only send the documents _without_ attachments in _bulk_docs
+	for _, document := range documents {
+		if len(document.Attachments) == 0 {
+			documentBodies = append(documentBodies, document.Body)
+		}
+	}
 	return BulkDocsRequest{
 		NewEdits:       false,
 		DocumentBodies: documentBodies,

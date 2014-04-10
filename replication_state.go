@@ -178,11 +178,21 @@ func stateFnActiveFetchBulkGet(r *Replication) stateFn {
 		r.NotificationChan <- *notification
 		return nil
 	case FETCH_BULK_GET_SUCCEEDED:
-		r.DocumentBodies = event.Data.([]DocumentBody)
+		switch event.Data.(type) {
+		case []Document:
+			r.Documents = event.Data.([]Document)
+		default:
+			logg.LogTo("SYNCTUBE", "Got unexpected type: %v", event.Data)
+			notification := NewReplicationNotification(REPLICATION_ABORTED)
+			notification.Error = NewReplicationError(FETCH_BULK_GET_FAILED)
+			r.NotificationChan <- *notification
+			return nil
+		}
+
 		notification := NewReplicationNotification(REPLICATION_FETCHED_BULK_GET)
 		r.NotificationChan <- *notification
 
-		if len(r.DocumentBodies) == 0 {
+		if len(r.Documents) == 0 {
 			logg.LogTo("SYNCTUBE", "len(r.DocumentBodies) == 0")
 			notification := NewReplicationNotification(REPLICATION_ABORTED)
 			notification.Error = NewReplicationError(FETCH_BULK_GET_FAILED)
