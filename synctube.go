@@ -374,6 +374,8 @@ func (r Replication) fetchBulkGet() {
 			mainPart.Close()
 		case "multipart/related":
 			nestedReader := multipart.NewReader(mainPart, attrs["boundary"])
+			nestedDoc := Document{}
+			nestedAttachments := []Attachment{}
 			for {
 				nestedPart, err := nestedReader.NextPart()
 				if err == io.EOF {
@@ -386,8 +388,37 @@ func (r Replication) fetchBulkGet() {
 					return
 				}
 				logg.LogTo("SYNCTUBE", "nestedPart: %v.  Header: %v", nestedPart, nestedPart.Header)
+				nestedPartContentTypes := nestedPart.Header["Content-Type"]
+				nestedPartContentType := nestedPartContentTypes[0]
+				nestedContentType, nestedAttrs, _ := mime.ParseMediaType(nestedPartContentType)
+				logg.LogTo("SYNCTUBE", "nestedContentType: %v", nestedContentType)
+				logg.LogTo("SYNCTUBE", "nestedAttrs: %v", nestedAttrs)
+
+				switch nestedContentType {
+				case "application/json":
+					nestedDecoder := json.NewDecoder(nestedPart)
+					nestedDocBody := DocumentBody{}
+					if err = nestedDecoder.Decode(&nestedDocBody); err != nil {
+						logg.LogTo("SYNCTUBE", "Error decoding part: %v", err)
+						event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
+						event.Data = err
+						r.sendEventWithTimeout(event)
+						return
+					}
+					nestedDoc.Body = nestedDocBody
+					nestedPart.Close()
+
+				default:
+					// handle attachment
+					attachment := Attachment{}
+					nestedAttachments = append(nestedAttachments, attachment)
+				}
 
 			}
+			if len(nestedAttachments) > 0 {
+				nestedDoc.Attachments = nestedAttachments
+			}
+			documents = append(documents, nestedDoc)
 
 			mainPart.Close()
 		default:
