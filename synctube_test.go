@@ -661,8 +661,9 @@ func TestOneShotReplicationHappyPath(t *testing.T) {
 	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed(lastSequence))
 
 	// fake response to bulk get
-	boundary := fakeBoundary()
-	sourceServer.Response(200, jsonHeadersMultipart(boundary), fakeBulkGetResponse(boundary))
+	boundary1 := fakeBoundary()
+	boundary2 := fakeBoundary2()
+	sourceServer.Response(200, jsonHeadersMultipart(boundary1), fakeBulkGetResponseWithTextAttachment(boundary1, boundary2))
 
 	// fake response to revs_diff
 	targetServer.Response(200, jsonHeaders(), fakeRevsDiff())
@@ -683,7 +684,7 @@ func TestOneShotReplicationHappyPath(t *testing.T) {
 	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed2())
 
 	// fake second reponse to bulk get
-	sourceServer.Response(200, jsonHeadersMultipart(boundary), fakeBulkGetResponse2(boundary))
+	sourceServer.Response(200, jsonHeadersMultipart(boundary1), fakeBulkGetResponse2(boundary1))
 
 	// fake second response to revs_diff
 	targetServer.Response(200, jsonHeaders(), fakeRevsDiff2())
@@ -801,7 +802,7 @@ func TestOneShotReplicationNoOp(t *testing.T) {
 }
 
 // Integration test.  Not fully automated; should be commented out.
-func DISTestOneShotIntegrationReplication(t *testing.T) {
+func TestOneShotIntegrationReplication(t *testing.T) {
 
 	sourceServerUrlStr := "http://localhost:4984"
 	targetServerUrlStr := "http://localhost:4986"
@@ -890,6 +891,10 @@ func fakeBoundary() string {
 	return "882fbb2ef17c452b4a30362990eaed6bc53d5ed71b27ad32f9b50f7616aa"
 }
 
+func fakeBoundary2() string {
+	return "2a9349ad8e2c52ba0a58d3cddb60b2a55f23ceadcf03ef8f160260d0275d"
+}
+
 func fakeBulkGetResponse(boundary string) string {
 	return fmt.Sprintf(`--%s
 Content-Type: application/json
@@ -897,6 +902,29 @@ Content-Type: application/json
 {"_id":"doc2","_rev":"1-5e38","_revisions":{"ids":["5e38"],"start":1},"fakefield1":false,"fakefield2":1, "fakefield3":"blah"}
 --%s--
 `, boundary, boundary)
+}
+
+func fakeBulkGetResponseWithTextAttachment(boundary1, boundary2 string) string {
+	return fmt.Sprintf(`--%s
+Content-Type: application/json
+
+{"_id":"doc1","_rev":"1-6b5f","_revisions":{"ids":["6b5f"],"start":1},"fakefield1":true,"fakefield2":2}
+--%s
+X-Doc-Id: doc2
+X-Rev-Id: 1-5e38
+Content-Type: multipart/related; boundary="%s"
+
+--%s
+Content-Type: application/json
+
+{"_attachments":{"attachment.txt":{"content_type":"text/plain","digest":"sha1-3a30948f8cd5655fede389d73b5fecd91251df4a","follows":true,"length":10,"revpos":1}},"_id":"doc2","_rev":"1-5e38","_revisions":{"ids":["5e38"],"start":1},"fakefield1":false,"fakefield2":1, "fakefield3":"blah"}
+--%s
+Content-Type: text/plain
+Content-Disposition: attachment; filename="attachment.txt"
+
+0123456789
+--%s--
+`, boundary1, boundary1, boundary2, boundary2, boundary2, boundary2, boundary2)
 }
 
 func fakeBulkGetResponse2(boundary string) string {
@@ -1019,13 +1047,5 @@ func TestGeneratePushCheckpointRequest(t *testing.T) {
 	pushCheckpointRequest := replication.generatePushCheckpointRequest()
 	logg.LogTo("TEST", "pushCheckpointRequest: %v", pushCheckpointRequest)
 	assert.True(t, len(pushCheckpointRequest.Revision) == 0)
-
-}
-
-func TestContinuousHappyPathReplication(t *testing.T) {
-
-	// Happy Path test -- both the simulated source and targets
-	// do exactly what is expected of them.  Make sure Continous replication
-	// completes.
 
 }
