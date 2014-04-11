@@ -81,6 +81,36 @@ type Document struct {
 	Attachments []*Attachment
 }
 
+type DocumentSlice []Document
+
+func subsetDocsWithoutAttachemnts(docs []Document) []Document {
+	docsWithoutAttachemnts := []Document{}
+	for _, doc := range docs {
+		if len(doc.Attachments) == 0 {
+			docsWithoutAttachemnts = append(docsWithoutAttachemnts, doc)
+		}
+	}
+	return docsWithoutAttachemnts
+}
+
+func subsetDocsWithAttachemnts(docs []Document) []Document {
+	docsWithAttachemnts := []Document{}
+	for _, doc := range docs {
+		if len(doc.Attachments) > 0 {
+			docsWithAttachemnts = append(docsWithAttachemnts, doc)
+		}
+	}
+	return docsWithAttachemnts
+}
+
+func numDocsWithoutAttachments(docs []Document) int {
+	return len(subsetDocsWithoutAttachemnts(docs))
+}
+
+func numDocsWithAttachments(docs []Document) int {
+	return len(subsetDocsWithAttachemnts(docs))
+}
+
 func generateRevsDiffMap(changes Changes) RevsDiffQueryMap {
 
 	revsDiffMap := RevsDiffQueryMap{}
@@ -133,7 +163,6 @@ func generateBulkDocsRequest(documents []Document) BulkDocsRequest {
 		} else {
 			for _, attachment := range document.Attachments {
 				logg.LogTo("SYNCTUBE", "attachment.Headers :%v", attachment.Headers)
-				logg.LogTo("SYNCTUBE", "attachment.Data :%v", string(attachment.Data))
 			}
 		}
 	}

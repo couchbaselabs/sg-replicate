@@ -716,6 +716,8 @@ func TestOneShotReplicationHappyPath(t *testing.T) {
 
 	waitForNotification(replication, REPLICATION_PUSHED_BULK_DOCS)
 
+	waitForNotification(replication, REPLICATION_PUSHED_ATTACHMENT_DOCS)
+
 	waitForNotification(replication, REPLICATION_PUSHED_CHECKPOINT)
 
 	waitForNotification(replication, REPLICATION_STOPPED)

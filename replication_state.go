@@ -199,11 +199,20 @@ func stateFnActiveFetchBulkGet(r *Replication) stateFn {
 			r.NotificationChan <- *notification
 			return nil
 		} else {
-			go r.pushBulkDocs()
 
-			logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchBulkGet -> stateFnActivePushBulkDocs")
+			logg.LogTo("SYNCTUBE", "num docs w/o attachemnts: %v", numDocsWithoutAttachments(r.Documents))
+			logg.LogTo("SYNCTUBE", "num docs w/ attachemnts: %v", numDocsWithAttachments(r.Documents))
+			switch numDocsWithoutAttachments(r.Documents) > 0 {
+			case true:
+				go r.pushBulkDocs()
+				logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchBulkGet -> stateFnActivePushBulkDocs")
+				return stateFnActivePushBulkDocs
+			case false:
+				go r.pushAttachmentDocs()
+				logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchBulkGet -> stateFnActivePushAttachmentDocs")
+				return stateFnActivePushAttachmentDocs
+			}
 
-			return stateFnActivePushBulkDocs
 		}
 
 	default:
@@ -244,11 +253,22 @@ func stateFnActivePushBulkDocs(r *Replication) stateFn {
 			r.NotificationChan <- *notification
 			return nil
 		} else {
-			go r.pushCheckpoint()
 
-			logg.LogTo("SYNCTUBE", "Transition from stateFnActivePushBulkDocs -> stateFnActivePushCheckpoint")
+			switch numDocsWithAttachments(r.Documents) > 0 {
+			case true:
+				go r.pushAttachmentDocs()
+				logg.LogTo("SYNCTUBE", "Transition from stateFnActivePushBulkDocs -> stateFnActivePushAttachmentDocs")
+				return stateFnActivePushAttachmentDocs
 
-			return stateFnActivePushCheckpoint
+			case false:
+				go r.pushCheckpoint()
+
+				logg.LogTo("SYNCTUBE", "Transition from stateFnActivePushBulkDocs -> stateFnActivePushCheckpoint")
+
+				return stateFnActivePushCheckpoint
+
+			}
+
 		}
 
 	default:
@@ -257,6 +277,45 @@ func stateFnActivePushBulkDocs(r *Replication) stateFn {
 
 	time.Sleep(time.Second)
 	return stateFnActivePushBulkDocs
+}
+
+func stateFnActivePushAttachmentDocs(r *Replication) stateFn {
+	logg.LogTo("SYNCTUBE", "stateFnActivePushAttachmentDocs")
+	event := <-r.EventChan
+	logg.LogTo("SYNCTUBE", "stateFnActivePushAttachmentDocs got event: %v", event)
+	switch event.Signal {
+	case REPLICATION_STOP:
+		notification := NewReplicationNotification(REPLICATION_CANCELLED)
+		logg.LogTo("SYNCTUBE", "stateFnActivePushAttachmentDocs: %v", notification)
+		r.NotificationChan <- *notification
+		return nil
+	case PUSH_ATTACHMENT_DOCS_FAILED:
+		notification := NewReplicationNotification(REPLICATION_ABORTED)
+		notification.Error = NewReplicationError(PUSH_ATTACHMENT_DOCS_FAILED)
+		r.NotificationChan <- *notification
+		return nil
+	case PUSH_ATTACHMENT_DOCS_SUCCEEDED:
+
+		// TODO: we could record all the docs pushed in the r object
+
+		notification := NewReplicationNotification(REPLICATION_PUSHED_ATTACHMENT_DOCS)
+		r.NotificationChan <- *notification
+
+		// TODO: we could also make sure that we pushed the expected number of docs and
+		// abort if not.
+
+		go r.pushCheckpoint()
+
+		logg.LogTo("SYNCTUBE", "Transition from stateFnActivePushAttachmentDocs -> stateFnActivePushCheckpoint")
+
+		return stateFnActivePushCheckpoint
+
+	default:
+		logg.LogTo("SYNCTUBE", "Unexpected event: %v", event)
+	}
+
+	time.Sleep(time.Second)
+	return stateFnActivePushAttachmentDocs
 }
 
 func stateFnActivePushCheckpoint(r *Replication) stateFn {

@@ -441,6 +441,12 @@ func (r Replication) fetchBulkGet() {
 
 }
 
+func (r Replication) pushAttachmentDocs() {
+	// TODO
+	event := NewReplicationEvent(PUSH_ATTACHMENT_DOCS_SUCCEEDED)
+	r.sendEventWithTimeout(event)
+}
+
 func (r Replication) pushBulkDocs() {
 	transport := r.getTransport()
 	defer transport.Close()
