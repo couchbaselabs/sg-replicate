@@ -13,6 +13,7 @@ import (
 	"mime"
 	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"time"
 )
 
@@ -442,8 +443,72 @@ func (r Replication) fetchBulkGet() {
 }
 
 func (r Replication) pushAttachmentDocs() {
-	// TODO
+	failed := PUSH_ATTACHMENT_DOCS_FAILED
+	docs := subsetDocsWithAttachemnts(r.Documents)
+	for _, doc := range docs {
+		url := r.getPutDocWithAttatchmentUrl(doc)
+		logg.LogTo("SYNCTUBE", "pushAttatchmentDocs url: %v", url)
+		// request := generatePutDocWithAttachmentRequest(doc)
+		body := &bytes.Buffer{}
+		writer := multipart.NewWriter(body)
+
+		mimeHeader := textproto.MIMEHeader{}
+		// add content-type json header
+		mimeHeader.Set("Content-Type", "application/json")
+		jsonBytes, err := json.Marshal(doc.Body)
+		if err != nil {
+			r.sendErrorEvent(failed, "Marshalling body", err)
+			return
+		}
+
+		part, err := writer.CreatePart(mimeHeader)
+		if err != nil {
+			r.sendErrorEvent(failed, "Creating part", err)
+			return
+		}
+
+		_, err = part.Write(jsonBytes)
+		if err != nil {
+			r.sendErrorEvent(failed, "Writing part", err)
+			return
+		}
+
+		// add all attachments
+		for _, attachment := range doc.Attachments {
+			partHeaders := textproto.MIMEHeader{}
+			partHeaders.Set("Content-Type", attachment.Headers["Content-Type"])
+			partHeaders.Set("Content-Disposition", attachment.Headers["Content-Disposition"])
+			partAttach, err := writer.CreatePart(partHeaders)
+			if err != nil {
+				r.sendErrorEvent(failed, "Creating part", err)
+				return
+			}
+			_, err = partAttach.Write(attachment.Data)
+			if err != nil {
+				r.sendErrorEvent(failed, "Writing part", err)
+				return
+			}
+
+		}
+
+		err = writer.Close()
+		if err != nil {
+			r.sendErrorEvent(failed, "Closing writer", err)
+			return
+		}
+
+		bodyStr := string(body.Bytes())
+		logg.LogTo("SYNCTUBE", "bodyStr: %v", bodyStr)
+
+	}
 	event := NewReplicationEvent(PUSH_ATTACHMENT_DOCS_SUCCEEDED)
+	r.sendEventWithTimeout(event)
+}
+
+func (r Replication) sendErrorEvent(signal ReplicationEventSignal, msg string, err error) {
+	logg.LogTo("SYNCTUBE", "%v: %v", msg, err)
+	event := NewReplicationEvent(signal)
+	event.Data = err
 	r.sendEventWithTimeout(event)
 }
 
@@ -621,6 +686,15 @@ func (r Replication) getRevsDiffUrl() string {
 		"%s/_revs_diff",
 		dbUrl)
 
+}
+
+func (r Replication) getPutDocWithAttatchmentUrl(doc Document) string {
+	dbUrl := r.Parameters.getTargetDbUrl()
+	docId := doc.Body["_id"]
+	return fmt.Sprintf(
+		"%s/%s?new_edits=false",
+		docId,
+		dbUrl)
 }
 
 func (r Replication) getBulkDocsUrl() string {
