@@ -81,8 +81,6 @@ type Document struct {
 	Attachments []*Attachment
 }
 
-type DocumentSlice []Document
-
 func subsetDocsWithoutAttachemnts(docs []Document) []Document {
 	docsWithoutAttachemnts := []Document{}
 	for _, doc := range docs {
