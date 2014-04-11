@@ -498,9 +498,6 @@ func (r Replication) pushAttachmentDocs() {
 			return
 		}
 
-		bodyStr := string(body.Bytes())
-		logg.LogTo("SYNCTUBE", "bodyStr: %v", bodyStr)
-
 		req, err := http.NewRequest("PUT", url, bytes.NewReader(body.Bytes()))
 		if err != nil {
 			r.sendErrorEvent(failed, "Creating request", err)
