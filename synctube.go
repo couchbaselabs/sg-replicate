@@ -443,17 +443,18 @@ func (r Replication) fetchBulkGet() {
 }
 
 func (r Replication) pushAttachmentDocs() {
+	transport := r.getTransport()
+	defer transport.Close()
+
 	failed := PUSH_ATTACHMENT_DOCS_FAILED
 	docs := subsetDocsWithAttachemnts(r.Documents)
 	for _, doc := range docs {
 		url := r.getPutDocWithAttatchmentUrl(doc)
 		logg.LogTo("SYNCTUBE", "pushAttatchmentDocs url: %v", url)
-		// request := generatePutDocWithAttachmentRequest(doc)
 		body := &bytes.Buffer{}
 		writer := multipart.NewWriter(body)
 
 		mimeHeader := textproto.MIMEHeader{}
-		// add content-type json header
 		mimeHeader.Set("Content-Type", "application/json")
 		jsonBytes, err := json.Marshal(doc.Body)
 		if err != nil {
@@ -499,6 +500,32 @@ func (r Replication) pushAttachmentDocs() {
 
 		bodyStr := string(body.Bytes())
 		logg.LogTo("SYNCTUBE", "bodyStr: %v", bodyStr)
+
+		req, err := http.NewRequest("PUT", url, bytes.NewReader(body.Bytes()))
+		if err != nil {
+			r.sendErrorEvent(failed, "Creating request", err)
+			return
+		}
+
+		client := &http.Client{Transport: transport}
+
+		resp, err := client.Do(req)
+		logg.LogTo("SYNCTUBE", "bulk get resp: %v, err: %v", resp, err)
+		if err != nil {
+			r.sendErrorEvent(failed, "Performing request", err)
+			return
+		}
+
+		defer resp.Body.Close()
+		if resp.StatusCode >= 400 {
+			logg.LogTo("SYNCTUBE", "Unexpected response getting bulk get: %v", resp)
+			event := NewReplicationEvent(PUSH_ATTACHMENT_DOCS_FAILED)
+			r.sendEventWithTimeout(event)
+			return
+		}
+
+		// TODO: make sure response looks good
+		// TODO: could also collect successful docid/revid pairs
 
 	}
 	event := NewReplicationEvent(PUSH_ATTACHMENT_DOCS_SUCCEEDED)
@@ -693,8 +720,8 @@ func (r Replication) getPutDocWithAttatchmentUrl(doc Document) string {
 	docId := doc.Body["_id"]
 	return fmt.Sprintf(
 		"%s/%s?new_edits=false",
-		docId,
-		dbUrl)
+		dbUrl,
+		docId)
 }
 
 func (r Replication) getBulkDocsUrl() string {

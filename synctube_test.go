@@ -671,6 +671,9 @@ func TestOneShotReplicationHappyPath(t *testing.T) {
 	// fake response to bulk docs
 	targetServer.Response(200, jsonHeaders(), fakeBulkDocsResponse())
 
+	// fake response to put doc w/ attachment
+	targetServer.Response(200, jsonHeaders(), fakePutDocAttachmentResponse())
+
 	// fake response to push checkpoint
 	targetServer.Response(200, jsonHeaders(), fakePushCheckpointResponse(replication.targetCheckpointAddress()))
 
@@ -767,15 +770,42 @@ func TestOneShotReplicationHappyPath(t *testing.T) {
 		}
 	}
 
-	// TODO: add assertions:
-	// * should be bulk doc requests for doc1 and doc4
-	// * should be a PUT request for doc2
-	for _, savedReq := range targetServer.SavedRequests {
+	assertBulkDocsDocIds(t, targetServer.SavedRequests, []string{"doc1", "doc4"})
+	assertPutAttachDocsDocIds(t, targetServer.SavedRequests, []string{"doc2"})
+
+}
+
+func assertBulkDocsDocIds(t *testing.T, reqs []fakehttp.SavedRequest, docIds []string) {
+	assertDocIds(t, "/db/_bulk_docs", reqs, docIds)
+}
+
+func assertPutAttachDocsDocIds(t *testing.T, reqs []fakehttp.SavedRequest, docIds []string) {
+	for _, docId := range docIds {
+		urlPath := fmt.Sprintf("/db/%s", docId)
+		assertDocIds(t, urlPath, reqs, []string{docId})
+	}
+}
+
+func assertDocIds(t *testing.T, urlPath string, reqs []fakehttp.SavedRequest, docIds []string) {
+	foundDocIds := []string{}
+	for _, savedReq := range reqs {
 		path := savedReq.Request.URL.Path
-		logg.LogTo("TEST", "path: %v", path)
-		if strings.Contains(path, "/db/_bulk_docs") {
-			logg.LogTo("TEST", "data: %v", string(savedReq.Data))
+		dataStr := string(savedReq.Data)
+		if strings.Contains(path, urlPath) {
+			for _, seekingDocId := range docIds {
+				// rather than parsing the request (which might be
+				// multipart), just do a string search for that docid
+				if strings.Contains(dataStr, seekingDocId) {
+					foundDocIds = append(foundDocIds, seekingDocId)
+				}
+			}
+
 		}
+	}
+
+	assert.Equals(t, len(docIds), len(foundDocIds))
+	for i, seekingDocId := range docIds {
+		assert.Equals(t, seekingDocId, foundDocIds[i])
 	}
 
 }
@@ -952,8 +982,12 @@ Content-Type: application/json
 `, boundary, boundary)
 }
 
+func fakePutDocAttachmentResponse() string {
+	return `[{"id":"doc2","rev":"1-5e38", "ok":true}]`
+}
+
 func fakeBulkDocsResponse() string {
-	return `[{"id":"doc2","rev":"1-5e38"}]`
+	return `[{"id":"doc1","rev":"1-6b5f"}]`
 }
 
 func fakeBulkDocsResponse2() string {
