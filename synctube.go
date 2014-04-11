@@ -504,7 +504,7 @@ func (r Replication) pushAttachmentDocs() {
 			return
 		}
 
-		contentType := fmt.Sprintf("multipart/mixed; boundary=%q", writer.Boundary())
+		contentType := fmt.Sprintf("multipart/related; boundary=%q", writer.Boundary())
 		req.Header.Set("Content-Type", contentType)
 
 		client := &http.Client{Transport: transport}

@@ -790,12 +790,12 @@ func assertPutAttachDocsDocIds(t *testing.T, reqs []fakehttp.SavedRequest, docId
 		assertDocIds(t, urlPath, reqs, []string{docId})
 
 		// make sure all requests to PUT docs w/ attachments have
-		// content-type of multipart/mixed
+		// content-type of multipart/related
 		for _, savedReq := range reqs {
 			path := savedReq.Request.URL.Path
 			if strings.Contains(path, urlPath) {
 				contentType := savedReq.Request.Header.Get("Content-Type")
-				assert.True(t, strings.Contains(contentType, "multipart/mixed"))
+				assert.True(t, strings.Contains(contentType, "multipart/related"))
 			}
 		}
 
