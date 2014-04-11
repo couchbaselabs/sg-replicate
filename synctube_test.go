@@ -770,7 +770,10 @@ func TestOneShotReplicationHappyPath(t *testing.T) {
 		}
 	}
 
+	// we should expect to see _bulk_doc requests for these docs
 	assertBulkDocsDocIds(t, targetServer.SavedRequests, []string{"doc1", "doc4"})
+
+	// and individual PUT requests for these docs that contain attachments
 	assertPutAttachDocsDocIds(t, targetServer.SavedRequests, []string{"doc2"})
 
 }
@@ -780,10 +783,24 @@ func assertBulkDocsDocIds(t *testing.T, reqs []fakehttp.SavedRequest, docIds []s
 }
 
 func assertPutAttachDocsDocIds(t *testing.T, reqs []fakehttp.SavedRequest, docIds []string) {
+
 	for _, docId := range docIds {
+
 		urlPath := fmt.Sprintf("/db/%s", docId)
 		assertDocIds(t, urlPath, reqs, []string{docId})
+
+		// make sure all requests to PUT docs w/ attachments have
+		// content-type of multipart/mixed
+		for _, savedReq := range reqs {
+			path := savedReq.Request.URL.Path
+			if strings.Contains(path, urlPath) {
+				contentType := savedReq.Request.Header.Get("Content-Type")
+				assert.True(t, strings.Contains(contentType, "multipart/mixed"))
+			}
+		}
+
 	}
+
 }
 
 func assertDocIds(t *testing.T, urlPath string, reqs []fakehttp.SavedRequest, docIds []string) {
@@ -846,7 +863,7 @@ func TestOneShotReplicationNoOp(t *testing.T) {
 
 // Integration test.  Not fully automated; should be commented out.
 // After adding attachment support its failing
-func DISTestOneShotIntegrationReplication(t *testing.T) {
+func TestOneShotIntegrationReplication(t *testing.T) {
 
 	sourceServerUrlStr := "http://localhost:4984"
 	targetServerUrlStr := "http://localhost:4986"
