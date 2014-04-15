@@ -8,6 +8,7 @@ import (
 const DefaultChangesFeedLimit = 50
 
 type ReplicationParameters struct {
+	Name             string
 	Source           *url.URL
 	SourceDb         string
 	Target           *url.URL
