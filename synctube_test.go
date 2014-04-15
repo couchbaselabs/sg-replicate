@@ -863,7 +863,7 @@ func TestOneShotReplicationNoOp(t *testing.T) {
 
 // Integration test.  Not fully automated; should be commented out.
 // After adding attachment support its failing
-func TestOneShotIntegrationReplication(t *testing.T) {
+func DISTestOneShotIntegrationReplication(t *testing.T) {
 
 	sourceServerUrlStr := "http://localhost:4984"
 	targetServerUrlStr := "http://localhost:4986"
