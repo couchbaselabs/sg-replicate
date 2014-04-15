@@ -9,13 +9,15 @@ import (
 )
 
 type ReplicationsConfig struct {
-	ChangesFeedLimit int
-	Replications     []synctube.ReplicationParameters
+	ChangesFeedLimit      int
+	ContinuousRetryTimeMs int
+	Replications          []synctube.ReplicationParameters
 }
 
 type ReplicationsConfigJson struct {
-	ChangesFeedLimit int                                  `json:"changes_feed_limit"`
-	ReplicationsMap  map[string]ReplicationParametersJson `json:"replications"`
+	ContinuousRetryTimeMs int                                  `json:"continuous_retry_time_ms"`
+	ChangesFeedLimit      int                                  `json:"changes_feed_limit"`
+	ReplicationsMap       map[string]ReplicationParametersJson `json:"replications"`
 }
 
 type ReplicationParametersJson struct {
@@ -29,6 +31,7 @@ type ReplicationParametersJson struct {
 func (r ReplicationsConfigJson) Export() (ReplicationsConfig, error) {
 	result := ReplicationsConfig{}
 	result.ChangesFeedLimit = r.ChangesFeedLimit
+	result.ContinuousRetryTimeMs = r.ContinuousRetryTimeMs
 	for k, v := range r.ReplicationsMap {
 		logg.LogTo("SYNCTUBE", "k: %v, v: %v", k, v)
 		if replicationParams, err := v.Export(); err != nil {

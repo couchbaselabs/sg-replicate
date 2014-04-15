@@ -40,7 +40,7 @@ func launchReplications(replicationsConfig ReplicationsConfig) {
 	for _, replicationParams := range replicationsConfig.Replications {
 		// TODO: here is where we could differentiate between one
 		// shot and continuous replications
-		go launchContinuousReplication(replicationParams, doneChan)
+		go launchContinuousReplication(replicationsConfig, replicationParams, doneChan)
 	}
 
 	<-doneChan
@@ -50,7 +50,7 @@ func launchReplications(replicationsConfig ReplicationsConfig) {
 
 }
 
-func launchContinuousReplication(params synctube.ReplicationParameters, doneChan chan bool) {
+func launchContinuousReplication(config ReplicationsConfig, params synctube.ReplicationParameters, doneChan chan bool) {
 
 	notificationChan := make(chan synctube.ContinuousReplicationNotification)
 
@@ -58,7 +58,7 @@ func launchContinuousReplication(params synctube.ReplicationParameters, doneChan
 		return synctube.NewReplication(params, notificationChan)
 	}
 
-	retryTime := time.Millisecond
+	retryTime := time.Millisecond * time.Duration(config.ContinuousRetryTimeMs)
 	replication := synctube.NewContinuousReplication(params, factory, notificationChan, retryTime)
 	logg.LogTo("TEST", "created continuous replication: %v", replication)
 
