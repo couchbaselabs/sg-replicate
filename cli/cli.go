@@ -1,10 +1,10 @@
 package main
 
 import (
-	"fmt"
+	"bufio"
 	"github.com/couchbaselabs/logg"
 	"github.com/tleyden/synctube"
-	"net/url"
+	"os"
 	"time"
 )
 
@@ -15,27 +15,42 @@ func init() {
 
 func main() {
 
-	fmt.Printf("hey")
-
-	sourceServerUrlStr := "http://checkers.sync.couchbasecloud.com"
-	targetServerUrlStr := sourceServerUrlStr
-
-	sourceServerUrl, err := url.Parse(sourceServerUrlStr)
+	filename := "config.json"
+	configFile, err := os.Open(filename)
 	if err != nil {
-		logg.LogPanic("could not parse url: %v", sourceServerUrlStr)
+		logg.LogPanic("Unable to open file: %v.  Err: %v", filename, err.Error())
+		return
+	}
+	defer configFile.Close()
+
+	configReader := bufio.NewReader(configFile)
+	replicationsConfig, err := ParseReplicationsConfig(configReader)
+	if err != nil {
+		logg.LogPanic("Unable to parse config: %v. Err: %v", filename, err.Error())
+		return
 	}
 
-	targetServerUrl, err := url.Parse(targetServerUrlStr)
-	if err != nil {
-		logg.LogPanic("could not parse url: %v", targetServerUrlStr)
+	launchReplications(replicationsConfig)
+
+}
+
+func launchReplications(replicationsConfig ReplicationsConfig) {
+
+	doneChan := make(chan bool)
+	for _, replicationParams := range replicationsConfig.Replications {
+		// TODO: here is where we could differentiate between one
+		// shot and continuous replications
+		go launchContinuousReplication(replicationParams, doneChan)
 	}
 
-	params := synctube.ReplicationParameters{}
-	params.Source = sourceServerUrl
-	params.SourceDb = "checkers"
-	params.Target = targetServerUrl
-	params.TargetDb = "checkers-copy"
-	params.ChangesFeedLimit = 50
+	<-doneChan
+
+	// for now, if any continuous replications die, just panic.
+	logg.LogPanic("One or more replications stopped")
+
+}
+
+func launchContinuousReplication(params synctube.ReplicationParameters, doneChan chan bool) {
 
 	notificationChan := make(chan synctube.ContinuousReplicationNotification)
 
@@ -51,13 +66,16 @@ func main() {
 		select {
 		case notification, ok := <-notificationChan:
 			if !ok {
-				logg.LogPanic("CLI", "notificationChan appears to be closed")
+				logg.LogTo("CLI", "%v notificationChan appears to be closed", replication)
+				doneChan <- true
 				return
 			}
 			logg.LogTo("CLI", "Got notification %v", notification)
 
 		case <-time.After(time.Second * 120):
-			logg.LogPanic("Timeout")
+			logg.LogTo("CLI", "Timeout waiting for notification from %v", replication)
+			doneChan <- true
+
 		}
 	}
 
