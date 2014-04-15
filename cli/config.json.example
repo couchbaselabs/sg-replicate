@@ -1,0 +1,11 @@
+{
+    "changes_feed_limit": 50,
+    "replications":{
+	"checkers":{
+	    "source_url": "http://checkers.sync.couchbasecloud.com",
+	    "source_db": "checkers",
+	    "target_db": "checkers-copy"
+	} 
+    }
+
+}
