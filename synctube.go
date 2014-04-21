@@ -17,6 +17,8 @@ import (
 	"time"
 )
 
+var globalClient *http.Client
+
 type Replication struct {
 	Parameters              ReplicationParameters
 	EventChan               chan ReplicationEvent
@@ -26,6 +28,15 @@ type Replication struct {
 	RevsDiff                RevsDiffResponseMap
 	Documents               []Document
 	PushedBulkDocs          []DocumentRevisionPair
+}
+
+func init() {
+	t := &httpclient.Transport{
+		ConnectTimeout:        60 * time.Second,
+		RequestTimeout:        60 * time.Second,
+		ResponseHeaderTimeout: 60 * time.Second,
+	}
+	globalClient = &http.Client{Transport: t}
 }
 
 func NewReplication(params ReplicationParameters, notificationChan chan ReplicationNotification) *Replication {
@@ -107,10 +118,7 @@ func (r Replication) fetchTargetCheckpoint() {
 
 	destUrl := r.getCheckpointUrl()
 
-	transport := r.getTransport()
-	defer transport.Close()
-
-	client := &http.Client{Transport: transport}
+	client := globalClient
 	req, _ := http.NewRequest("GET", destUrl, nil)
 	resp, err := client.Do(req)
 	logg.LogTo("SYNCTUBE", "resp: %v, err: %v", resp, err)
@@ -182,10 +190,7 @@ func (r Replication) fetchChangesFeed() {
 
 	destUrl := r.getNormalChangesFeedUrl()
 
-	transport := r.getTransport()
-	defer transport.Close()
-
-	client := &http.Client{Transport: transport}
+	client := globalClient
 	req, _ := http.NewRequest("GET", destUrl, nil)
 	resp, err := client.Do(req)
 	logg.LogTo("SYNCTUBE", "changes feed resp: %v, err: %v", resp, err)
@@ -223,9 +228,6 @@ func (r Replication) fetchChangesFeed() {
 
 func (r Replication) fetchRevsDiff() {
 
-	transport := r.getTransport()
-	defer transport.Close()
-
 	revsDiffUrl := r.getRevsDiffUrl()
 	revsDiffMap := generateRevsDiffMap(r.Changes)
 	revsDiffMapJson, err := json.Marshal(revsDiffMap)
@@ -246,7 +248,7 @@ func (r Replication) fetchRevsDiff() {
 		return
 	}
 
-	client := &http.Client{Transport: transport}
+	client := globalClient
 
 	resp, err := client.Do(req)
 	logg.LogTo("SYNCTUBE", "revs diff resp: %v, err: %v", resp, err)
@@ -282,8 +284,6 @@ func (r Replication) fetchRevsDiff() {
 }
 
 func (r Replication) fetchBulkGet() {
-	transport := r.getTransport()
-	defer transport.Close()
 
 	bulkGetUrl := r.getBulkGetUrl()
 	logg.LogTo("SYNCTUBE", "bulkGetUrl %v", bulkGetUrl)
@@ -308,7 +308,7 @@ func (r Replication) fetchBulkGet() {
 		return
 	}
 
-	client := &http.Client{Transport: transport}
+	client := globalClient
 
 	resp, err := client.Do(req)
 	logg.LogTo("SYNCTUBE", "bulk get resp: %v, err: %v", resp, err)
@@ -443,8 +443,6 @@ func (r Replication) fetchBulkGet() {
 }
 
 func (r Replication) pushAttachmentDocs() {
-	transport := r.getTransport()
-	defer transport.Close()
 
 	failed := PUSH_ATTACHMENT_DOCS_FAILED
 	docs := subsetDocsWithAttachemnts(r.Documents)
@@ -507,7 +505,7 @@ func (r Replication) pushAttachmentDocs() {
 		contentType := fmt.Sprintf("multipart/related; boundary=%q", writer.Boundary())
 		req.Header.Set("Content-Type", contentType)
 
-		client := &http.Client{Transport: transport}
+		client := globalClient
 
 		resp, err := client.Do(req)
 		logg.LogTo("SYNCTUBE", "bulk get resp: %v, err: %v", resp, err)
@@ -540,8 +538,6 @@ func (r Replication) sendErrorEvent(signal ReplicationEventSignal, msg string, e
 }
 
 func (r Replication) pushBulkDocs() {
-	transport := r.getTransport()
-	defer transport.Close()
 
 	bulkDocsUrl := r.getBulkDocsUrl()
 	bulkDocsRequest := generateBulkDocsRequest(r.Documents)
@@ -564,7 +560,7 @@ func (r Replication) pushBulkDocs() {
 		return
 	}
 
-	client := &http.Client{Transport: transport}
+	client := globalClient
 
 	resp, err := client.Do(req)
 	logg.LogTo("SYNCTUBE", "bulk get resp: %v, err: %v", resp, err)
@@ -611,9 +607,6 @@ func (r Replication) generatePushCheckpointRequest() PushCheckpointRequest {
 
 func (r Replication) pushCheckpoint() {
 
-	transport := r.getTransport()
-	defer transport.Close()
-
 	checkpointUrl := r.getCheckpointUrl()
 	logg.LogTo("SYNCTUBE", "calling pushCheckpointRequest. r.FetchedTargetCheckpoint: %v", r.FetchedTargetCheckpoint)
 	pushCheckpointRequest := r.generatePushCheckpointRequest()
@@ -639,7 +632,7 @@ func (r Replication) pushCheckpoint() {
 		return
 	}
 
-	client := &http.Client{Transport: transport}
+	client := globalClient
 
 	resp, err := client.Do(req)
 	logg.LogTo("SYNCTUBE", "push checkpoint resp: %v, err: %v", resp, err)
@@ -737,12 +730,4 @@ func (r Replication) getBulkGetUrl() string {
 		"%s/_bulk_get?revs=true&attachments=true",
 		dbUrl)
 
-}
-
-func (r Replication) getTransport() *httpclient.Transport {
-	return &httpclient.Transport{
-		ConnectTimeout:        60 * time.Second,
-		RequestTimeout:        60 * time.Second,
-		ResponseHeaderTimeout: 60 * time.Second,
-	}
 }
