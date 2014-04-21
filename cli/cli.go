@@ -71,11 +71,6 @@ func launchContinuousReplication(config ReplicationsConfig, params synctube.Repl
 				return
 			}
 			logg.LogTo("CLI", "Got notification %v", notification)
-
-		case <-time.After(time.Second * 120):
-			logg.LogTo("CLI", "Timeout waiting for notification from %v", replication)
-			doneChan <- true
-
 		}
 	}
 
