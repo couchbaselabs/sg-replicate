@@ -1,5 +1,6 @@
 {
     "changes_feed_limit": 50,
+    "continuous_retry_time_ms": 15000,
     "replications":{
 	"checkers":{
 	    "source_url": "http://checkers.sync.couchbasecloud.com",
