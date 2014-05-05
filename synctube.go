@@ -66,6 +66,29 @@ func (r *Replication) Stop() error {
 	return r.sendEventWithTimeout(NewReplicationEvent(REPLICATION_STOP))
 }
 
+// Run a one-shot replication synchronously (eg, block until finished)
+func RunOneShotReplication(params ReplicationParameters) (ReplicationStatus, error) {
+
+	notificationChan := make(chan ReplicationNotification)
+	replication := NewReplication(params, notificationChan)
+	replication.Start()
+
+	for {
+		select {
+		case replicationNotification := <-notificationChan:
+			if replicationNotification.Status == REPLICATION_ABORTED {
+				return REPLICATION_ABORTED, fmt.Errorf("Replication Aborted")
+			}
+			if replicationNotification.Status == REPLICATION_STOPPED {
+				return REPLICATION_STOPPED, nil
+			}
+		case <-time.After(time.Second * 300):
+			return REPLICATION_ABORTED, fmt.Errorf("Replication timed out")
+		}
+	}
+
+}
+
 func (r *Replication) processEvents() {
 
 	// nil out the EventChan after the event loop has finished.

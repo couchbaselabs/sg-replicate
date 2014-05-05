@@ -36,17 +36,43 @@ func main() {
 
 func launchReplications(replicationsConfig ReplicationsConfig) {
 
+	// TODO: if no continuous replications, should finish and not block
+
 	doneChan := make(chan bool)
 	for _, replicationParams := range replicationsConfig.Replications {
-		// TODO: here is where we could differentiate between one
-		// shot and continuous replications
-		go launchContinuousReplication(replicationsConfig, replicationParams, doneChan)
+		switch replicationParams.Lifecycle {
+		case synctube.ONE_SHOT_SINGLE_PASS:
+			fallthrough
+		case synctube.ONE_SHOT_MULTI_PASS:
+			err := runOneshotReplication(
+				replicationsConfig,
+				replicationParams,
+			)
+			if err != nil {
+				logg.LogPanic("Unable to run replication: %v. Err: %v", replicationParams, err.Error())
+			}
+			logg.LogTo("CLI", "Successfully ran one shot replication: %v", replicationParams)
+		case synctube.CONTINUOUS:
+			go launchContinuousReplication(
+				replicationsConfig,
+				replicationParams,
+				doneChan,
+			)
+		}
+
 	}
 
 	<-doneChan
 
 	// for now, if any continuous replications die, just panic.
 	logg.LogPanic("One or more replications stopped")
+
+}
+
+func runOneshotReplication(config ReplicationsConfig, params synctube.ReplicationParameters) error {
+
+	_, err := synctube.RunOneShotReplication(params)
+	return err
 
 }
 
