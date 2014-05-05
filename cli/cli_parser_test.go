@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/couchbaselabs/go.assert"
 	"github.com/couchbaselabs/logg"
+	"github.com/tleyden/synctube"
 	"strings"
 	"testing"
 )
@@ -20,7 +21,8 @@ func TestParseConfig(t *testing.T) {
 	"checkers":{
 	    "source_url": "http://checkers.sync.couchbasecloud.com",
 	    "source_db": "checkers",
-	    "target_db": "checkers-copy"
+	    "target_db": "checkers-copy",
+            "lifecycle": "oneshot:multipass"
 	} 
     }
 
@@ -31,5 +33,6 @@ func TestParseConfig(t *testing.T) {
 	logg.LogTo("TEST", "err: %v", err)
 	assert.True(t, err == nil)
 	assert.Equals(t, len(replicationsConfig.Replications), 1)
+	assert.Equals(t, replicationsConfig.Replications[0].Lifecycle, synctube.ONE_SHOT_MULTI_PASS)
 
 }

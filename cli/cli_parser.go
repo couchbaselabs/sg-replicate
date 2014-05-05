@@ -21,11 +21,12 @@ type ReplicationsConfigJson struct {
 }
 
 type ReplicationParametersJson struct {
-	Source           string `json:"source_url"`
-	SourceDb         string `json:"source_db"`
-	Target           string `json:"target_url"`
-	TargetDb         string `json:"target_db"`
-	ChangesFeedLimit int    `json:"changes_feed_limit"`
+	Source           string                        `json:"source_url"`
+	SourceDb         string                        `json:"source_db"`
+	Target           string                        `json:"target_url"`
+	TargetDb         string                        `json:"target_db"`
+	ChangesFeedLimit int                           `json:"changes_feed_limit"`
+	Lifecycle        synctube.ReplicationLifecycle `json:"lifecycle"`
 }
 
 func (r ReplicationsConfigJson) Export() (ReplicationsConfig, error) {
@@ -65,6 +66,7 @@ func (p ReplicationParametersJson) Export() (synctube.ReplicationParameters, err
 	}
 	result.SourceDb = p.SourceDb
 	result.TargetDb = p.TargetDb
+	result.Lifecycle = p.Lifecycle
 	return result, nil
 
 }
