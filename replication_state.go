@@ -339,8 +339,6 @@ func stateFnActivePushCheckpoint(r *Replication) stateFn {
 		notification.Data = r.Changes.LastSequence
 		r.NotificationChan <- *notification
 
-		// TOOD: r.resetExtendedState()
-
 		go r.fetchTargetCheckpoint()
 
 		logg.LogTo("SYNCTUBE", "Transition from stateFnActivePushCheckpoint -> stateFnActiveFetchCheckpoint")

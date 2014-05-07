@@ -42,9 +42,7 @@ func launchReplications(replicationsConfig ReplicationsConfig) {
 	startedContinuousReplications := false
 	for _, replicationParams := range replicationsConfig.Replications {
 		switch replicationParams.Lifecycle {
-		case synctube.ONE_SHOT_SINGLE_PASS:
-			fallthrough
-		case synctube.ONE_SHOT_MULTI_PASS:
+		case synctube.ONE_SHOT:
 			err := runOneshotReplication(
 				replicationsConfig,
 				replicationParams,
@@ -89,6 +87,7 @@ func launchContinuousReplication(config ReplicationsConfig, params synctube.Repl
 	notificationChan := make(chan synctube.ContinuousReplicationNotification)
 
 	factory := func(params synctube.ReplicationParameters, notificationChan chan synctube.ReplicationNotification) synctube.Runnable {
+		params.Lifecycle = synctube.ONE_SHOT
 		return synctube.NewReplication(params, notificationChan)
 	}
 

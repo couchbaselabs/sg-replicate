@@ -10,8 +10,7 @@ import (
 type ReplicationLifecycle int
 
 const (
-	ONE_SHOT_SINGLE_PASS = ReplicationLifecycle(iota)
-	ONE_SHOT_MULTI_PASS
+	ONE_SHOT = ReplicationLifecycle(iota)
 	CONTINUOUS
 )
 
@@ -23,11 +22,7 @@ func (l *ReplicationLifecycle) UnmarshalJSON(data []byte) error {
 	if error == nil {
 		switch s {
 		case "oneshot":
-			fallthrough
-		case "oneshot:multipass":
-			*l = ONE_SHOT_MULTI_PASS
-		case "oneshot:singlepass":
-			*l = ONE_SHOT_SINGLE_PASS
+			*l = ONE_SHOT
 		case "continuous":
 			*l = CONTINUOUS
 		}
