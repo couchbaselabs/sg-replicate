@@ -3,9 +3,27 @@
 
 sg-replicate is a tool that can drive a replication between [Sync Gateway](https://github.com/couchbase/sync_gateway) instances.  
 
-It was created because the Sync Gateway can only serve as a passive replication target, but it does not offer a mechanism to drive a replication.
+It was created because the Sync Gateway can only serve as a passive replication target, but it does not offer a mechanism to drive a replication.  This tool attempts to fill that gap.
 
 ![architecture](http://tleyden-misc.s3.amazonaws.com/blog_images/sg-sync-architecture.png)
+
+# Quickstart
+
+* [Install Go](http://golang.org/doc/install) and define `$GOPATH` environment variable
+* `$ go get -u -v github.com/couchbaselabs/sg-replicate`
+* `$ cd ${GOPATH}/src/github.com/couchbaselabs/sg-replicate/cli`
+* `$ cp config.json.example config.json`
+* Customize `config.json` according to your needs.
+* Build and run:
+
+```
+$ go build && ./cli
+```
+
+*Notes on command behavior*:
+
+* If you have any continuous replications, the command will block indefinitely, and only exit if there is a non-recoverable error with a continuous replication.
+* If you only have oneshot replications defined, the command will exit once they have all completed.
 
 # Features
 
@@ -64,26 +82,6 @@ It was created because the Sync Gateway can only serve as a passive replication 
      * `continuous` replications are started in parallel with other continuous replications, and run indefinitely until they have a non-recoverable error.
 
 
-# Prerequisites
-
-* [Go](http://golang.org/doc/install) is required if you are building from source
-
-# Running sg-replicate
-
-* `go get -u -v github.com/couchbaselabs/sg-replicate`
-* `cd ${GOPATH}/src/github.com/couchbaselabs/sg-replicate/cli`
-* `cp config.json.example config.json`
-* Customize `config.json` according to your needs.
-* Build and run:
-
-```
-$ go build && ./cli
-```
-
-*Notes on command behavior*:
-
-* If you have any continuous replications, the command will block indefinitely, and only exit if there is a non-recoverable error with a continuous replication.
-* If you only have oneshot replications defined, the command will exit once they have all completed.
 
 # Release Status
 
