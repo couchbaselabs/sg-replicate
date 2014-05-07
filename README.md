@@ -1,4 +1,4 @@
-
+	
 [![GoDoc](https://godoc.org/github.com/couchbaselabs/sg-replicate?status.png)](https://godoc.org/github.com/couchbaselabs/sg-replicate) 
 
 sg-replicate is a tool that can drive a replication between [Sync Gateway](https://github.com/couchbase/sync_gateway) instances.  
@@ -29,13 +29,13 @@ $ go build && ./cli
 
 * Json configuration file to specify replications
 * Supports multiple replications running concurrently 
-* Possible to specify OneShot and Continuous replications
+* Can run both OneShot and Continuous replications
 * Does not store anything persistently
 * Stateless -- can be interrupted/restarted anytime without negative side effects.
 
 # Limitations
 
-* Only works on recent versions of Sync Gateway (after commit 50d30eb3d on March 7, 2014)
+* Only works on recent versions of Sync Gateway (after commit [50d30eb3d](https://github.com/couchbase/sync_gateway/commit/50d30eb3d) on March 7, 2014)
 
 * Cannot do filtered replications yet
 	
