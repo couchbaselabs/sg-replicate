@@ -1,7 +1,7 @@
 
 [Todo: drone.io badge]
 
-sg-replicate is a tool that can drive a replication between two [Sync Gateway](https://github.com/couchbase/sync_gateway) instances.  
+sg-replicate is a tool that can drive a replication between [Sync Gateway](https://github.com/couchbase/sync_gateway) instances.  
 
 It was created because the Sync Gateway can only serve as a passive replication target, but it does not offer a mechanism to drive a replication.
 
@@ -24,7 +24,7 @@ It was created because the Sync Gateway can only serve as a passive replication 
 # Documentation
 
 * This README
-* [TODO -- add link to godocs]
+* [Godocs](http://godoc.org/github.com/couchbaselabs/sg-replicate)
 
 # Sample Configuration
 
