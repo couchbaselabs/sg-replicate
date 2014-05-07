@@ -5,7 +5,7 @@ sg-replicate is a tool that can drive a replication between [Sync Gateway](https
 
 It was created because the Sync Gateway can only serve as a passive replication target, but it does not offer a mechanism to drive a replication.  This tool attempts to fill that gap.
 
-![architecture](http://cl.ly/image/3m2Q2Z3L1y02/sg-sync-architecture.png)
+![architecture](http://tleyden-misc.s3.amazonaws.com/blog_images/sg-sync-architecture.png)
 
 # Quickstart
 
