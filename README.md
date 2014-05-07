@@ -13,6 +13,7 @@ It was created because the Sync Gateway can only serve as a passive replication 
 * Supports multiple replications running concurrently 
 * Possible to specify OneShot and Continuous replications
 * Solid unit test coverage
+* Apache 2 License
 
 # Limitations
 
