@@ -43,6 +43,7 @@ $ go build && ./cli
 
 * This README
 * [GoDoc](http://godoc.org/github.com/couchbaselabs/sg-replicate)
+* [Replication Algorithm](https://github.com/couchbaselabs/TouchDB-iOS/wiki/Replication-Algorithm) + [ladder diagram](http://cl.ly/image/1v013o210345)
 
 # Sample Configuration
 
