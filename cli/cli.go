@@ -3,7 +3,7 @@ package main
 import (
 	"bufio"
 	"github.com/couchbaselabs/logg"
-	"github.com/tleyden/synctube"
+	synctube "github.com/couchbaselabs/sg-replicate"
 	"os"
 	"time"
 )

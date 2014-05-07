@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/couchbaselabs/go.assert"
 	"github.com/couchbaselabs/logg"
-	"github.com/tleyden/synctube"
+	synctube "github.com/couchbaselabs/sg-replicate"
 	"strings"
 	"testing"
 )
