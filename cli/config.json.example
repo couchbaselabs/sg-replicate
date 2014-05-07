@@ -2,11 +2,17 @@
     "changes_feed_limit": 50,
     "continuous_retry_time_ms": 15000,
     "replications":{
-	"checkers":{
-	    "source_url": "http://checkers.sync.couchbasecloud.com",
-	    "source_db": "checkers",
-	    "target_db": "checkers-copy"
-	} 
+	"db-local":{
+	    "source_url": "http://localhost:4985",
+	    "source_db": "db",
+	    "target_db": "db-copy",
+	    "lifecycle": "oneshot"
+	},
+	"grocery-sync-local":{
+	    "source_url": "http://localhost:4985",
+	    "source_db": "grocery-sync",
+	    "target_db": "grocery-sync-copy",
+	    "lifecycle": "continuous"
+	}
     }
-
 }
