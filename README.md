@@ -1,5 +1,5 @@
 	
-[![GoDoc](https://godoc.org/github.com/couchbaselabs/sg-replicate?status.png)](https://godoc.org/github.com/couchbaselabs/sg-replicate) 
+[![Build Status](https://drone.io/github.com/couchbaselabs/sg-replicate/status.png)](https://drone.io/github.com/couchbaselabs/sg-replicate/latest) [![GoDoc](https://godoc.org/github.com/couchbaselabs/sg-replicate?status.png)](https://godoc.org/github.com/couchbaselabs/sg-replicate) 
 
 sg-replicate is a tool that can drive a replication between [Sync Gateway](https://github.com/couchbase/sync_gateway) instances.  
 
