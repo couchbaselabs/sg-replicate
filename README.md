@@ -30,8 +30,8 @@ $ go build && ./cli
 * Json configuration file to specify replications
 * Supports multiple replications running concurrently 
 * Possible to specify OneShot and Continuous replications
-* Solid unit test coverage
-* Apache 2 License
+* Does not store anything persistently
+* Stateless -- can be interrupted/restarted anytime without negative side effects.
 
 # Limitations
 
