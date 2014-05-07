@@ -53,7 +53,7 @@ It was created because the Sync Gateway can only serve as a passive replication 
 # Configuration fields
 
 * `changes_feed_limit` -- the number of changes to fetch in each "batch".  Setting this to a larger value will increase memory consumption.
-* `continuous_retry_time_ms` -- the amount of time to wait after an aborted replication before retrying.  (only applicable to continuous replications)
+* `continuous_retry_time_ms` -- the amount of time to wait (in milliseconds) after an aborted replication before retrying.  (only applicable to continuous replications)
 * `replications` -- a "map" of replications, where each replication has a unique name.  they will be run in the order given in this file.
 * `source_url` -- url of source sync gateway, **without** the db name in the url.  Can point to admin port (:4985) or user port (:4984), but be aware if you point it to the user port, you will probably need to set a username/pass in the url and will only replicate docs visible to that user.
 * `source_db` -- the source db to pull from.
@@ -70,7 +70,8 @@ It was created because the Sync Gateway can only serve as a passive replication 
 
 # Running sg-replicate
 
-* `cd <sg-replicate>/cli`
+* `go get -u -v github.com/couchbaselabs/sg-replicate`
+* `cd ${GOPATH}/src/github.com/couchbaselabs/sg-replicate/cli`
 * `cp config.json.example config.json`
 * Customize `config.json` according to your needs.
 * Build and run:
