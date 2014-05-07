@@ -1,7 +1,7 @@
 
 [Todo: drone.io badge]
 
-sg-sync is a tool that can drive a replication between two [Sync Gateway](https://github.com/couchbase/sync_gateway) instances.  
+sg-replicate is a tool that can drive a replication between two [Sync Gateway](https://github.com/couchbase/sync_gateway) instances.  
 
 It was created because the Sync Gateway can only serve as a passive replication target, but it does not offer a mechanism to drive a replication.
 
@@ -55,38 +55,42 @@ It was created because the Sync Gateway can only serve as a passive replication 
 * `changes_feed_limit` -- the number of changes to fetch in each "batch".  Setting this to a larger value will increase memory consumption.
 * `continuous_retry_time_ms` -- the amount of time to wait after an aborted replication before retrying.  (only applicable to continuous replications)
 * `replications` -- a "map" of replications, where each replication has a unique name.  they will be run in the order given in this file.
-* `source_url` -- url of source sync gateway, **without** the db name in the url.
+* `source_url` -- url of source sync gateway, **without** the db name in the url.  Can point to admin port (:4985) or user port (:4984), but be aware if you point it to the user port, you will probably need to set a username/pass in the url and will only replicate docs visible to that user.
 * `source_db` -- the source db to pull from.
-* `target_url` -- url of target sync gateway, **without** the db name in the url.  If omitted, it will be assumed that it's the same as the `source_url`
+* `target_url` -- url of target sync gateway, **without** the db name in the url.  If omitted, it will be assumed that it's the same as the `source_url`  See `source_url` for discussion of which port to use.
 * `target_db` -- the target db to push to.  
 * `lifecycle` -- possible values: `oneshot` or `continuous`.  
      * `oneshot` replications will be run inline (synchronously), and it will not start the following replications until the oneshot replication completes.  
-     * `continuous` replications run asynchronously and indefinitely.
+     * `continuous` replications are started in parallel with other continuous replications, and run indefinitely until they have a non-recoverable error.
 
 
 # Prerequisites
 
 * [Go](http://golang.org/doc/install) is required if you are building from source
 
-# Running sg-sync
+# Running sg-replicate
 
-* cd into <sg-sync>/cli directory
-* Take the config.json.example file and rename it to config.json
-* Customize it to have your sync gateway URL's
-* Run it:
+* `cd <sg-replicate>/cli`
+* `cp config.json.example config.json`
+* Customize `config.json` according to your needs.
+* Build and run:
 
 ```
-$ ./cli 
+$ go build && ./cli.go 
 ```
 
 *Notes on command behavior*:
 
-* If you have any continuous replications, the command will block indefinitely.  
+* If you have any continuous replications, the command will block indefinitely, and only exit if there is a non-recoverable error with a continuous replication.
 * If you only have oneshot replications defined, the command will exit once they have all completed.
 
-# Todo Items
+# Release Status
+
+**Alpha / Experimental**
+
+# Todo
 
 * Logs are difficult to disentangle when multiple replications are running -- workaround: use separate instances and separate config files for each replication
-* Integration test with actual sync gateway (unit tests run against a mock sync gateway)
+* Integration test with actual sync gateway (the unit tests currently run against a mock sync gateway)
 * Clean up API to only expose what's necessary
 * Attachments handling should be made to be more efficient.  Currently, attachment data is temporarily stored in memory before it is pushed to the target server.
