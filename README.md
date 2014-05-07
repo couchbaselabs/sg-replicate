@@ -77,7 +77,7 @@ It was created because the Sync Gateway can only serve as a passive replication 
 * Build and run:
 
 ```
-$ go build && ./cli.go 
+$ go build && ./cli
 ```
 
 *Notes on command behavior*:
