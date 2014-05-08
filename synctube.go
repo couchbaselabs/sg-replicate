@@ -91,12 +91,6 @@ func RunOneShotReplication(params ReplicationParameters) (ReplicationStatus, err
 
 func (r *Replication) processEvents() {
 
-	// nil out the EventChan after the event loop has finished.
-	// originally this closed the channel, but any outstanding
-	// goroutines running an http request would then try to
-	// write their result to the closed channel and cause a panic
-	defer func() { r.EventChan = nil }()
-
 	defer close(r.NotificationChan) // No more notifications
 
 	for state := stateFnPreStarted; state != nil; {
@@ -105,6 +99,23 @@ func (r *Replication) processEvents() {
 	}
 	logg.LogTo("SYNCTUBE", "processEvents() is done")
 
+}
+
+// Shut down the event channel, because this event loop is just
+// about to be shut down.  This must be done before returning
+// any notifications on r.NotificationChan that might cause
+// caller code to call Start() or Stop(), so that in that case
+// those calls will detect that the event channel has already
+// been shutdown and therefore will return an error immediately
+// rather than trying to put an event on the event channel.
+//
+// The reason the event channel must be nil'd out at all:
+// originally this channel was closed when no longer needed,
+// but any outstanding goroutines running an http request would
+// then try to write their result to the closed channel and
+// cause a panic
+func (r *Replication) shutdownEventChannel() {
+	r.EventChan = nil
 }
 
 func (r Replication) targetCheckpointAddress() string {
