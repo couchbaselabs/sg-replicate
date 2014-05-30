@@ -2,8 +2,9 @@ package synctube
 
 import (
 	"fmt"
-	"github.com/couchbaselabs/logg"
 	"strconv"
+
+	"github.com/couchbaselabs/logg"
 )
 
 type Checkpoint struct {
@@ -51,6 +52,7 @@ type Change struct {
 	Sequence    int          `json:"seq"`
 	Id          string       `json:"id"`
 	ChangedRevs []ChangedRev `json:"changes"`
+	Deleted     bool         `json:"deleted"`
 }
 
 type Changes struct {
