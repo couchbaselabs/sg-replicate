@@ -292,6 +292,7 @@ func TestOneShotReplicationGetRevsDiffEmpty(t *testing.T) {
 	// create a new replication and start it
 	replication := NewReplication(params, notificationChan)
 
+	// fake response to fetch checkpoint
 	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
 
 	// fake response to changes feed
@@ -300,6 +301,15 @@ func TestOneShotReplicationGetRevsDiffEmpty(t *testing.T) {
 
 	// fake response to revs_diff
 	targetServer.Response(200, jsonHeaders(), fakeRevsDiffEmpty())
+
+	// fake response to push checkpoint
+	targetServer.Response(200, jsonHeaders(), fakePushCheckpointResponse(replication.targetCheckpointAddress()))
+
+	// fake response to fetch checkpoint
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), lastSequence))
+
+	// fake empty response to changes feed
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeedEmpty(lastSequence))
 
 	replication.Start()
 
@@ -983,6 +993,10 @@ func fakeChangesFeedEmpty(lastSequence int) string {
 	return fmt.Sprintf(`{"results":[],"last_seq":%v}`, lastSequence)
 }
 
+func fakeEmptyChangesFeed() string {
+	return fakeChangesFeedEmpty(4)
+}
+
 func fakeRevsDiff() string {
 	return `{"doc2":{"missing":["1-5e38"]}}`
 }
@@ -1057,10 +1071,6 @@ func fakeBulkDocsResponse() string {
 
 func fakeBulkDocsResponse2() string {
 	return `[{"id":"doc4","rev":"1-786e"}]`
-}
-
-func fakeEmptyChangesFeed() string {
-	return `{"results":[],"last_seq":4}`
 }
 
 func waitForNotificationAndStop(replication *Replication, expected ReplicationStatus) {
