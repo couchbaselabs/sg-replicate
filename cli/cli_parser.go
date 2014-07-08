@@ -2,10 +2,11 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/couchbaselabs/logg"
-	synctube "github.com/couchbaselabs/sg-replicate"
 	"io"
 	"net/url"
+
+	"github.com/couchbaselabs/logg"
+	synctube "github.com/couchbaselabs/sg-replicate"
 )
 
 type ReplicationsConfig struct {
@@ -27,6 +28,7 @@ type ReplicationParametersJson struct {
 	TargetDb         string                        `json:"target_db"`
 	ChangesFeedLimit int                           `json:"changes_feed_limit"`
 	Lifecycle        synctube.ReplicationLifecycle `json:"lifecycle"`
+	Disabled         bool                          `json:"disabled"`
 }
 
 func (r ReplicationsConfigJson) Export() (ReplicationsConfig, error) {
@@ -67,6 +69,7 @@ func (p ReplicationParametersJson) Export() (synctube.ReplicationParameters, err
 	result.SourceDb = p.SourceDb
 	result.TargetDb = p.TargetDb
 	result.Lifecycle = p.Lifecycle
+	result.Disabled = p.Disabled
 	return result, nil
 
 }

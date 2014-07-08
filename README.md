@@ -78,6 +78,7 @@ $ go build && ./cli
 * `source_db` -- the source db to pull from.
 * `target_url` -- url of target sync gateway, **without** the db name in the url.  If omitted, it will be assumed that it's the same as the `source_url`  See `source_url` for discussion of which port to use.
 * `target_db` -- the target db to push to.  
+* `disabled` -- is this replication currently disabled?  (true | false)
 * `lifecycle` -- possible values: `oneshot` or `continuous`.  
      * `oneshot` replications will be run inline (synchronously), and it will not start the following replications until the oneshot replication completes.  
      * `continuous` replications are started in parallel with other continuous replications, and run indefinitely until they have a non-recoverable error.
@@ -94,3 +95,4 @@ $ go build && ./cli
 * Integration test with actual sync gateway (the unit tests currently run against a mock sync gateway)
 * Clean up API to only expose what's necessary
 * Attachments handling should be made to be more efficient.  Currently, attachment data is temporarily stored in memory before it is pushed to the target server.
+* targetCheckpointAddress needs to take more things into account when generating checkpoint address.

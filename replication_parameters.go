@@ -3,8 +3,9 @@ package synctube
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/couchbaselabs/logg"
 	"net/url"
+
+	"github.com/couchbaselabs/logg"
 )
 
 type ReplicationLifecycle int
@@ -41,6 +42,7 @@ type ReplicationParameters struct {
 	TargetDb         string
 	ChangesFeedLimit int
 	Lifecycle        ReplicationLifecycle
+	Disabled         bool
 }
 
 func (rp ReplicationParameters) getSourceDbUrl() string {
