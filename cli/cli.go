@@ -2,10 +2,11 @@ package main
 
 import (
 	"bufio"
-	"github.com/couchbaselabs/logg"
-	synctube "github.com/couchbaselabs/sg-replicate"
 	"os"
 	"time"
+
+	"github.com/couchbaselabs/logg"
+	synctube "github.com/couchbaselabs/sg-replicate"
 )
 
 func init() {
@@ -41,6 +42,10 @@ func launchReplications(replicationsConfig ReplicationsConfig) {
 	doneChan := make(chan bool)
 	startedContinuousReplications := false
 	for _, replicationParams := range replicationsConfig.Replications {
+		if replicationParams.Disabled {
+			logg.LogTo("CLI", "Skip disabled replication: %v", replicationParams)
+			continue
+		}
 		switch replicationParams.Lifecycle {
 		case synctube.ONE_SHOT:
 			err := runOneshotReplication(
