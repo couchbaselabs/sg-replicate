@@ -3,14 +3,15 @@ package synctube
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/couchbaselabs/go.assert"
-	"github.com/couchbaselabs/logg"
-	"github.com/tleyden/fakehttp"
 	"net/url"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/couchbaselabs/go.assert"
+	"github.com/couchbaselabs/logg"
+	"github.com/tleyden/fakehttp"
 )
 
 func init() {
@@ -276,6 +277,47 @@ func TestOneShotReplicationGetRevsDiffFailed(t *testing.T) {
 	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
 
 	waitForNotification(replication, REPLICATION_ABORTED)
+	assertNotificationChannelClosed(notificationChan)
+
+}
+
+func TestOneShotReplicationGetRevsDiffEmpty(t *testing.T) {
+
+	sourceServer, targetServer := fakeServers(6015, 6014)
+
+	params := replicationParams(sourceServer.URL, targetServer.URL)
+
+	notificationChan := make(chan ReplicationNotification)
+
+	// create a new replication and start it
+	replication := NewReplication(params, notificationChan)
+
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
+
+	// fake response to changes feed
+	lastSequence := 3
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed(lastSequence))
+
+	// fake response to revs_diff
+	targetServer.Response(200, jsonHeaders(), fakeRevsDiffEmpty())
+
+	replication.Start()
+
+	// expect to get a replication active event
+	replicationNotification := <-notificationChan
+	assert.Equals(t, replicationNotification.Status, REPLICATION_ACTIVE)
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHANGES_FEED)
+
+	waitForNotification(replication, REPLICATION_FETCHED_REVS_DIFF)
+
+	waitForNotification(replication, REPLICATION_PUSHED_CHECKPOINT)
+
+	remoteCheckpoint := waitForReplicationStoppedNotification(replication)
+	assert.Equals(t, remoteCheckpoint, lastSequence)
+
 	assertNotificationChannelClosed(notificationChan)
 
 }
@@ -947,6 +989,10 @@ func fakeRevsDiff() string {
 
 func fakeRevsDiff2() string {
 	return `{"doc4":{"missing":["1-786e"]}}`
+}
+
+func fakeRevsDiffEmpty() string {
+	return `{}`
 }
 
 func fakeBoundary() string {
