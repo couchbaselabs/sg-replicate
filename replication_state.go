@@ -1,8 +1,9 @@
 package synctube
 
 import (
-	"github.com/couchbaselabs/logg"
 	"time"
+
+	"github.com/couchbaselabs/logg"
 )
 
 // stateFn represents the state as a function that returns the next state.
@@ -148,13 +149,15 @@ func stateFnActiveFetchRevDiffs(r *Replication) stateFn {
 		r.NotificationChan <- *notification
 
 		if len(r.RevsDiff) == 0 {
-			r.shutdownEventChannel()
-			logg.LogTo("SYNCTUBE", "len(r.RevsDiff) == 0")
-			notification := NewReplicationNotification(REPLICATION_ABORTED)
-			notification.Error = NewReplicationError(FETCH_REVS_DIFF_FAILED)
-			r.NotificationChan <- *notification
-			return nil
+
+			go r.pushCheckpoint()
+
+			logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchRevDiffs -> stateFnActivePushCheckpoint")
+
+			return stateFnActivePushCheckpoint
+
 		} else {
+
 			go r.fetchBulkGet()
 
 			logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchRevDiffs -> stateFnActiveFetchBulkGet")
