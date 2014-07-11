@@ -2,10 +2,11 @@ package synctube
 
 import (
 	"encoding/json"
-	"github.com/couchbaselabs/logg"
 	"io/ioutil"
 	"net/http"
 	"time"
+
+	"github.com/couchbaselabs/logg"
 )
 
 type ContinuousReplicationEvent int
@@ -74,7 +75,7 @@ type ContinuousReplication struct {
 	AbortedReplicationRetryTime time.Duration
 
 	// The last sequenced pushed by last wrapped replication that was run
-	LastSequencePushed sequenceNumber
+	LastSequencePushed interface{}
 }
 
 type Runnable interface {
@@ -198,7 +199,7 @@ func stateFnCatchingUp(r *ContinuousReplication) stateFnContinuous {
 			switch notification.Status {
 			case REPLICATION_STOPPED:
 				logg.LogTo("SYNCTUBE", "Replication stopped, caught up")
-				r.LastSequencePushed = sequenceNumber(notification.Data.(int))
+				r.LastSequencePushed = notification.Data
 				return stateFnWaitNewChanges
 			case REPLICATION_ABORTED:
 				logg.LogTo("SYNCTUBE", "Replication aborted .. try again")

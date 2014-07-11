@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -51,12 +50,12 @@ func TestOneShotReplicationCancelImmediately(t *testing.T) {
 
 	replication := NewReplication(params, notificationChan)
 
-	lastSequence := 1
+	lastSequence := "1"
 	jsonResponse := fakeCheckpointResponse(replication.targetCheckpointAddress(), lastSequence)
 	targetServer.Response(200, jsonHeaders(), jsonResponse)
 
 	// fake response to changes feed
-	lastSequenceChanges := 3
+	lastSequenceChanges := "3"
 	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed(lastSequenceChanges))
 
 	err := replication.Start()
@@ -65,9 +64,7 @@ func TestOneShotReplicationCancelImmediately(t *testing.T) {
 	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
 
 	// get the fetched checkpoint and make sure it matches
-	lastSequenceFetched, err := replication.FetchedTargetCheckpoint.LastCheckpointNumeric()
-	assert.True(t, err == nil)
-	assert.Equals(t, lastSequence, lastSequenceFetched)
+	assert.Equals(t, lastSequence, replication.FetchedTargetCheckpoint.LastSequence)
 
 	err = replication.Stop()
 	assert.True(t, err == nil)
@@ -128,8 +125,8 @@ func TestOneShotReplicationGetCheckpointHappypath(t *testing.T) {
 
 	replication := NewReplication(params, notificationChan)
 
-	lastSequence := 1
-	jsonResponse := fakeCheckpointResponse(replication.targetCheckpointAddress(), 1)
+	lastSequence := "1"
+	jsonResponse := fakeCheckpointResponse(replication.targetCheckpointAddress(), "1")
 	targetServer.Response(200, jsonHeaders(), jsonResponse)
 
 	replication.Start()
@@ -137,9 +134,7 @@ func TestOneShotReplicationGetCheckpointHappypath(t *testing.T) {
 	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
 
 	// get the fetched checkpoint and make sure it matches
-	lastSequenceFetched, err := replication.FetchedTargetCheckpoint.LastCheckpointNumeric()
-	assert.True(t, err == nil)
-	assert.Equals(t, lastSequence, lastSequenceFetched)
+	assert.Equals(t, lastSequence, replication.FetchedTargetCheckpoint.LastSequence)
 
 	replication.Stop()
 	waitForNotification(replication, REPLICATION_CANCELLED)
@@ -158,7 +153,7 @@ func TestOneShotReplicationGetChangesFeedFailed(t *testing.T) {
 
 	replication := NewReplication(params, notificationChan)
 
-	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), "1"))
 
 	// fake response to changes feed
 	sourceServer.Response(500, jsonHeaders(), "{\"error\": true}")
@@ -187,10 +182,10 @@ func TestOneShotReplicationGetChangesFeedHappyPath(t *testing.T) {
 
 	replication := NewReplication(params, notificationChan)
 
-	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), "1"))
 
 	// response to changes feed
-	lastSequenceChanges := 3
+	lastSequenceChanges := "3"
 	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed(lastSequenceChanges))
 
 	replication.Start()
@@ -224,7 +219,7 @@ func TestOneShotReplicationGetChangesFeedEmpty(t *testing.T) {
 
 	replication := NewReplication(params, notificationChan)
 
-	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), "1"))
 
 	// response to changes feed
 	sourceServer.Response(200, jsonHeaders(), fakeEmptyChangesFeed())
@@ -259,10 +254,10 @@ func TestOneShotReplicationGetRevsDiffFailed(t *testing.T) {
 	// create a new replication and start it
 	replication := NewReplication(params, notificationChan)
 
-	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), "1"))
 
 	// fake response to changes feed
-	lastSequence := 3
+	lastSequence := "3"
 	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed(lastSequence))
 
 	// fake response to revs_diff
@@ -293,10 +288,10 @@ func TestOneShotReplicationGetRevsDiffEmpty(t *testing.T) {
 	replication := NewReplication(params, notificationChan)
 
 	// fake response to fetch checkpoint
-	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), "1"))
 
 	// fake response to changes feed
-	lastSequence := 3
+	lastSequence := "3"
 	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed(lastSequence))
 
 	// fake response to revs_diff
@@ -336,7 +331,7 @@ func TestOneShotReplicationGetRevsDiffHappyPath(t *testing.T) {
 
 	sourceServer, targetServer := fakeServers(5997, 5996)
 
-	lastSequence := 1
+	lastSequence := "1"
 
 	params := replicationParams(sourceServer.URL, targetServer.URL)
 
@@ -348,7 +343,7 @@ func TestOneShotReplicationGetRevsDiffHappyPath(t *testing.T) {
 	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), lastSequence))
 
 	// fake response to changes feed
-	lastSequenceChanges := 3
+	lastSequenceChanges := "3"
 	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed(lastSequenceChanges))
 
 	// fake response to revs_diff
@@ -377,7 +372,7 @@ func TestOneShotReplicationGetRevsDiffHappyPath(t *testing.T) {
 			params, err := url.ParseQuery(savedReq.Request.URL.RawQuery)
 			logg.LogTo("TEST", "params: %v", params)
 			assert.True(t, err == nil)
-			assert.Equals(t, params["since"][0], strconv.Itoa(lastSequence))
+			assert.Equals(t, params["since"][0], lastSequence)
 		}
 
 	}
@@ -394,10 +389,10 @@ func TestOneShotReplicationBulkGetFailed(t *testing.T) {
 	// create a new replication and start it
 	replication := NewReplication(params, notificationChan)
 
-	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), "1"))
 
 	// fake response to changes feed
-	lastSequence := 3
+	lastSequence := "3"
 	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed(lastSequence))
 
 	// fake response to bulk get
@@ -433,10 +428,10 @@ func TestOneShotReplicationBulkGetHappyPath(t *testing.T) {
 	// create a new replication and start it
 	replication := NewReplication(params, notificationChan)
 
-	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), "1"))
 
 	// fake response to changes feed
-	lastSequence := 3
+	lastSequence := "3"
 	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed(lastSequence))
 
 	// fake response to bulk get
@@ -481,10 +476,10 @@ func TestOneShotReplicationBulkDocsFailed(t *testing.T) {
 	// create a new replication and start it
 	replication := NewReplication(params, notificationChan)
 
-	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), "1"))
 
 	// fake response to changes feed
-	lastSequence := 3
+	lastSequence := "3"
 	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed(lastSequence))
 
 	// fake response to bulk get
@@ -526,10 +521,10 @@ func TestOneShotReplicationBulkDocsHappyPath(t *testing.T) {
 	// create a new replication and start it
 	replication := NewReplication(params, notificationChan)
 
-	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), "1"))
 
 	// fake response to changes feed
-	lastSequence := 3
+	lastSequence := "3"
 	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed(lastSequence))
 
 	// fake response to bulk get
@@ -577,10 +572,10 @@ func TestOneShotReplicationPushCheckpointFailed(t *testing.T) {
 	// create a new replication and start it
 	replication := NewReplication(params, notificationChan)
 
-	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 1))
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), "1"))
 
 	// fake response to changes feed
-	lastSequence := 3
+	lastSequence := "3"
 	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed(lastSequence))
 
 	// fake response to bulk get
@@ -631,7 +626,7 @@ func TestOneShotReplicationPushCheckpointSucceeded(t *testing.T) {
 	targetServer.Response(404, jsonHeaders(), bogusJson())
 
 	// fake response to changes feed
-	lastSequence := 3
+	lastSequence := "3"
 	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed(lastSequence))
 
 	// fake response to bulk get
@@ -650,7 +645,7 @@ func TestOneShotReplicationPushCheckpointSucceeded(t *testing.T) {
 	// TODO: the fake server should return the last pushed checkpoint in this case
 
 	// fake second call to get checkpoint
-	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 3))
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), "3"))
 
 	// fake second response to changes feed
 	sourceServer.Response(200, jsonHeaders(), `{"results":[],"last_seq":3}`)
@@ -672,7 +667,8 @@ func TestOneShotReplicationPushCheckpointSucceeded(t *testing.T) {
 	waitForNotification(replication, REPLICATION_PUSHED_CHECKPOINT)
 
 	remoteCheckpoint := waitForReplicationStoppedNotification(replication)
-	assert.Equals(t, remoteCheckpoint, 3)
+	remoteCheckpointStr := sequenceNumberToString(remoteCheckpoint)
+	assert.Equals(t, remoteCheckpointStr, "3")
 
 	assertNotificationChannelClosed(notificationChan)
 
@@ -710,7 +706,7 @@ func TestOneShotReplicationHappyPath(t *testing.T) {
 	targetServer.Response(404, jsonHeaders(), bogusJson())
 
 	// fake response to changes feed
-	lastSequence := 3
+	lastSequence := "3"
 	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed(lastSequence))
 
 	// fake response to bulk get
@@ -734,7 +730,7 @@ func TestOneShotReplicationHappyPath(t *testing.T) {
 	// rather than hardcoding to 3
 
 	// fake second call to get checkpoint
-	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), 3))
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), "3"))
 
 	// fake second response to changes feed
 	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed2())
@@ -752,7 +748,7 @@ func TestOneShotReplicationHappyPath(t *testing.T) {
 	targetServer.Response(200, jsonHeaders(), fakePushCheckpointResponse(replication.targetCheckpointAddress()))
 
 	// fake third response to get checkpoint
-	lastSequence = 4
+	lastSequence = "4"
 	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), lastSequence))
 
 	// fake third response to changes feed
@@ -896,7 +892,7 @@ func TestOneShotReplicationNoOp(t *testing.T) {
 	targetServer.Response(404, jsonHeaders(), bogusJson())
 
 	// fake response to changes feed
-	lastSequence := 3
+	lastSequence := "3"
 	sourceServer.Response(200, jsonHeaders(), fakeChangesFeedEmpty(lastSequence))
 
 	replication.Start()
@@ -960,7 +956,7 @@ func fakePushCheckpointResponse(checkpointAddress string) string {
 	return fmt.Sprintf(`{"id":"_local/%s","ok":true,"rev":"0-1"}`, checkpointAddress)
 }
 
-func fakeCheckpointResponse(checkpointAddress string, lastSequence int) string {
+func fakeCheckpointResponse(checkpointAddress string, lastSequence string) string {
 	return fmt.Sprintf(`{"_id":"_local/%s","ok":true,"_rev":"0-1","lastSequence":"%v"}`, checkpointAddress, lastSequence)
 
 }
@@ -981,20 +977,20 @@ func assertNotificationChannelClosed(notificationChan chan ReplicationNotificati
 	}
 }
 
-func fakeChangesFeed(lastSequence int) string {
-	return fmt.Sprintf(`{"results":[{"seq":2,"id":"doc2","changes":[{"rev":"1-5e38"}]},{"seq":3,"id":"doc3","changes":[{"rev":"1-563b"}]}],"last_seq":%v}`, lastSequence)
+func fakeChangesFeed(lastSequence string) string {
+	return fmt.Sprintf(`{"results":[{"seq":"2","id":"doc2","changes":[{"rev":"1-5e38"}]},{"seq":"3","id":"doc3","changes":[{"rev":"1-563b"}]}],"last_seq":"%v"}`, lastSequence)
 }
 
 func fakeChangesFeed2() string {
 	return `{"results":[{"seq":4,"id":"doc4","changes":[{"rev":"1-786e"}]}],"last_seq":4}`
 }
 
-func fakeChangesFeedEmpty(lastSequence int) string {
-	return fmt.Sprintf(`{"results":[],"last_seq":%v}`, lastSequence)
+func fakeChangesFeedEmpty(lastSequence string) string {
+	return fmt.Sprintf(`{"results":[],"last_seq":"%v"}`, lastSequence)
 }
 
 func fakeEmptyChangesFeed() string {
-	return fakeChangesFeedEmpty(4)
+	return fakeChangesFeedEmpty("4")
 }
 
 func fakeRevsDiff() string {
@@ -1094,7 +1090,7 @@ func waitForNotificationAndStop(replication *Replication, expected ReplicationSt
 
 }
 
-func waitForReplicationStoppedNotification(replication *Replication) (remoteCheckpoint int) {
+func waitForReplicationStoppedNotification(replication *Replication) (remoteCheckpoint interface{}) {
 
 	for {
 		select {
@@ -1104,7 +1100,7 @@ func waitForReplicationStoppedNotification(replication *Replication) (remoteChec
 				return
 			}
 			if replicationNotification.Status == REPLICATION_STOPPED {
-				remoteCheckpoint = replicationNotification.Data.(int)
+				remoteCheckpoint = replicationNotification.Data
 				return
 			}
 		case <-time.After(time.Second * 10):

@@ -1,13 +1,13 @@
 package synctube
 
 import (
-	"github.com/couchbaselabs/go.assert"
-	"github.com/couchbaselabs/logg"
 	"net/url"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/couchbaselabs/go.assert"
+	"github.com/couchbaselabs/logg"
 )
 
 func init() {
@@ -22,7 +22,7 @@ type MockOneShotReplication struct {
 	stopWhenFinished bool
 
 	// fake checkpoint sent in the REPLICATION_STOPPED notification
-	fakeCheckpoint int
+	fakeCheckpoint interface{}
 }
 
 func (r MockOneShotReplication) Start() error {
@@ -90,7 +90,7 @@ func TestNoOpContinuousReplication(t *testing.T) {
 	sourceServer, targetServer := fakeServers(5971, 5970)
 
 	// fake changes feed - empty
-	lastSequence := 7
+	lastSequence := "7"
 	sourceServer.Response(200, jsonHeaders(), fakeChangesFeedEmpty(lastSequence))
 
 	params := replicationParams(sourceServer.URL, targetServer.URL)
@@ -122,7 +122,7 @@ func TestNoOpContinuousReplication(t *testing.T) {
 		if strings.Contains(path, "/db/_changes") {
 			params, err := url.ParseQuery(savedReq.Request.URL.RawQuery)
 			assert.True(t, err == nil)
-			assert.Equals(t, params["since"][0], strconv.Itoa(lastSequence))
+			assert.Equals(t, params["since"][0], lastSequence)
 		}
 	}
 
@@ -133,7 +133,7 @@ func TestHappyPathContinuousReplication(t *testing.T) {
 	sourceServer, targetServer := fakeServers(5975, 5974)
 
 	// fake response to changes feed
-	lastSequence := 1
+	lastSequence := "1"
 	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed(lastSequence))
 
 	params := replicationParams(sourceServer.URL, targetServer.URL)
@@ -145,7 +145,7 @@ func TestHappyPathContinuousReplication(t *testing.T) {
 		return &MockOneShotReplication{
 			NotificationChan: notificationChan,
 			stopWhenFinished: true,
-			fakeCheckpoint:   1,
+			fakeCheckpoint:   lastSequence,
 		}
 
 	}
@@ -167,7 +167,7 @@ func TestHappyPathContinuousReplication(t *testing.T) {
 		if strings.Contains(path, "/db/_changes") {
 			params, err := url.ParseQuery(savedReq.Request.URL.RawQuery)
 			assert.True(t, err == nil)
-			assert.Equals(t, params["since"][0], strconv.Itoa(lastSequence))
+			assert.Equals(t, params["since"][0], lastSequence)
 		}
 	}
 

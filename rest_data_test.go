@@ -2,9 +2,10 @@ package synctube
 
 import (
 	"encoding/json"
+	"testing"
+
 	"github.com/couchbaselabs/go.assert"
 	"github.com/couchbaselabs/logg"
-	"testing"
 )
 
 func init() {
@@ -13,7 +14,7 @@ func init() {
 }
 
 func TestGenerateRevsMap(t *testing.T) {
-	lastSequence := 3
+	lastSequence := "3"
 	fakeChangesFeed := fakeChangesFeed(lastSequence)
 	changes := Changes{}
 	err := json.Unmarshal([]byte(fakeChangesFeed), &changes)

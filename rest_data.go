@@ -2,7 +2,6 @@ package synctube
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/couchbaselabs/logg"
 )
@@ -32,14 +31,6 @@ func (error ReplicationError) Error() string {
 	return fmt.Sprintf("%v", error.ReplicationEventSignal)
 }
 
-func (checkpoint Checkpoint) LastCheckpointNumeric() (i int, err error) {
-	i, err = strconv.Atoi(checkpoint.LastSequence)
-	if err != nil {
-		logg.LogError(err)
-	}
-	return
-}
-
 func (checkpoint Checkpoint) IsEmpty() bool {
 	return len(checkpoint.Id) == 0
 }
@@ -49,15 +40,15 @@ type ChangedRev struct {
 }
 
 type Change struct {
-	Sequence    int          `json:"seq"`
+	Sequence    interface{}  `json:"seq"`
 	Id          string       `json:"id"`
 	ChangedRevs []ChangedRev `json:"changes"`
 	Deleted     bool         `json:"deleted"`
 }
 
 type Changes struct {
-	Results      []Change `json:"results"`
-	LastSequence int      `json:"last_seq"`
+	Results      []Change    `json:"results"`
+	LastSequence interface{} `json:"last_seq"`
 }
 
 type RevsDiffDocumentResponse struct {

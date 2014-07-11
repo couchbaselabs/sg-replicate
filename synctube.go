@@ -6,8 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/couchbaselabs/logg"
-	"github.com/mreiferson/go-httpclient"
 	"io"
 	"io/ioutil"
 	"mime"
@@ -15,6 +13,9 @@ import (
 	"net/http"
 	"net/textproto"
 	"time"
+
+	"github.com/couchbaselabs/logg"
+	"github.com/mreiferson/go-httpclient"
 )
 
 var globalClient *http.Client
@@ -722,16 +723,11 @@ func (r Replication) getLongpollChangesFeedUrl() string {
 }
 
 func (r Replication) getChangesFeedUrl(changesFeedParams ChangesFeedParams) string {
-	checkpoint, err := r.FetchedTargetCheckpoint.LastCheckpointNumeric()
-	if err != nil {
-		logg.LogPanic("got non-numeric checkpoint: %v", r.FetchedTargetCheckpoint)
-	}
 	if !r.FetchedTargetCheckpoint.IsEmpty() {
-		changesFeedParams.since = sequenceNumber(checkpoint)
+		changesFeedParams.since = r.FetchedTargetCheckpoint.LastSequence
 	}
 	changesFeedUrl := r.Parameters.getSourceChangesFeedUrl(changesFeedParams)
 	return changesFeedUrl
-
 }
 
 func (r Replication) getRevsDiffUrl() string {
