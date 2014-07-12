@@ -44,7 +44,7 @@ func (p ChangesFeedParams) FeedStyle() string {
 }
 
 func (p ChangesFeedParams) SequenceNumber() string {
-	return sequenceNumberToString(p.since)
+	return SequenceNumberToString(p.since)
 }
 
 func (p ChangesFeedParams) String() string {

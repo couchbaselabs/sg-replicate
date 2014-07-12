@@ -667,7 +667,7 @@ func TestOneShotReplicationPushCheckpointSucceeded(t *testing.T) {
 	waitForNotification(replication, REPLICATION_PUSHED_CHECKPOINT)
 
 	remoteCheckpoint := waitForReplicationStoppedNotification(replication)
-	remoteCheckpointStr := sequenceNumberToString(remoteCheckpoint)
+	remoteCheckpointStr := SequenceNumberToString(remoteCheckpoint)
 	assert.Equals(t, remoteCheckpointStr, "3")
 
 	assertNotificationChannelClosed(notificationChan)
