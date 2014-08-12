@@ -5,8 +5,14 @@ import (
 	"os"
 	"time"
 
+	"github.com/alecthomas/kingpin"
 	"github.com/couchbaselabs/logg"
 	synctube "github.com/couchbaselabs/sg-replicate"
+)
+
+var (
+	configFileDescription = "The name of the config file.  Defaults to 'config.json'"
+	configFileName        = kingpin.Arg("config file name", configFileDescription).Default("config.json").String()
 )
 
 func init() {
@@ -16,10 +22,14 @@ func init() {
 
 func main() {
 
-	filename := "config.json"
-	configFile, err := os.Open(filename)
+	kingpin.Parse()
+	if *configFileName == "" {
+		kingpin.UsageErrorf("Config file name missing")
+		return
+	}
+	configFile, err := os.Open(*configFileName)
 	if err != nil {
-		logg.LogPanic("Unable to open file: %v.  Err: %v", filename, err.Error())
+		logg.LogPanic("Unable to open file: %v.  Err: %v", *configFileName, err.Error())
 		return
 	}
 	defer configFile.Close()
@@ -27,7 +37,7 @@ func main() {
 	configReader := bufio.NewReader(configFile)
 	replicationsConfig, err := ParseReplicationsConfig(configReader)
 	if err != nil {
-		logg.LogPanic("Unable to parse config: %v. Err: %v", filename, err.Error())
+		logg.LogPanic("Unable to parse config: %v. Err: %v", *configFileName, err.Error())
 		return
 	}
 
