@@ -6,7 +6,7 @@ import (
 	"github.com/couchbaselabs/logg"
 )
 
-const EMPTY_SEQUENCE_NUMBER = -1
+const EMPTY_SEQUENCE_NUMBER = 0
 
 func SequenceNumberToString(sequence interface{}) string {
 
