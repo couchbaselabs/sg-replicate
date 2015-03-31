@@ -1,9 +1,10 @@
 package synctube
 
 import (
-	"github.com/couchbaselabs/logg"
 	"io/ioutil"
 	"mime/multipart"
+
+	"github.com/couchbaselabs/logg"
 )
 
 type Attachment struct {
