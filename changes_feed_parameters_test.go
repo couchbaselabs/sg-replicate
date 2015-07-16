@@ -22,3 +22,15 @@ func TestChangesFeedParametersString(t *testing.T) {
 	assert.False(t, strings.Contains(stringVal, "MISSING"))
 
 }
+
+func TestChangesFeedParametersStringChannels(t *testing.T) {
+	changesFeedParams := NewChangesFeedParams()
+	changesFeedParams.since = 13
+	changesFeedParams.channels = []string{"ace", "queen", "king"}
+	stringVal := changesFeedParams.String()
+	logg.LogTo("TEST", "stringVal: %v", stringVal)
+	assert.True(t, strings.Contains(stringVal, "since=13"))
+	assert.False(t, strings.Contains(stringVal, "MISSING"))
+	assert.True(t, strings.Contains(stringVal, "ace,queen,king"))
+
+}

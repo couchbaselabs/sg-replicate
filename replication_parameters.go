@@ -38,6 +38,7 @@ type ReplicationParameters struct {
 	Name             string
 	Source           *url.URL
 	SourceDb         string
+	Channels         []string
 	Target           *url.URL
 	TargetDb         string
 	ChangesFeedLimit int

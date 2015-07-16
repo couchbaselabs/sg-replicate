@@ -6,6 +6,7 @@
 	    "source_url": "http://localhost:4985",
 	    "source_db": "db",
 	    "target_db": "db-copy",
+        "channels" : ["foo", "bar", "baz"],
 	    "lifecycle": "oneshot"
 	},
 	"grocery-sync-local":{
