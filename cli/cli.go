@@ -24,7 +24,7 @@ func main() {
 
 	kingpin.Parse()
 	if *configFileName == "" {
-		kingpin.UsageErrorf("Config file name missing")
+		kingpin.Errorf("Config file name missing")
 		return
 	}
 	configFile, err := os.Open(*configFileName)
