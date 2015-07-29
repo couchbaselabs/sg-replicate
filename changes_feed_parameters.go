@@ -2,8 +2,7 @@ package synctube
 
 import (
 	"fmt"
-
-	"github.com/couchbaselabs/logg"
+	"strings"
 )
 
 const FEED_TYPE_LONGPOLL = "longpoll"
@@ -14,7 +13,8 @@ type ChangesFeedParams struct {
 	limit               int         // eg, 50
 	heartbeatTimeMillis int         // eg, 300000
 	feedStyle           string      // eg, "all_docs"
-	since               interface{} // eg, "3"
+	since               interface{} // eg, "3",
+	channels            []string
 }
 
 func NewChangesFeedParams() *ChangesFeedParams {
@@ -58,6 +58,8 @@ func (p ChangesFeedParams) String() string {
 	if len(p.SequenceNumber()) > 0 {
 		params = fmt.Sprintf("%v&since=%s", params, p.SequenceNumber())
 	}
-	logg.LogTo("TEST", "changesFeedParams: %v", params)
+	if len(p.channels) > 0 {
+		params = fmt.Sprintf("%v&filter=sync_gateway/bychannel&channels=%s", params, strings.Join(p.channels, ","))
+	}
 	return params
 }

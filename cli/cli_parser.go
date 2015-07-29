@@ -26,6 +26,7 @@ type ReplicationParametersJson struct {
 	SourceDb         string                        `json:"source_db"`
 	Target           string                        `json:"target_url"`
 	TargetDb         string                        `json:"target_db"`
+	Channels         []string                      `json:"channels"`
 	ChangesFeedLimit int                           `json:"changes_feed_limit"`
 	Lifecycle        synctube.ReplicationLifecycle `json:"lifecycle"`
 	Disabled         bool                          `json:"disabled"`
@@ -36,7 +37,6 @@ func (r ReplicationsConfigJson) Export() (ReplicationsConfig, error) {
 	result.ChangesFeedLimit = r.ChangesFeedLimit
 	result.ContinuousRetryTimeMs = r.ContinuousRetryTimeMs
 	for k, v := range r.ReplicationsMap {
-		logg.LogTo("SYNCTUBE", "k: %v, v: %v", k, v)
 		if replicationParams, err := v.Export(); err != nil {
 			return result, err
 		} else {
@@ -44,7 +44,6 @@ func (r ReplicationsConfigJson) Export() (ReplicationsConfig, error) {
 			result.Replications = append(result.Replications, replicationParams)
 		}
 	}
-	logg.LogTo("SYNCTUBE", "result.Replications: %v", result.Replications)
 	return result, nil
 }
 
@@ -69,6 +68,7 @@ func (p ReplicationParametersJson) Export() (synctube.ReplicationParameters, err
 	result.SourceDb = p.SourceDb
 	result.TargetDb = p.TargetDb
 	result.Lifecycle = p.Lifecycle
+	result.Channels = p.Channels
 	result.Disabled = p.Disabled
 	return result, nil
 
@@ -85,7 +85,6 @@ func ParseReplicationsConfig(r io.Reader) (ReplicationsConfig, error) {
 	if err != nil {
 		return ReplicationsConfig{}, err
 	}
-	logg.LogTo("SYNCTUBE", "result.Replications: %v", result.Replications)
 
 	return result, nil
 
