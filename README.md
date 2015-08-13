@@ -32,11 +32,11 @@ $ go build && ./cli
 * Can run both OneShot and Continuous replications
 * Does not store anything persistently
 * Stateless -- can be interrupted/restarted anytime without negative side effects.
+* Filter replications using channels.
 
 # Limitations
 
 * Only works on recent versions of Sync Gateway (after commit [50d30eb3d](https://github.com/couchbase/sync_gateway/commit/50d30eb3d) on March 7, 2014)
-* Cannot do filtered replications yet
 * Requires access to Sync Gateway Admin port (4985)
 	
 # Documentation
@@ -65,7 +65,8 @@ $ go build && ./cli
             "target_url": "http://sync.couchbasecloud.com",
             "source_db": "grocery-sync",
             "target_db": "grocery-sync",
-            "lifecycle": "continuous"
+            "lifecycle": "continuous",
+            "channels": ["lists", "items"]
         }
     }
 }
@@ -80,6 +81,7 @@ $ go build && ./cli
 * `source_db` -- the source db to pull from.
 * `target_url` -- url of target sync gateway, **without** the db name in the url.  If omitted, it will be assumed that it's the same as the `source_url`  See `source_url` for discussion of which port to use.
 * `target_db` -- the target db to push to.  
+* `channels` -- the set of channels that replication should be restricted to.
 * `disabled` -- is this replication currently disabled?  (true | false)
 * `lifecycle` -- possible values: `oneshot` or `continuous`.  
      * `oneshot` replications will be run inline (synchronously), and it will not start the following replications until the oneshot replication completes.  
