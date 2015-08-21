@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/url"
 
-	"github.com/couchbaselabs/logg"
 	synctube "github.com/couchbaselabs/sg-replicate"
 )
 

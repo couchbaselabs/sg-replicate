@@ -10,7 +10,7 @@ It was created because the Sync Gateway can only serve as a passive replication 
 # Quickstart
 
 * [Install Go](http://golang.org/doc/install) and define `$GOPATH` environment variable
-* `$ go get -u -v github.com/couchbaselabs/sg-replicate`
+* `$ go get -u -v github.com/couchbaselabs/sg-replicate/...`
 * `$ cd ${GOPATH}/src/github.com/couchbaselabs/sg-replicate/cli`
 * `$ cp config.json.example config.json`
 * Customize `config.json` according to your needs.
