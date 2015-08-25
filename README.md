@@ -7,13 +7,15 @@ It was created because the Sync Gateway can only serve as a passive replication 
 
 ![architecture](http://tleyden-misc.s3.amazonaws.com/blog_images/sg-replicate-architecture.png)
 
-# Quickstart
+# Quickstart - build from source
 
-* [Install Go](http://golang.org/doc/install) and define `$GOPATH` environment variable
-* `$ go get -u -v github.com/couchbaselabs/sg-replicate/...`
+*Note: there is no need to clone this repo, because the `go get` command below will take care of that for you*
+
+* [Install Go](http://golang.org/doc/install) and define `$GOPATH` environment variable (eg, `export GOPATH=~/gocode`)
+* `$ go get -u -v github.com/couchbaselabs/sg-replicate/...` -- clones this repo and all source dependencies into `$GOPATH/src`
 * `$ cd ${GOPATH}/src/github.com/couchbaselabs/sg-replicate/cli`
 * `$ cp config.json.example config.json`
-* Customize `config.json` according to your needs.
+* Customize `config.json` to contain the server URLs of your source and target server.
 * Build and run:
 
 ```
