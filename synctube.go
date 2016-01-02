@@ -34,7 +34,7 @@ type Replication struct {
 func init() {
 	t := &httpclient.Transport{
 		ConnectTimeout:        60 * time.Second,
-		RequestTimeout:        60 * time.Second,
+		RequestTimeout:        1 * time.Hour,
 		ResponseHeaderTimeout: 60 * time.Second,
 	}
 	globalClient = &http.Client{Transport: t}
