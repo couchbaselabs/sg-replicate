@@ -1,4 +1,4 @@
-package synctube
+package sgreplicate
 
 import (
 	"time"
@@ -12,22 +12,22 @@ type stateFn func(*Replication) stateFn
 func stateFnPreStarted(r *Replication) stateFn {
 
 	event := <-r.EventChan
-	logg.LogTo("SYNCTUBE", "stateFnPreStarted got event: %v", event)
+	logg.LogTo("Replicate", "stateFnPreStarted got event: %v", event)
 	switch event.Signal {
 	case REPLICATION_START:
-		logg.LogTo("SYNCTUBE", "stateFnPreStarted got START event: %v", event)
+		logg.LogTo("Replicate", "stateFnPreStarted got START event: %v", event)
 
 		notification := NewReplicationNotification(REPLICATION_ACTIVE)
 		r.NotificationChan <- *notification
-		logg.LogTo("SYNCTUBE", "sent notificication: %v", notification)
+		logg.LogTo("Replicate", "sent notificication: %v", notification)
 
 		go r.fetchTargetCheckpoint()
 
-		logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchCheckpoint -> stateFnActive")
+		logg.LogTo("Replicate", "Transition from stateFnActiveFetchCheckpoint -> stateFnActive")
 		return stateFnActiveFetchCheckpoint
 
 	default:
-		logg.LogTo("SYNCTUBE", "Unexpected event: %v", event)
+		logg.LogTo("Replicate", "Unexpected event: %v", event)
 	}
 
 	time.Sleep(time.Second)
@@ -38,14 +38,14 @@ func stateFnPreStarted(r *Replication) stateFn {
 func stateFnActiveFetchCheckpoint(r *Replication) stateFn {
 
 	event := <-r.EventChan
-	logg.LogTo("SYNCTUBE", "stateFnActiveFetchCheckpoint got event: %v", event)
+	logg.LogTo("Replicate", "stateFnActiveFetchCheckpoint got event: %v", event)
 	switch event.Signal {
 	case REPLICATION_STOP:
 		r.shutdownEventChannel()
 		notification := NewReplicationNotification(REPLICATION_CANCELLED)
-		logg.LogTo("SYNCTUBE", "stateFnActiveFetchCheckpoint: %v", notification)
+		logg.LogTo("Replicate", "stateFnActiveFetchCheckpoint: %v", notification)
 		r.NotificationChan <- *notification
-		logg.LogTo("SYNCTUBE", "going to return nil state")
+		logg.LogTo("Replicate", "going to return nil state")
 		return nil
 	case FETCH_CHECKPOINT_FAILED:
 		r.shutdownEventChannel()
@@ -61,15 +61,15 @@ func stateFnActiveFetchCheckpoint(r *Replication) stateFn {
 		notification := NewReplicationNotification(REPLICATION_FETCHED_CHECKPOINT)
 		r.NotificationChan <- *notification
 
-		logg.LogTo("SYNCTUBE", "call fetchChangesFeed()")
+		logg.LogTo("Replicate", "call fetchChangesFeed()")
 		go r.fetchChangesFeed()
 
-		logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchCheckpoint -> stateFnActiveFetchChangesFeed")
+		logg.LogTo("Replicate", "Transition from stateFnActiveFetchCheckpoint -> stateFnActiveFetchChangesFeed")
 
 		return stateFnActiveFetchChangesFeed
 
 	default:
-		logg.LogTo("SYNCTUBE", "Unexpected event: %v", event)
+		logg.LogTo("Replicate", "Unexpected event: %v", event)
 	}
 
 	time.Sleep(time.Second)
@@ -78,9 +78,9 @@ func stateFnActiveFetchCheckpoint(r *Replication) stateFn {
 
 func stateFnActiveFetchChangesFeed(r *Replication) stateFn {
 
-	logg.LogTo("SYNCTUBE", "stateFnActiveFetchChangesFeed")
+	logg.LogTo("Replicate", "stateFnActiveFetchChangesFeed")
 	event := <-r.EventChan
-	logg.LogTo("SYNCTUBE", "stateFnActiveFetchChangesFeed got event: %v", event)
+	logg.LogTo("Replicate", "stateFnActiveFetchChangesFeed got event: %v", event)
 	switch event.Signal {
 	case REPLICATION_STOP:
 		r.shutdownEventChannel()
@@ -110,13 +110,13 @@ func stateFnActiveFetchChangesFeed(r *Replication) stateFn {
 		} else {
 			go r.fetchRevsDiff()
 
-			logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchChangesFeed -> stateFnActiveFetchRevDiffs")
+			logg.LogTo("Replicate", "Transition from stateFnActiveFetchChangesFeed -> stateFnActiveFetchRevDiffs")
 
 			return stateFnActiveFetchRevDiffs
 		}
 
 	default:
-		logg.LogTo("SYNCTUBE", "Unexpected event: %v", event)
+		logg.LogTo("Replicate", "Unexpected event: %v", event)
 	}
 
 	time.Sleep(time.Second)
@@ -125,14 +125,14 @@ func stateFnActiveFetchChangesFeed(r *Replication) stateFn {
 
 func stateFnActiveFetchRevDiffs(r *Replication) stateFn {
 
-	logg.LogTo("SYNCTUBE", "stateFnActiveFetchRevDiffs")
+	logg.LogTo("Replicate", "stateFnActiveFetchRevDiffs")
 	event := <-r.EventChan
-	logg.LogTo("SYNCTUBE", "stateFnActiveFetchRevDiffs got event: %v", event)
+	logg.LogTo("Replicate", "stateFnActiveFetchRevDiffs got event: %v", event)
 	switch event.Signal {
 	case REPLICATION_STOP:
 		r.shutdownEventChannel()
 		notification := NewReplicationNotification(REPLICATION_CANCELLED)
-		logg.LogTo("SYNCTUBE", "stateFnActiveFetchRevDiffs: %v", notification)
+		logg.LogTo("Replicate", "stateFnActiveFetchRevDiffs: %v", notification)
 		r.NotificationChan <- *notification
 		return nil
 	case FETCH_REVS_DIFF_FAILED:
@@ -152,7 +152,7 @@ func stateFnActiveFetchRevDiffs(r *Replication) stateFn {
 
 			go r.pushCheckpoint()
 
-			logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchRevDiffs -> stateFnActivePushCheckpoint")
+			logg.LogTo("Replicate", "Transition from stateFnActiveFetchRevDiffs -> stateFnActivePushCheckpoint")
 
 			return stateFnActivePushCheckpoint
 
@@ -160,13 +160,13 @@ func stateFnActiveFetchRevDiffs(r *Replication) stateFn {
 
 			go r.fetchBulkGet()
 
-			logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchRevDiffs -> stateFnActiveFetchBulkGet")
+			logg.LogTo("Replicate", "Transition from stateFnActiveFetchRevDiffs -> stateFnActiveFetchBulkGet")
 
 			return stateFnActiveFetchBulkGet
 		}
 
 	default:
-		logg.LogTo("SYNCTUBE", "Unexpected event: %v", event)
+		logg.LogTo("Replicate", "Unexpected event: %v", event)
 	}
 
 	time.Sleep(time.Second)
@@ -174,14 +174,14 @@ func stateFnActiveFetchRevDiffs(r *Replication) stateFn {
 }
 
 func stateFnActiveFetchBulkGet(r *Replication) stateFn {
-	logg.LogTo("SYNCTUBE", "stateFnActiveFetchBulkGet")
+	logg.LogTo("Replicate", "stateFnActiveFetchBulkGet")
 	event := <-r.EventChan
-	logg.LogTo("SYNCTUBE", "stateFnActiveFetchBulkGet got event: %v", event)
+	logg.LogTo("Replicate", "stateFnActiveFetchBulkGet got event: %v", event)
 	switch event.Signal {
 	case REPLICATION_STOP:
 		r.shutdownEventChannel()
 		notification := NewReplicationNotification(REPLICATION_CANCELLED)
-		logg.LogTo("SYNCTUBE", "stateFnActiveFetchBulkGet: %v", notification)
+		logg.LogTo("Replicate", "stateFnActiveFetchBulkGet: %v", notification)
 		r.NotificationChan <- *notification
 		return nil
 	case FETCH_BULK_GET_FAILED:
@@ -196,7 +196,7 @@ func stateFnActiveFetchBulkGet(r *Replication) stateFn {
 			r.Documents = event.Data.([]Document)
 		default:
 			r.shutdownEventChannel()
-			logg.LogTo("SYNCTUBE", "Got unexpected type: %v", event.Data)
+			logg.LogTo("Replicate", "Got unexpected type: %v", event.Data)
 			notification := NewReplicationNotification(REPLICATION_ABORTED)
 			notification.Error = NewReplicationError(FETCH_BULK_GET_FAILED)
 			r.NotificationChan <- *notification
@@ -208,30 +208,30 @@ func stateFnActiveFetchBulkGet(r *Replication) stateFn {
 
 		if len(r.Documents) == 0 {
 			r.shutdownEventChannel()
-			logg.LogTo("SYNCTUBE", "len(r.DocumentBodies) == 0")
+			logg.LogTo("Replicate", "len(r.DocumentBodies) == 0")
 			notification := NewReplicationNotification(REPLICATION_ABORTED)
 			notification.Error = NewReplicationError(FETCH_BULK_GET_FAILED)
 			r.NotificationChan <- *notification
 			return nil
 		} else {
 
-			logg.LogTo("SYNCTUBE", "num docs w/o attachemnts: %v", numDocsWithoutAttachments(r.Documents))
-			logg.LogTo("SYNCTUBE", "num docs w/ attachemnts: %v", numDocsWithAttachments(r.Documents))
+			logg.LogTo("Replicate", "num docs w/o attachemnts: %v", numDocsWithoutAttachments(r.Documents))
+			logg.LogTo("Replicate", "num docs w/ attachemnts: %v", numDocsWithAttachments(r.Documents))
 			switch numDocsWithoutAttachments(r.Documents) > 0 {
 			case true:
 				go r.pushBulkDocs()
-				logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchBulkGet -> stateFnActivePushBulkDocs")
+				logg.LogTo("Replicate", "Transition from stateFnActiveFetchBulkGet -> stateFnActivePushBulkDocs")
 				return stateFnActivePushBulkDocs
 			case false:
 				go r.pushAttachmentDocs()
-				logg.LogTo("SYNCTUBE", "Transition from stateFnActiveFetchBulkGet -> stateFnActivePushAttachmentDocs")
+				logg.LogTo("Replicate", "Transition from stateFnActiveFetchBulkGet -> stateFnActivePushAttachmentDocs")
 				return stateFnActivePushAttachmentDocs
 			}
 
 		}
 
 	default:
-		logg.LogTo("SYNCTUBE", "Unexpected event: %v", event)
+		logg.LogTo("Replicate", "Unexpected event: %v", event)
 	}
 
 	time.Sleep(time.Second)
@@ -240,14 +240,14 @@ func stateFnActiveFetchBulkGet(r *Replication) stateFn {
 }
 
 func stateFnActivePushBulkDocs(r *Replication) stateFn {
-	logg.LogTo("SYNCTUBE", "stateFnActivePushBulkDocs")
+	logg.LogTo("Replicate", "stateFnActivePushBulkDocs")
 	event := <-r.EventChan
-	logg.LogTo("SYNCTUBE", "stateFnActivePushBulkDocs got event: %v", event)
+	logg.LogTo("Replicate", "stateFnActivePushBulkDocs got event: %v", event)
 	switch event.Signal {
 	case REPLICATION_STOP:
 		r.shutdownEventChannel()
 		notification := NewReplicationNotification(REPLICATION_CANCELLED)
-		logg.LogTo("SYNCTUBE", "stateFnActivePushBulkDocs: %v", notification)
+		logg.LogTo("Replicate", "stateFnActivePushBulkDocs: %v", notification)
 		r.NotificationChan <- *notification
 		return nil
 	case PUSH_BULK_DOCS_FAILED:
@@ -265,7 +265,7 @@ func stateFnActivePushBulkDocs(r *Replication) stateFn {
 
 		if len(r.PushedBulkDocs) == 0 {
 			r.shutdownEventChannel()
-			logg.LogTo("SYNCTUBE", "len(r.PushedBulkDocs) == 0")
+			logg.LogTo("Replicate", "len(r.PushedBulkDocs) == 0")
 			notification := NewReplicationNotification(REPLICATION_ABORTED)
 			notification.Error = NewReplicationError(PUSH_BULK_DOCS_FAILED)
 			r.NotificationChan <- *notification
@@ -275,13 +275,13 @@ func stateFnActivePushBulkDocs(r *Replication) stateFn {
 			switch numDocsWithAttachments(r.Documents) > 0 {
 			case true:
 				go r.pushAttachmentDocs()
-				logg.LogTo("SYNCTUBE", "Transition from stateFnActivePushBulkDocs -> stateFnActivePushAttachmentDocs")
+				logg.LogTo("Replicate", "Transition from stateFnActivePushBulkDocs -> stateFnActivePushAttachmentDocs")
 				return stateFnActivePushAttachmentDocs
 
 			case false:
 				go r.pushCheckpoint()
 
-				logg.LogTo("SYNCTUBE", "Transition from stateFnActivePushBulkDocs -> stateFnActivePushCheckpoint")
+				logg.LogTo("Replicate", "Transition from stateFnActivePushBulkDocs -> stateFnActivePushCheckpoint")
 
 				return stateFnActivePushCheckpoint
 
@@ -290,7 +290,7 @@ func stateFnActivePushBulkDocs(r *Replication) stateFn {
 		}
 
 	default:
-		logg.LogTo("SYNCTUBE", "Unexpected event: %v", event)
+		logg.LogTo("Replicate", "Unexpected event: %v", event)
 	}
 
 	time.Sleep(time.Second)
@@ -298,14 +298,14 @@ func stateFnActivePushBulkDocs(r *Replication) stateFn {
 }
 
 func stateFnActivePushAttachmentDocs(r *Replication) stateFn {
-	logg.LogTo("SYNCTUBE", "stateFnActivePushAttachmentDocs")
+	logg.LogTo("Replicate", "stateFnActivePushAttachmentDocs")
 	event := <-r.EventChan
-	logg.LogTo("SYNCTUBE", "stateFnActivePushAttachmentDocs got event: %v", event)
+	logg.LogTo("Replicate", "stateFnActivePushAttachmentDocs got event: %v", event)
 	switch event.Signal {
 	case REPLICATION_STOP:
 		r.shutdownEventChannel()
 		notification := NewReplicationNotification(REPLICATION_CANCELLED)
-		logg.LogTo("SYNCTUBE", "stateFnActivePushAttachmentDocs: %v", notification)
+		logg.LogTo("Replicate", "stateFnActivePushAttachmentDocs: %v", notification)
 		r.NotificationChan <- *notification
 		return nil
 	case PUSH_ATTACHMENT_DOCS_FAILED:
@@ -326,12 +326,12 @@ func stateFnActivePushAttachmentDocs(r *Replication) stateFn {
 
 		go r.pushCheckpoint()
 
-		logg.LogTo("SYNCTUBE", "Transition from stateFnActivePushAttachmentDocs -> stateFnActivePushCheckpoint")
+		logg.LogTo("Replicate", "Transition from stateFnActivePushAttachmentDocs -> stateFnActivePushCheckpoint")
 
 		return stateFnActivePushCheckpoint
 
 	default:
-		logg.LogTo("SYNCTUBE", "Unexpected event: %v", event)
+		logg.LogTo("Replicate", "Unexpected event: %v", event)
 	}
 
 	time.Sleep(time.Second)
@@ -339,14 +339,14 @@ func stateFnActivePushAttachmentDocs(r *Replication) stateFn {
 }
 
 func stateFnActivePushCheckpoint(r *Replication) stateFn {
-	logg.LogTo("SYNCTUBE", "stateFnActivePushCheckpoint")
+	logg.LogTo("Replicate", "stateFnActivePushCheckpoint")
 	event := <-r.EventChan
-	logg.LogTo("SYNCTUBE", "stateFnActivePushCheckpoint got event: %v", event)
+	logg.LogTo("Replicate", "stateFnActivePushCheckpoint got event: %v", event)
 	switch event.Signal {
 	case REPLICATION_STOP:
 		r.shutdownEventChannel()
 		notification := NewReplicationNotification(REPLICATION_CANCELLED)
-		logg.LogTo("SYNCTUBE", "stateFnActivePushCheckpoint: %v", notification)
+		logg.LogTo("Replicate", "stateFnActivePushCheckpoint: %v", notification)
 		r.NotificationChan <- *notification
 		return nil
 	case PUSH_CHECKPOINT_FAILED:
@@ -363,11 +363,11 @@ func stateFnActivePushCheckpoint(r *Replication) stateFn {
 
 		go r.fetchTargetCheckpoint()
 
-		logg.LogTo("SYNCTUBE", "Transition from stateFnActivePushCheckpoint -> stateFnActiveFetchCheckpoint")
+		logg.LogTo("Replicate", "Transition from stateFnActivePushCheckpoint -> stateFnActiveFetchCheckpoint")
 		return stateFnActiveFetchCheckpoint
 
 	default:
-		logg.LogTo("SYNCTUBE", "Unexpected event: %v", event)
+		logg.LogTo("Replicate", "Unexpected event: %v", event)
 	}
 
 	time.Sleep(time.Second)

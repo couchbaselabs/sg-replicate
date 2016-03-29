@@ -1,4 +1,4 @@
-package synctube
+package sgreplicate
 
 import (
 	"fmt"

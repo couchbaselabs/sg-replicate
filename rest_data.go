@@ -1,4 +1,4 @@
-package synctube
+package sgreplicate
 
 import (
 	"fmt"
@@ -153,7 +153,7 @@ func generateBulkDocsRequest(documents []Document) BulkDocsRequest {
 			documentBodies = append(documentBodies, document.Body)
 		} else {
 			for _, attachment := range document.Attachments {
-				logg.LogTo("SYNCTUBE", "attachment.Headers :%v", attachment.Headers)
+				logg.LogTo("Replicate", "attachment.Headers :%v", attachment.Headers)
 			}
 		}
 	}

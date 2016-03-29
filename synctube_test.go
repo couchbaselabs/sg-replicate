@@ -1,4 +1,4 @@
-package synctube
+package sgreplicate
 
 import (
 	"encoding/json"
@@ -15,7 +15,7 @@ import (
 
 func init() {
 	logg.LogKeys["TEST"] = true
-	logg.LogKeys["SYNCTUBE"] = true
+	logg.LogKeys["Replicate"] = true
 }
 
 func replicationParams(sourceServerUrl *url.URL, targetServerUrl *url.URL) ReplicationParameters {

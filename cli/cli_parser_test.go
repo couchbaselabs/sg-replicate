@@ -6,12 +6,12 @@ import (
 
 	"github.com/couchbaselabs/go.assert"
 	"github.com/couchbaselabs/logg"
-	synctube "github.com/couchbaselabs/sg-replicate"
+	sgreplicate "github.com/couchbaselabs/sg-replicate"
 )
 
 func init() {
 	logg.LogKeys["TEST"] = true
-	logg.LogKeys["SYNCTUBE"] = true
+	logg.LogKeys["Replicate"] = true
 }
 
 func TestParseConfig(t *testing.T) {
@@ -42,7 +42,7 @@ func TestParseConfig(t *testing.T) {
 	logg.LogTo("TEST", "err: %v", err)
 	assert.True(t, err == nil)
 	assert.Equals(t, len(replicationsConfig.Replications), 2)
-	assert.Equals(t, replicationsConfig.Replications[0].Lifecycle, synctube.ONE_SHOT)
+	assert.Equals(t, replicationsConfig.Replications[0].Lifecycle, sgreplicate.ONE_SHOT)
 	assert.Equals(t, replicationsConfig.Replications[0].Disabled, false)
 	assert.Equals(t, replicationsConfig.Replications[1].Disabled, true)
 

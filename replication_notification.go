@@ -1,4 +1,4 @@
-package synctube
+package sgreplicate
 
 type ReplicationStatus int
 

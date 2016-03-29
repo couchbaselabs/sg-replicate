@@ -1,4 +1,4 @@
-package synctube
+package sgreplicate
 
 import (
 	"encoding/json"
@@ -19,7 +19,7 @@ func (l *ReplicationLifecycle) UnmarshalJSON(data []byte) error {
 
 	var s string
 	error := json.Unmarshal(data, &s)
-	logg.LogTo("SYNCTUBE", "replciation lifecycle string: %v", s)
+	logg.LogTo("Replicate", "replciation lifecycle string: %v", s)
 	if error == nil {
 		switch s {
 		case "oneshot":

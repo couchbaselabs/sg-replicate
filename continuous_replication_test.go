@@ -1,4 +1,4 @@
-package synctube
+package sgreplicate
 
 import (
 	"net/url"
@@ -12,7 +12,7 @@ import (
 
 func init() {
 	logg.LogKeys["TEST"] = true
-	logg.LogKeys["SYNCTUBE"] = true
+	logg.LogKeys["Replicate"] = true
 }
 
 type MockOneShotReplication struct {
