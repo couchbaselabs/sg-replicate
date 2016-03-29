@@ -1,4 +1,4 @@
-package synctube
+package sgreplicate
 
 import (
 	"io/ioutil"
@@ -21,15 +21,15 @@ func NewAttachment(part *multipart.Part) (*Attachment, error) {
 	// copy headers into Headers
 	contentType := part.Header["Content-Type"][0]
 	contentDisposition := part.Header["Content-Disposition"][0]
-	logg.LogTo("SYNCTUBE", "attachment contentType: %v", contentType)
-	logg.LogTo("SYNCTUBE", "attachment contentDisposition: %v", contentDisposition)
+	logg.LogTo("Replicate", "attachment contentType: %v", contentType)
+	logg.LogTo("Replicate", "attachment contentDisposition: %v", contentDisposition)
 	attachment.Headers["Content-Type"] = contentType
 	attachment.Headers["Content-Disposition"] = contentDisposition
 
 	// read part body into Data
 	data, err := ioutil.ReadAll(part)
 	if err != nil {
-		logg.LogTo("SYNCTUBE", "error reading attachment body: %v", err)
+		logg.LogTo("Replicate", "error reading attachment body: %v", err)
 		return nil, err
 	}
 	attachment.Data = data

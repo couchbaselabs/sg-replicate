@@ -5,13 +5,13 @@ import (
 	"io"
 	"net/url"
 
-	synctube "github.com/couchbaselabs/sg-replicate"
+	sgreplicate "github.com/couchbaselabs/sg-replicate"
 )
 
 type ReplicationsConfig struct {
 	ChangesFeedLimit      int
 	ContinuousRetryTimeMs int
-	Replications          []synctube.ReplicationParameters
+	Replications          []sgreplicate.ReplicationParameters
 }
 
 type ReplicationsConfigJson struct {
@@ -21,14 +21,14 @@ type ReplicationsConfigJson struct {
 }
 
 type ReplicationParametersJson struct {
-	Source           string                        `json:"source_url"`
-	SourceDb         string                        `json:"source_db"`
-	Target           string                        `json:"target_url"`
-	TargetDb         string                        `json:"target_db"`
-	Channels         []string                      `json:"channels"`
-	ChangesFeedLimit int                           `json:"changes_feed_limit"`
-	Lifecycle        synctube.ReplicationLifecycle `json:"lifecycle"`
-	Disabled         bool                          `json:"disabled"`
+	Source           string                           `json:"source_url"`
+	SourceDb         string                           `json:"source_db"`
+	Target           string                           `json:"target_url"`
+	TargetDb         string                           `json:"target_db"`
+	Channels         []string                         `json:"channels"`
+	ChangesFeedLimit int                              `json:"changes_feed_limit"`
+	Lifecycle        sgreplicate.ReplicationLifecycle `json:"lifecycle"`
+	Disabled         bool                             `json:"disabled"`
 }
 
 func (r ReplicationsConfigJson) Export() (ReplicationsConfig, error) {
@@ -46,8 +46,8 @@ func (r ReplicationsConfigJson) Export() (ReplicationsConfig, error) {
 	return result, nil
 }
 
-func (p ReplicationParametersJson) Export() (synctube.ReplicationParameters, error) {
-	result := synctube.ReplicationParameters{}
+func (p ReplicationParametersJson) Export() (sgreplicate.ReplicationParameters, error) {
+	result := sgreplicate.ReplicationParameters{}
 	sourceUrl, err := url.Parse(p.Source)
 	if err != nil {
 		return result, err

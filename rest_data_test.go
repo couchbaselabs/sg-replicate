@@ -1,4 +1,4 @@
-package synctube
+package sgreplicate
 
 import (
 	"encoding/json"
@@ -10,7 +10,7 @@ import (
 
 func init() {
 	logg.LogKeys["TEST"] = true
-	logg.LogKeys["SYNCTUBE"] = true
+	logg.LogKeys["Replicate"] = true
 }
 
 func TestGenerateRevsMap(t *testing.T) {

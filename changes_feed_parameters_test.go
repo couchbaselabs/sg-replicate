@@ -1,4 +1,4 @@
-package synctube
+package sgreplicate
 
 import (
 	"github.com/couchbaselabs/go.assert"
@@ -9,7 +9,7 @@ import (
 
 func init() {
 	logg.LogKeys["TEST"] = true
-	logg.LogKeys["SYNCTUBE"] = true
+	logg.LogKeys["Replicate"] = true
 }
 
 func TestChangesFeedParametersString(t *testing.T) {

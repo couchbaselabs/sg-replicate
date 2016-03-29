@@ -7,7 +7,7 @@ import (
 
 	"github.com/alecthomas/kingpin"
 	"github.com/couchbaselabs/logg"
-	synctube "github.com/couchbaselabs/sg-replicate"
+	sgreplicate "github.com/couchbaselabs/sg-replicate"
 )
 
 var (
@@ -17,7 +17,7 @@ var (
 
 func init() {
 	logg.LogKeys["CLI"] = true
-	logg.LogKeys["SYNCTUBE"] = true
+	logg.LogKeys["Replicate"] = true
 }
 
 func main() {
@@ -57,7 +57,7 @@ func launchReplications(replicationsConfig ReplicationsConfig) {
 			continue
 		}
 		switch replicationParams.Lifecycle {
-		case synctube.ONE_SHOT:
+		case sgreplicate.ONE_SHOT:
 			err := runOneshotReplication(
 				replicationsConfig,
 				replicationParams,
@@ -66,7 +66,7 @@ func launchReplications(replicationsConfig ReplicationsConfig) {
 				logg.LogPanic("Unable to run replication: %v. Err: %v", replicationParams, err.Error())
 			}
 			logg.LogTo("CLI", "Successfully ran one shot replication: %v", replicationParams)
-		case synctube.CONTINUOUS:
+		case sgreplicate.CONTINUOUS:
 			startedContinuousReplications = true
 			go launchContinuousReplication(
 				replicationsConfig,
@@ -90,24 +90,24 @@ func launchReplications(replicationsConfig ReplicationsConfig) {
 
 }
 
-func runOneshotReplication(config ReplicationsConfig, params synctube.ReplicationParameters) error {
+func runOneshotReplication(config ReplicationsConfig, params sgreplicate.ReplicationParameters) error {
 
-	_, err := synctube.RunOneShotReplication(params)
+	_, err := sgreplicate.RunOneShotReplication(params)
 	return err
 
 }
 
-func launchContinuousReplication(config ReplicationsConfig, params synctube.ReplicationParameters, doneChan chan bool) {
+func launchContinuousReplication(config ReplicationsConfig, params sgreplicate.ReplicationParameters, doneChan chan bool) {
 
-	notificationChan := make(chan synctube.ContinuousReplicationNotification)
+	notificationChan := make(chan sgreplicate.ContinuousReplicationNotification)
 
-	factory := func(params synctube.ReplicationParameters, notificationChan chan synctube.ReplicationNotification) synctube.Runnable {
-		params.Lifecycle = synctube.ONE_SHOT
-		return synctube.NewReplication(params, notificationChan)
+	factory := func(params sgreplicate.ReplicationParameters, notificationChan chan sgreplicate.ReplicationNotification) sgreplicate.Runnable {
+		params.Lifecycle = sgreplicate.ONE_SHOT
+		return sgreplicate.NewReplication(params, notificationChan)
 	}
 
 	retryTime := time.Millisecond * time.Duration(config.ContinuousRetryTimeMs)
-	replication := synctube.NewContinuousReplication(params, factory, notificationChan, retryTime)
+	replication := sgreplicate.NewContinuousReplication(params, factory, notificationChan, retryTime)
 	logg.LogTo("TEST", "created continuous replication: %v", replication)
 
 	for {
