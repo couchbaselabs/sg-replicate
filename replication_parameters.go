@@ -35,7 +35,7 @@ func (l *ReplicationLifecycle) UnmarshalJSON(data []byte) error {
 const DefaultChangesFeedLimit = 50
 
 type ReplicationParameters struct {
-	Name             string
+	ReplicationId    string
 	Source           *url.URL
 	SourceDb         string
 	Channels         []string
@@ -44,6 +44,7 @@ type ReplicationParameters struct {
 	ChangesFeedLimit int
 	Lifecycle        ReplicationLifecycle
 	Disabled         bool
+	Async            bool
 }
 
 func (rp ReplicationParameters) getSourceDbUrl() string {
