@@ -20,6 +20,12 @@ import (
 
 var globalClient *http.Client
 
+// Interface for interacting with either Replication or ContinuousReplication
+type SGReplication interface {
+	GetParameters() ReplicationParameters
+	Stop() error
+}
+
 type Replication struct {
 	Parameters              ReplicationParameters
 	EventChan               chan ReplicationEvent
@@ -67,16 +73,29 @@ func (r *Replication) Stop() error {
 	return r.sendEventWithTimeout(NewReplicationEvent(REPLICATION_STOP))
 }
 
+func (r *Replication) GetParameters() ReplicationParameters {
+	return r.Parameters
+}
+
 // Run a one-shot replication synchronously (eg, block until finished)
 func RunOneShotReplication(params ReplicationParameters) (ReplicationStatus, error) {
 
+	replication := StartOneShotReplication(params)
+	return replication.WaitUntilDone()
+
+}
+
+func StartOneShotReplication(params ReplicationParameters) *Replication {
 	notificationChan := make(chan ReplicationNotification)
 	replication := NewReplication(params, notificationChan)
 	replication.Start()
+	return replication
+}
 
+func (r *Replication) WaitUntilDone() (ReplicationStatus, error) {
 	for {
 		select {
-		case replicationNotification := <-notificationChan:
+		case replicationNotification := <-r.NotificationChan:
 			if replicationNotification.Status == REPLICATION_ABORTED {
 				return REPLICATION_ABORTED, fmt.Errorf("Replication Aborted")
 			}
@@ -87,7 +106,6 @@ func RunOneShotReplication(params ReplicationParameters) (ReplicationStatus, err
 			return REPLICATION_ABORTED, fmt.Errorf("Replication timed out")
 		}
 	}
-
 }
 
 func (r *Replication) processEvents() {
