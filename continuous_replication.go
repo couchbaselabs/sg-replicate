@@ -103,8 +103,13 @@ func NewContinuousReplication(params ReplicationParameters, factory ReplicationF
 
 }
 
-func (r ContinuousReplication) Stop() {
+func (r *ContinuousReplication) Stop() error {
 	r.EventChan <- STOP
+	return nil
+}
+
+func (r *ContinuousReplication) GetParameters() ReplicationParameters {
+	return r.ReplicationParameters
 }
 
 func (r *ContinuousReplication) processEvents() {
