@@ -47,16 +47,16 @@ type ReplicationParameters struct {
 	Async            bool
 }
 
-func (rp ReplicationParameters) getSourceDbUrl() string {
+func (rp ReplicationParameters) GetSourceDbUrl() string {
 	return fmt.Sprintf("%s/%s", rp.Source, rp.SourceDb)
 }
 
-func (rp ReplicationParameters) getTargetDbUrl() string {
+func (rp ReplicationParameters) GetTargetDbUrl() string {
 	return fmt.Sprintf("%s/%s", rp.Target, rp.TargetDb)
 }
 
 func (rp ReplicationParameters) getSourceChangesFeedUrl(p ChangesFeedParams) string {
-	dbUrl := rp.getSourceDbUrl()
+	dbUrl := rp.GetSourceDbUrl()
 	changesFeedUrl := fmt.Sprintf(
 		"%s/_changes?%s",
 		dbUrl,

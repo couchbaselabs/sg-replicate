@@ -142,7 +142,7 @@ func (r Replication) targetCheckpointAddress() string {
 	// TODO: this needs to take into account other aspects
 	// of replication (filters, filterparams, etc)
 
-	targetUrlString := r.Parameters.getTargetDbUrl()
+	targetUrlString := r.Parameters.GetTargetDbUrl()
 	hash := crypto.SHA1.New()
 	hash.Sum([]byte(targetUrlString))
 	return hex.EncodeToString(hash.Sum(nil))
@@ -726,7 +726,7 @@ func (r Replication) pushCheckpoint() {
 
 func (r Replication) getCheckpointUrl() string {
 	checkpointAddress := r.targetCheckpointAddress()
-	return fmt.Sprintf("%s/_local/%s", r.Parameters.getTargetDbUrl(), checkpointAddress)
+	return fmt.Sprintf("%s/_local/%s", r.Parameters.GetTargetDbUrl(), checkpointAddress)
 }
 
 func (r Replication) getNormalChangesFeedUrl() string {
@@ -751,7 +751,7 @@ func (r Replication) getChangesFeedUrl(changesFeedParams ChangesFeedParams) stri
 }
 
 func (r Replication) getRevsDiffUrl() string {
-	dbUrl := r.Parameters.getTargetDbUrl()
+	dbUrl := r.Parameters.GetTargetDbUrl()
 	return fmt.Sprintf(
 		"%s/_revs_diff",
 		dbUrl)
@@ -759,7 +759,7 @@ func (r Replication) getRevsDiffUrl() string {
 }
 
 func (r Replication) getPutDocWithAttatchmentUrl(doc Document) string {
-	dbUrl := r.Parameters.getTargetDbUrl()
+	dbUrl := r.Parameters.GetTargetDbUrl()
 	docId := doc.Body["_id"]
 	return fmt.Sprintf(
 		"%s/%s?new_edits=false",
@@ -768,14 +768,14 @@ func (r Replication) getPutDocWithAttatchmentUrl(doc Document) string {
 }
 
 func (r Replication) getBulkDocsUrl() string {
-	dbUrl := r.Parameters.getTargetDbUrl()
+	dbUrl := r.Parameters.GetTargetDbUrl()
 	return fmt.Sprintf(
 		"%s/_bulk_docs",
 		dbUrl)
 }
 
 func (r Replication) getBulkGetUrl() string {
-	dbUrl := r.Parameters.getSourceDbUrl()
+	dbUrl := r.Parameters.GetSourceDbUrl()
 	return fmt.Sprintf(
 		"%s/_bulk_get?revs=true&attachments=true",
 		dbUrl)
