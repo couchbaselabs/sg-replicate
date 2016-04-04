@@ -55,6 +55,19 @@ func (rp ReplicationParameters) GetTargetDbUrl() string {
 	return fmt.Sprintf("%s/%s", rp.Target, rp.TargetDb)
 }
 
+func (rp ReplicationParameters) Equals(other ReplicationParameters) bool {
+	if rp.GetSourceDbUrl() != other.GetSourceDbUrl() {
+		return false
+	}
+	if rp.GetTargetDbUrl() != other.GetTargetDbUrl() {
+		return false
+	}
+	if rp.Lifecycle != other.Lifecycle {
+		return false
+	}
+	return true
+}
+
 func (rp ReplicationParameters) getSourceChangesFeedUrl(p ChangesFeedParams) string {
 	dbUrl := rp.GetSourceDbUrl()
 	changesFeedUrl := fmt.Sprintf(
