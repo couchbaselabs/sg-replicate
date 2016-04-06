@@ -23,6 +23,8 @@ type MockOneShotReplication struct {
 
 	// fake checkpoint sent in the REPLICATION_STOPPED notification
 	fakeCheckpoint interface{}
+
+	fakeStats ReplicationStats
 }
 
 func (r MockOneShotReplication) Start() error {
@@ -44,7 +46,7 @@ func (r MockOneShotReplication) pretendToBeAOneShotReplicator() {
 		logg.LogTo("TEST", "send REPLICATION_STOPPED to %v", r.NotificationChan)
 
 		notification := *(NewReplicationNotification(REPLICATION_STOPPED))
-		notification.Data = r.fakeCheckpoint
+		notification.Data = r.fakeStats
 		r.NotificationChan <- notification
 
 		logg.LogTo("TEST", "sent REPLICATION_STOPPED")
