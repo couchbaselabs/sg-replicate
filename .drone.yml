@@ -1,0 +1,6 @@
+build:
+  image: golang
+  commands:
+    - go get -t
+    - go build
+    - go test
