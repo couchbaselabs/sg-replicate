@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/couchbaselabs/logg"
+	"sync/atomic"
 )
 
 type ContinuousReplicationEvent int
@@ -62,6 +63,9 @@ type ContinuousReplication struct {
 	// parameters of the wrapped replication
 	ReplicationParameters ReplicationParameters
 
+	// Stats of running replication
+	ReplicationStats ReplicationStats
+
 	// the notifications we send out to clients of this api
 	NotificationChan chan ContinuousReplicationNotification
 
@@ -110,6 +114,10 @@ func (r *ContinuousReplication) Stop() error {
 
 func (r *ContinuousReplication) GetParameters() ReplicationParameters {
 	return r.ReplicationParameters
+}
+
+func (r *ContinuousReplication) GetStats() ReplicationStats {
+	return r.ReplicationStats
 }
 
 func (r *ContinuousReplication) processEvents() {
@@ -205,7 +213,10 @@ func stateFnCatchingUp(r *ContinuousReplication) stateFnContinuous {
 			switch notification.Status {
 			case REPLICATION_STOPPED:
 				logg.LogTo("Replicate", "Replication stopped, caught up")
-				r.LastSequencePushed = notification.Data
+				stats := notification.Data.(ReplicationStats)
+				r.LastSequencePushed = stats.EndLastSeq
+				atomic.AddUint32(&r.ReplicationStats.DocsRead, stats.DocsRead)
+				atomic.AddUint32(&r.ReplicationStats.DocsWritten, stats.DocsWritten)
 				return stateFnWaitNewChanges
 			case REPLICATION_ABORTED:
 				logg.LogTo("Replicate", "Replication aborted .. try again")

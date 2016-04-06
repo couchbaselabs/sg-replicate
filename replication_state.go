@@ -2,7 +2,7 @@ package sgreplicate
 
 import (
 	"time"
-
+	"sync/atomic"
 	"github.com/couchbaselabs/logg"
 )
 
@@ -104,10 +104,12 @@ func stateFnActiveFetchChangesFeed(r *Replication) stateFn {
 			// nothing to do, so stop
 			r.shutdownEventChannel()
 			notification := NewReplicationNotification(REPLICATION_STOPPED)
-			notification.Data = r.Changes.LastSequence
+			r.Stats.EndLastSeq = r.Changes.LastSequence
+			notification.Data = r.Stats
 			r.NotificationChan <- *notification
 			return nil
 		} else {
+			r.Stats.EndLastSeq = r.Changes.LastSequence
 			go r.fetchRevsDiff()
 
 			logg.LogTo("Replicate", "Transition from stateFnActiveFetchChangesFeed -> stateFnActiveFetchRevDiffs")
@@ -194,6 +196,7 @@ func stateFnActiveFetchBulkGet(r *Replication) stateFn {
 		switch event.Data.(type) {
 		case []Document:
 			r.Documents = event.Data.([]Document)
+			atomic.AddUint32(&r.Stats.DocsRead, uint32(len(r.Documents)))
 		default:
 			r.shutdownEventChannel()
 			logg.LogTo("Replicate", "Got unexpected type: %v", event.Data)
@@ -272,6 +275,7 @@ func stateFnActivePushBulkDocs(r *Replication) stateFn {
 			return nil
 		} else {
 
+			atomic.AddUint32(&r.Stats.DocsWritten, uint32(len(r.Documents)))
 			switch numDocsWithAttachments(r.Documents) > 0 {
 			case true:
 				go r.pushAttachmentDocs()

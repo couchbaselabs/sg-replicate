@@ -23,11 +23,21 @@ var globalClient *http.Client
 // Interface for interacting with either Replication or ContinuousReplication
 type SGReplication interface {
 	GetParameters() ReplicationParameters
+	GetStats() ReplicationStats
 	Stop() error
+}
+
+type ReplicationStats struct {
+	DocsRead         uint32
+	DocsWritten      uint32
+	DocWriteFailures uint32
+	StartLastSeq     uint32
+	EndLastSeq       interface{}
 }
 
 type Replication struct {
 	Parameters              ReplicationParameters
+	Stats                   ReplicationStats
 	EventChan               chan ReplicationEvent
 	NotificationChan        chan ReplicationNotification
 	FetchedTargetCheckpoint Checkpoint
@@ -75,6 +85,10 @@ func (r *Replication) Stop() error {
 
 func (r *Replication) GetParameters() ReplicationParameters {
 	return r.Parameters
+}
+
+func (r *Replication) GetStats() ReplicationStats {
+	return r.Stats
 }
 
 // Run a one-shot replication synchronously (eg, block until finished)
