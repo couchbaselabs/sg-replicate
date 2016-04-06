@@ -39,7 +39,7 @@ func (r ReplicationsConfigJson) Export() (ReplicationsConfig, error) {
 		if replicationParams, err := v.Export(); err != nil {
 			return result, err
 		} else {
-			replicationParams.ReplicationID = k
+			replicationParams.ReplicationId = k
 			result.Replications = append(result.Replications, replicationParams)
 		}
 	}
