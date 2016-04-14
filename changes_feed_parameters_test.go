@@ -2,14 +2,14 @@ package sgreplicate
 
 import (
 	"github.com/couchbaselabs/go.assert"
-	"github.com/couchbaselabs/logg"
+	"github.com/couchbase/clog"
 	"strings"
 	"testing"
 )
 
 func init() {
-	logg.LogKeys["TEST"] = true
-	logg.LogKeys["Replicate"] = true
+	clog.EnableKey("TEST")
+	clog.EnableKey("Replicate")
 }
 
 func TestChangesFeedParametersString(t *testing.T) {
@@ -17,7 +17,7 @@ func TestChangesFeedParametersString(t *testing.T) {
 	changesFeedParams := NewChangesFeedParams()
 	changesFeedParams.since = 13
 	stringVal := changesFeedParams.String()
-	logg.LogTo("TEST", "stringVal: %v", stringVal)
+	clog.To("TEST", "stringVal: %v", stringVal)
 	assert.True(t, strings.Contains(stringVal, "since=13"))
 	assert.False(t, strings.Contains(stringVal, "MISSING"))
 
@@ -28,7 +28,7 @@ func TestChangesFeedParametersStringChannels(t *testing.T) {
 	changesFeedParams.since = 13
 	changesFeedParams.channels = []string{"ace", "queen", "king"}
 	stringVal := changesFeedParams.String()
-	logg.LogTo("TEST", "stringVal: %v", stringVal)
+	clog.To("TEST", "stringVal: %v", stringVal)
 	assert.True(t, strings.Contains(stringVal, "since=13"))
 	assert.False(t, strings.Contains(stringVal, "MISSING"))
 	assert.True(t, strings.Contains(stringVal, "ace,queen,king"))

@@ -4,7 +4,7 @@ import (
 	"io/ioutil"
 	"mime/multipart"
 
-	"github.com/couchbaselabs/logg"
+	"github.com/couchbase/clog"
 )
 
 type Attachment struct {
@@ -21,15 +21,15 @@ func NewAttachment(part *multipart.Part) (*Attachment, error) {
 	// copy headers into Headers
 	contentType := part.Header["Content-Type"][0]
 	contentDisposition := part.Header["Content-Disposition"][0]
-	logg.LogTo("Replicate", "attachment contentType: %v", contentType)
-	logg.LogTo("Replicate", "attachment contentDisposition: %v", contentDisposition)
+	clog.To("Replicate", "attachment contentType: %v", contentType)
+	clog.To("Replicate", "attachment contentDisposition: %v", contentDisposition)
 	attachment.Headers["Content-Type"] = contentType
 	attachment.Headers["Content-Disposition"] = contentDisposition
 
 	// read part body into Data
 	data, err := ioutil.ReadAll(part)
 	if err != nil {
-		logg.LogTo("Replicate", "error reading attachment body: %v", err)
+		clog.To("Replicate", "error reading attachment body: %v", err)
 		return nil, err
 	}
 	attachment.Data = data

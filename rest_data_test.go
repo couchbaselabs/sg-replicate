@@ -5,12 +5,12 @@ import (
 	"testing"
 
 	"github.com/couchbaselabs/go.assert"
-	"github.com/couchbaselabs/logg"
+	"github.com/couchbase/clog"
 )
 
 func init() {
-	logg.LogKeys["TEST"] = true
-	logg.LogKeys["Replicate"] = true
+	clog.EnableKey("TEST")
+	clog.EnableKey("Replicate")
 }
 
 func TestGenerateRevsMap(t *testing.T) {
@@ -23,5 +23,5 @@ func TestGenerateRevsMap(t *testing.T) {
 	assert.Equals(t, len(revsDiffMap), 2)
 	assert.Equals(t, len(revsDiffMap["doc2"]), 1)
 	assert.Equals(t, len(revsDiffMap["doc3"]), 1)
-	logg.LogTo("TEST", "revsDiffMap: %v", revsDiffMap)
+	clog.To("TEST", "revsDiffMap: %v", revsDiffMap)
 }
