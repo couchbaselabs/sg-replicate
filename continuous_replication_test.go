@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"github.com/couchbaselabs/go.assert"
-	"github.com/couchbaselabs/logg"
+	"github.com/couchbase/clog"
 )
 
 func init() {
-	logg.LogKeys["TEST"] = true
-	logg.LogKeys["Replicate"] = true
+	clog.EnableKey("TEST")
+	clog.EnableKey("Replicate")
 }
 
 type MockOneShotReplication struct {
@@ -29,7 +29,7 @@ type MockOneShotReplication struct {
 
 func (r MockOneShotReplication) Start() error {
 
-	logg.LogTo("TEST", "MockOneShotReplicatin.Start() called. ")
+	clog.To("TEST", "MockOneShotReplicatin.Start() called. ")
 
 	go r.pretendToBeAOneShotReplicator()
 
@@ -38,25 +38,25 @@ func (r MockOneShotReplication) Start() error {
 
 func (r MockOneShotReplication) pretendToBeAOneShotReplicator() {
 
-	logg.LogTo("TEST", "%v pretendToBeAOneShotReplicator() called.", r)
+	clog.To("TEST", "%v pretendToBeAOneShotReplicator() called.", r)
 
 	// <-time.After(2 * time.Second)
 
 	if r.stopWhenFinished {
-		logg.LogTo("TEST", "send REPLICATION_STOPPED to %v", r.NotificationChan)
+		clog.To("TEST", "send REPLICATION_STOPPED to %v", r.NotificationChan)
 
 		notification := *(NewReplicationNotification(REPLICATION_STOPPED))
 		r.fakeStats.EndLastSeq = r.fakeCheckpoint
 		notification.Data = r.fakeStats
 		r.NotificationChan <- notification
 
-		logg.LogTo("TEST", "sent REPLICATION_STOPPED")
+		clog.To("TEST", "sent REPLICATION_STOPPED")
 	} else {
-		logg.LogTo("TEST", "send REPLICATION_ABORTED to %v", r.NotificationChan)
+		clog.To("TEST", "send REPLICATION_ABORTED to %v", r.NotificationChan)
 
 		r.NotificationChan <- *(NewReplicationNotification(REPLICATION_ABORTED))
 
-		logg.LogTo("TEST", "sent REPLICATION_ABORTED")
+		clog.To("TEST", "sent REPLICATION_ABORTED")
 
 	}
 
@@ -64,24 +64,24 @@ func (r MockOneShotReplication) pretendToBeAOneShotReplicator() {
 
 func waitForContinuousNotification(notificationChan chan ContinuousReplicationNotification, expected ContinuousReplicationNotification) {
 
-	logg.LogTo("TEST", "Waiting for %v", expected)
+	clog.To("TEST", "Waiting for %v", expected)
 
 	for {
 		select {
 		case notification, ok := <-notificationChan:
 			if !ok {
-				logg.LogPanic("TEST", "notificationChan appears to be closed")
+				clog.Panic("TEST", "notificationChan appears to be closed")
 				return
 			}
 			if notification == expected {
-				logg.LogTo("TEST", "Got %v", expected)
+				clog.To("TEST", "Got %v", expected)
 				return
 			} else {
-				logg.LogTo("TEST", "Waiting for %v but got %v, igoring", expected, notification)
+				clog.To("TEST", "Waiting for %v but got %v, igoring", expected, notification)
 			}
 
 		case <-time.After(time.Second * 10):
-			logg.LogPanic("Timeout waiting for %v", expected)
+			clog.Panic("Timeout waiting for %v", expected)
 		}
 	}
 
@@ -218,12 +218,12 @@ func DISTestContinuousReplicationIntegration(t *testing.T) {
 
 	sourceServerUrl, err := url.Parse(sourceServerUrlStr)
 	if err != nil {
-		logg.LogPanic("could not parse url: %v", sourceServerUrlStr)
+		clog.Panic("could not parse url: %v", sourceServerUrlStr)
 	}
 
 	targetServerUrl, err := url.Parse(targetServerUrlStr)
 	if err != nil {
-		logg.LogPanic("could not parse url: %v", targetServerUrlStr)
+		clog.Panic("could not parse url: %v", targetServerUrlStr)
 	}
 	params := replicationParams(sourceServerUrl, targetServerUrl)
 
@@ -235,19 +235,19 @@ func DISTestContinuousReplicationIntegration(t *testing.T) {
 
 	retryTime := time.Millisecond
 	replication := NewContinuousReplication(params, factory, notificationChan, retryTime)
-	logg.LogTo("TEST", "created continuous replication: %v", replication)
+	clog.To("TEST", "created continuous replication: %v", replication)
 
 	for {
 		select {
 		case notification, ok := <-notificationChan:
 			if !ok {
-				logg.LogPanic("TEST", "notificationChan appears to be closed")
+				clog.Panic("TEST", "notificationChan appears to be closed")
 				return
 			}
-			logg.LogTo("TEST", "Got notification %v", notification)
+			clog.To("TEST", "Got notification %v", notification)
 
 		case <-time.After(time.Second * 120):
-			logg.LogPanic("Timeout")
+			clog.Panic("Timeout")
 		}
 	}
 

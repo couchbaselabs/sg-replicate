@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/alecthomas/kingpin"
-	"github.com/couchbaselabs/logg"
+	"github.com/couchbase/clog"
 	sgreplicate "github.com/couchbaselabs/sg-replicate"
 )
 
@@ -16,8 +16,8 @@ var (
 )
 
 func init() {
-	logg.LogKeys["CLI"] = true
-	logg.LogKeys["Replicate"] = true
+	clog.EnableKey("CLI")
+	clog.EnableKey("Replicate")
 }
 
 func main() {
@@ -29,7 +29,7 @@ func main() {
 	}
 	configFile, err := os.Open(*configFileName)
 	if err != nil {
-		logg.LogPanic("Unable to open file: %v.  Err: %v", *configFileName, err.Error())
+		clog.Panic("Unable to open file: %v.  Err: %v", *configFileName, err.Error())
 		return
 	}
 	defer configFile.Close()
@@ -37,7 +37,7 @@ func main() {
 	configReader := bufio.NewReader(configFile)
 	replicationsConfig, err := ParseReplicationsConfig(configReader)
 	if err != nil {
-		logg.LogPanic("Unable to parse config: %v. Err: %v", *configFileName, err.Error())
+		clog.Panic("Unable to parse config: %v. Err: %v", *configFileName, err.Error())
 		return
 	}
 
@@ -53,7 +53,7 @@ func launchReplications(replicationsConfig ReplicationsConfig) {
 	startedContinuousReplications := false
 	for _, replicationParams := range replicationsConfig.Replications {
 		if replicationParams.Disabled {
-			logg.LogTo("CLI", "Skip disabled replication: %v", replicationParams)
+			clog.To("CLI", "Skip disabled replication: %v", replicationParams)
 			continue
 		}
 		switch replicationParams.Lifecycle {
@@ -63,9 +63,9 @@ func launchReplications(replicationsConfig ReplicationsConfig) {
 				replicationParams,
 			)
 			if err != nil {
-				logg.LogPanic("Unable to run replication: %v. Err: %v", replicationParams, err.Error())
+				clog.Panic("Unable to run replication: %v. Err: %v", replicationParams, err.Error())
 			}
-			logg.LogTo("CLI", "Successfully ran one shot replication: %v", replicationParams)
+			clog.To("CLI", "Successfully ran one shot replication: %v", replicationParams)
 		case sgreplicate.CONTINUOUS:
 			startedContinuousReplications = true
 			go launchContinuousReplication(
@@ -85,7 +85,7 @@ func launchReplications(replicationsConfig ReplicationsConfig) {
 		<-doneChan
 
 		// if any continuous replications die, just panic.
-		logg.LogPanic("One or more replications stopped")
+		clog.Panic("One or more replications stopped")
 	}
 
 }
@@ -108,17 +108,17 @@ func launchContinuousReplication(config ReplicationsConfig, params sgreplicate.R
 
 	retryTime := time.Millisecond * time.Duration(config.ContinuousRetryTimeMs)
 	replication := sgreplicate.NewContinuousReplication(params, factory, notificationChan, retryTime)
-	logg.LogTo("TEST", "created continuous replication: %v", replication)
+	clog.To("TEST", "created continuous replication: %v", replication)
 
 	for {
 		select {
 		case notification, ok := <-notificationChan:
 			if !ok {
-				logg.LogTo("CLI", "%v notificationChan appears to be closed", replication)
+				clog.To("CLI", "%v notificationChan appears to be closed", replication)
 				doneChan <- true
 				return
 			}
-			logg.LogTo("CLI", "Got notification %v", notification)
+			clog.To("CLI", "Got notification %v", notification)
 		}
 	}
 

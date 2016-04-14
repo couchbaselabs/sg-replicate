@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/couchbaselabs/logg"
+	"github.com/couchbase/clog"
 	"sync/atomic"
 )
 
@@ -122,7 +122,7 @@ func (r *ContinuousReplication) GetStats() ReplicationStats {
 
 func (r *ContinuousReplication) processEvents() {
 
-	logg.LogTo("Replicate", "ContinuousReplication.processEvents()")
+	clog.To("Replicate", "ContinuousReplication.processEvents()")
 
 	// nil out the EventChan after the event loop has finished.
 	defer func() { r.EventChan = nil }()
@@ -130,11 +130,11 @@ func (r *ContinuousReplication) processEvents() {
 	defer close(r.NotificationChan) // No more notifications
 
 	for state := stateFnCatchingUp; state != nil; {
-		logg.LogTo("Replicate", "continuous repl state: %v", state)
+		clog.To("Replicate", "continuous repl state: %v", state)
 		state = state(r)
-		logg.LogTo("Replicate", "continuous repl new state: %v", state)
+		clog.To("Replicate", "continuous repl new state: %v", state)
 	}
-	logg.LogTo("Replicate", "continuous repl processEvents() is done")
+	clog.To("Replicate", "continuous repl processEvents() is done")
 
 }
 
@@ -146,20 +146,20 @@ func (r ContinuousReplication) fetchLongpollChanges(responseChan chan bool) {
 	changesFeedParams.since = r.LastSequencePushed
 	changesFeedUrl := r.ReplicationParameters.getSourceChangesFeedUrl(*changesFeedParams)
 
-	logg.LogTo("Replicate", "fetching longpoll changes at url: %v", changesFeedUrl)
+	clog.To("Replicate", "fetching longpoll changes at url: %v", changesFeedUrl)
 
 	client := &http.Client{}
 	req, _ := http.NewRequest("GET", changesFeedUrl, nil)
 	resp, err := client.Do(req)
-	logg.LogTo("Replicate", "longpoll changes feed resp: %v, err: %v", resp, err)
+	clog.To("Replicate", "longpoll changes feed resp: %v, err: %v", resp, err)
 	if err != nil {
-		logg.LogTo("Replicate", "Error getting longpoll changes feed: %v", err)
+		clog.To("Replicate", "Error getting longpoll changes feed: %v", err)
 		responseChan <- false
 		return
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		logg.LogTo("Replicate", "Error getting longpoll changes feed.  Resp: %v", resp)
+		clog.To("Replicate", "Error getting longpoll changes feed.  Resp: %v", resp)
 		responseChan <- false
 		return
 	}
@@ -168,8 +168,8 @@ func (r ContinuousReplication) fetchLongpollChanges(responseChan chan bool) {
 	changes := Changes{}
 	err = json.Unmarshal(bodyText, &changes)
 	if err != nil {
-		logg.LogTo("Replicate", "Error unmarshalling longpoll changes")
-		logg.LogError(err)
+		clog.To("Replicate", "Error unmarshalling longpoll changes")
+		clog.Error(err)
 		responseChan <- false
 		return
 	}
@@ -199,7 +199,7 @@ func stateFnCatchingUp(r *ContinuousReplication) stateFnContinuous {
 	notificationChan := r.startOneShotReplication()
 
 	for {
-		logg.LogTo("Replicate", "stateFnCatchingUp, waiting for event")
+		clog.To("Replicate", "stateFnCatchingUp, waiting for event")
 		select {
 		case event := <-r.EventChan:
 			switch event {
@@ -207,22 +207,22 @@ func stateFnCatchingUp(r *ContinuousReplication) stateFnContinuous {
 				r.NotificationChan <- CANCELLED
 				return nil
 			default:
-				logg.LogTo("Replicate", "Got unknown event, ignoring: %v", event)
+				clog.To("Replicate", "Got unknown event, ignoring: %v", event)
 			}
 		case notification := <-notificationChan:
 			switch notification.Status {
 			case REPLICATION_STOPPED:
-				logg.LogTo("Replicate", "Replication stopped, caught up")
+				clog.To("Replicate", "Replication stopped, caught up")
 				stats := notification.Data.(ReplicationStats)
 				r.LastSequencePushed = stats.EndLastSeq
 				atomic.AddUint32(&r.ReplicationStats.DocsRead, stats.DocsRead)
 				atomic.AddUint32(&r.ReplicationStats.DocsWritten, stats.DocsWritten)
 				return stateFnWaitNewChanges
 			case REPLICATION_ABORTED:
-				logg.LogTo("Replicate", "Replication aborted .. try again")
+				clog.To("Replicate", "Replication aborted .. try again")
 				return stateFnBackoffRetry
 			default:
-				logg.LogTo("Replicate", "Unexpected notification, ignore")
+				clog.To("Replicate", "Unexpected notification, ignore")
 			}
 		}
 
@@ -239,7 +239,7 @@ func stateFnWaitNewChanges(r *ContinuousReplication) stateFnContinuous {
 		resultChan := make(chan bool)
 		go r.fetchLongpollChanges(resultChan)
 
-		logg.LogTo("Replicate", "stateFnWaitNewChanges, waiting for event")
+		clog.To("Replicate", "stateFnWaitNewChanges, waiting for event")
 		select {
 		case event := <-r.EventChan:
 			switch event {
@@ -247,15 +247,15 @@ func stateFnWaitNewChanges(r *ContinuousReplication) stateFnContinuous {
 				r.NotificationChan <- CANCELLED
 				return nil
 			default:
-				logg.LogTo("Replicate", "Got unknown event, ignoring: %v", event)
+				clog.To("Replicate", "Got unknown event, ignoring: %v", event)
 			}
 		case foundNewChanges := <-resultChan:
 			switch foundNewChanges {
 			case true:
-				logg.LogTo("Replicate", "Got new longpoll changes")
+				clog.To("Replicate", "Got new longpoll changes")
 				return stateFnCatchingUp
 			case false:
-				logg.LogTo("Replicate", "No new longpoll changes yet")
+				clog.To("Replicate", "No new longpoll changes yet")
 				// try again ..
 			}
 
@@ -267,7 +267,7 @@ func stateFnWaitNewChanges(r *ContinuousReplication) stateFnContinuous {
 
 func stateFnBackoffRetry(r *ContinuousReplication) stateFnContinuous {
 
-	logg.LogTo("Replicate", "entered stateFnBackoffRertry")
+	clog.To("Replicate", "entered stateFnBackoffRertry")
 
 	r.NotificationChan <- ABORTED_WAITING_TO_RETRY
 
@@ -279,14 +279,12 @@ func stateFnBackoffRetry(r *ContinuousReplication) stateFnContinuous {
 				r.NotificationChan <- CANCELLED
 				return nil
 			default:
-				logg.LogTo("Replicate", "Got unknown event, ignoring: %v", event)
+				clog.To("Replicate", "Got unknown event, ignoring: %v", event)
 			}
 		case <-time.After(r.AbortedReplicationRetryTime):
-			logg.LogTo("Replicate", "Done waiting to retry")
+			clog.To("Replicate", "Done waiting to retry")
 			return stateFnCatchingUp
-
 		}
-
 	}
 
 }

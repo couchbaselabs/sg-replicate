@@ -5,13 +5,13 @@ import (
 	"testing"
 
 	"github.com/couchbaselabs/go.assert"
-	"github.com/couchbaselabs/logg"
+	"github.com/couchbase/clog"
 	sgreplicate "github.com/couchbaselabs/sg-replicate"
 )
 
 func init() {
-	logg.LogKeys["TEST"] = true
-	logg.LogKeys["Replicate"] = true
+	clog.EnableKey("TEST")
+	clog.EnableKey("Replicate")
 }
 
 func TestParseConfig(t *testing.T) {
@@ -39,7 +39,7 @@ func TestParseConfig(t *testing.T) {
 
 	reader := strings.NewReader(config)
 	replicationsConfig, err := ParseReplicationsConfig(reader)
-	logg.LogTo("TEST", "err: %v", err)
+	clog.To("TEST", "err: %v", err)
 	assert.True(t, err == nil)
 	assert.Equals(t, len(replicationsConfig.Replications), 2)
 	assert.Equals(t, replicationsConfig.Replications[0].Lifecycle, sgreplicate.ONE_SHOT)

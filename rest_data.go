@@ -3,7 +3,7 @@ package sgreplicate
 import (
 	"fmt"
 
-	"github.com/couchbaselabs/logg"
+	"github.com/couchbase/clog"
 )
 
 type Checkpoint struct {
@@ -153,7 +153,7 @@ func generateBulkDocsRequest(documents []Document) BulkDocsRequest {
 			documentBodies = append(documentBodies, document.Body)
 		} else {
 			for _, attachment := range document.Attachments {
-				logg.LogTo("Replicate", "attachment.Headers :%v", attachment.Headers)
+				clog.To("Replicate", "attachment.Headers :%v", attachment.Headers)
 			}
 		}
 	}

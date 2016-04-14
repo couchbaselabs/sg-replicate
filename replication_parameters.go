@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/couchbaselabs/logg"
+	"github.com/couchbase/clog"
 )
 
 type ReplicationLifecycle int
@@ -19,7 +19,7 @@ func (l *ReplicationLifecycle) UnmarshalJSON(data []byte) error {
 
 	var s string
 	error := json.Unmarshal(data, &s)
-	logg.LogTo("Replicate", "replciation lifecycle string: %v", s)
+	clog.To("Replicate", "replciation lifecycle string: %v", s)
 	if error == nil {
 		switch s {
 		case "oneshot":

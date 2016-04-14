@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/couchbaselabs/go.assert"
-	"github.com/couchbaselabs/logg"
+	"github.com/couchbase/clog"
 	"github.com/tleyden/fakehttp"
 )
 
 func init() {
-	logg.LogKeys["TEST"] = true
-	logg.LogKeys["Replicate"] = true
+	clog.EnableKey("TEST")
+	clog.EnableKey("Replicate")
 }
 
 func replicationParams(sourceServerUrl *url.URL, targetServerUrl *url.URL) ReplicationParameters {
@@ -370,7 +370,7 @@ func TestOneShotReplicationGetRevsDiffHappyPath(t *testing.T) {
 		if strings.Contains(path, "/db/_changes") {
 
 			params, err := url.ParseQuery(savedReq.Request.URL.RawQuery)
-			logg.LogTo("TEST", "params: %v", params)
+			clog.To("TEST", "params: %v", params)
 			assert.True(t, err == nil)
 			assert.Equals(t, params["since"][0], lastSequence)
 		}
@@ -919,12 +919,12 @@ func DISTestOneShotIntegrationReplication(t *testing.T) {
 
 	sourceServerUrl, err := url.Parse(sourceServerUrlStr)
 	if err != nil {
-		logg.LogPanic("could not parse url: %v", sourceServerUrlStr)
+		clog.Panic("could not parse url: %v", sourceServerUrlStr)
 	}
 
 	targetServerUrl, err := url.Parse(targetServerUrlStr)
 	if err != nil {
-		logg.LogPanic("could not parse url: %v", targetServerUrlStr)
+		clog.Panic("could not parse url: %v", targetServerUrlStr)
 	}
 	params := replicationParams(sourceServerUrl, targetServerUrl)
 
@@ -936,17 +936,17 @@ func DISTestOneShotIntegrationReplication(t *testing.T) {
 	for {
 		select {
 		case replicationNotification := <-notificationChan:
-			logg.LogTo("TEST", "Got notification %v", replicationNotification)
+			clog.To("TEST", "Got notification %v", replicationNotification)
 			if replicationNotification.Status == REPLICATION_ABORTED {
-				logg.LogPanic("Got REPLICATION_ABORTED")
+				clog.Panic("Got REPLICATION_ABORTED")
 				return
 			}
 			if replicationNotification.Status == REPLICATION_STOPPED {
-				logg.LogTo("TEST", "Replication stopped")
+				clog.To("TEST", "Replication stopped")
 				return
 			}
 		case <-time.After(time.Second * 10):
-			logg.LogPanic("Timeout waiting for a notification")
+			clog.Panic("Timeout waiting for a notification")
 		}
 	}
 
@@ -973,7 +973,7 @@ func jsonHeadersMultipart(boundary string) map[string]string {
 func assertNotificationChannelClosed(notificationChan chan ReplicationNotification) {
 	_, ok := <-notificationChan
 	if ok {
-		logg.LogPanic("notificationChan was not closed")
+		clog.Panic("notificationChan was not closed")
 	}
 }
 
@@ -1070,21 +1070,21 @@ func fakeBulkDocsResponse2() string {
 }
 
 func waitForNotificationAndStop(replication *Replication, expected ReplicationStatus) {
-	logg.LogTo("TEST", "Waiting for %v", expected)
+	clog.To("TEST", "Waiting for %v", expected)
 	notificationChan := replication.NotificationChan
 
 	for {
 		select {
 		case replicationNotification := <-notificationChan:
 			if replicationNotification.Status == expected {
-				logg.LogTo("TEST", "Got %v", expected)
+				clog.To("TEST", "Got %v", expected)
 				replication.Stop()
 				return
 			} else {
-				logg.LogTo("TEST", "Waiting for %v but got %v, igoring", expected, replicationNotification.Status)
+				clog.To("TEST", "Waiting for %v but got %v, igoring", expected, replicationNotification.Status)
 			}
 		case <-time.After(time.Second * 10):
-			logg.LogPanic("Timeout waiting for %v", expected)
+			clog.Panic("Timeout waiting for %v", expected)
 		}
 	}
 
@@ -1096,7 +1096,7 @@ func waitForReplicationStoppedNotification(replication *Replication) (remoteChec
 		select {
 		case replicationNotification, ok := <-replication.NotificationChan:
 			if !ok {
-				logg.LogPanic("notifictionChan appears to be closed")
+				clog.Panic("notifictionChan appears to be closed")
 				return
 			}
 			if replicationNotification.Status == REPLICATION_STOPPED {
@@ -1104,38 +1104,38 @@ func waitForReplicationStoppedNotification(replication *Replication) (remoteChec
 				return
 			}
 		case <-time.After(time.Second * 10):
-			logg.LogPanic("Timeout")
+			clog.Panic("Timeout")
 		}
 	}
 
 }
 
 func waitForNotification(replication *Replication, expected ReplicationStatus) {
-	logg.LogTo("TEST", "Waiting for %v", expected)
+	clog.To("TEST", "Waiting for %v", expected)
 	notificationChan := replication.NotificationChan
 
 	for {
 		select {
 		case replicationNotification, ok := <-notificationChan:
 			if !ok {
-				logg.LogPanic("TEST", "notifictionChan appears to be closed")
+				clog.Panic("TEST", "notifictionChan appears to be closed")
 				return
 			}
 			if replicationNotification.Status == REPLICATION_ABORTED {
 
 				if replicationNotification.Error == nil {
-					logg.LogPanic("TEST", "expected replicationNotification.Error != nil")
+					clog.Panic("TEST", "expected replicationNotification.Error != nil")
 				}
 			}
 			if replicationNotification.Status == expected {
-				logg.LogTo("TEST", "Got %v", expected)
+				clog.To("TEST", "Got %v", expected)
 				return
 			} else {
-				logg.LogTo("TEST", "Waiting for %v but got %v, igoring", expected, replicationNotification.Status)
+				clog.To("TEST", "Waiting for %v but got %v, igoring", expected, replicationNotification.Status)
 			}
 
 		case <-time.After(time.Second * 10):
-			logg.LogPanic("Timeout waiting for %v", expected)
+			clog.Panic("Timeout waiting for %v", expected)
 		}
 	}
 
@@ -1153,7 +1153,7 @@ func TestGetTargetCheckpoint(t *testing.T) {
 	params.Target = targetServer.URL
 	replication := NewReplication(params, nil)
 	targetCheckpoint := replication.targetCheckpointAddress()
-	logg.LogTo("TEST", "checkpoint: %v", targetCheckpoint)
+	clog.To("TEST", "checkpoint: %v", targetCheckpoint)
 
 }
 
@@ -1166,7 +1166,7 @@ func TestGeneratePushCheckpointRequest(t *testing.T) {
 	// should _not_ have a _rev version
 	replication := NewReplication(ReplicationParameters{}, nil)
 	pushCheckpointRequest := replication.generatePushCheckpointRequest()
-	logg.LogTo("TEST", "pushCheckpointRequest: %v", pushCheckpointRequest)
+	clog.To("TEST", "pushCheckpointRequest: %v", pushCheckpointRequest)
 	assert.True(t, len(pushCheckpointRequest.Revision) == 0)
 
 }
