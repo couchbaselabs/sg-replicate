@@ -2,6 +2,7 @@ package sgreplicate
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/couchbase/clog"
 )
@@ -106,7 +107,10 @@ func generateRevsDiffMap(changes Changes) RevsDiffQueryMap {
 
 	revsDiffMap := RevsDiffQueryMap{}
 	for _, change := range changes.Results {
-		revsDiffMap[change.Id] = change.getRevs()
+		// Ignore document ids beginning with underscore
+		if !strings.HasPrefix(change.Id, "_") {
+			revsDiffMap[change.Id] = change.getRevs()
+		}
 	}
 	return revsDiffMap
 }
