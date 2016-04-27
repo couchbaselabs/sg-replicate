@@ -59,9 +59,7 @@ func (notification ContinuousReplicationNotification) String() string {
 // the fact that it's a continuous replication is not baked into the state machine.
 // A "pure" continuous replication would have it's own state machine implementation.
 type ContinuousReplication struct {
-
-	// parameters of the wrapped replication
-	ReplicationParameters ReplicationParameters
+	LoggingReplication
 
 	// Stats of running replication
 	ReplicationStats ReplicationStats
@@ -93,7 +91,7 @@ func NewContinuousReplication(params ReplicationParameters, factory ReplicationF
 	eventChan := make(chan ContinuousReplicationEvent)
 
 	replication := &ContinuousReplication{
-		ReplicationParameters:       params,
+		LoggingReplication:          LoggingReplication{params},
 		NotificationChan:            notificationChan,
 		EventChan:                   eventChan,
 		Factory:                     factory,
@@ -107,22 +105,22 @@ func NewContinuousReplication(params ReplicationParameters, factory ReplicationF
 
 }
 
-func (r *ContinuousReplication) Stop() error {
+func (r ContinuousReplication) Stop() error {
 	r.EventChan <- STOP
 	return nil
 }
 
-func (r *ContinuousReplication) GetParameters() ReplicationParameters {
-	return r.ReplicationParameters
+func (r ContinuousReplication) GetParameters() ReplicationParameters {
+	return r.Parameters
 }
 
-func (r *ContinuousReplication) GetStats() ReplicationStats {
+func (r ContinuousReplication) GetStats() ReplicationStats {
 	return r.ReplicationStats
 }
 
 func (r *ContinuousReplication) processEvents() {
 
-	clog.To("Replicate", "ContinuousReplication.processEvents()")
+	r.LogTo("Replicate", "ContinuousReplication.processEvents()")
 
 	// nil out the EventChan after the event loop has finished.
 	defer func() { r.EventChan = nil }()
@@ -130,36 +128,36 @@ func (r *ContinuousReplication) processEvents() {
 	defer close(r.NotificationChan) // No more notifications
 
 	for state := stateFnCatchingUp; state != nil; {
-		clog.To("Replicate", "continuous repl state: %v", state)
+		r.LogTo("Replicate", "continuous repl state: %v", state)
 		state = state(r)
-		clog.To("Replicate", "continuous repl new state: %v", state)
+		r.LogTo("Replicate", "continuous repl new state: %v", state)
 	}
-	clog.To("Replicate", "continuous repl processEvents() is done")
+	r.LogTo("Replicate", "continuous repl processEvents() is done")
 
 }
 
 func (r ContinuousReplication) fetchLongpollChanges(responseChan chan bool) {
 
 	changesFeedParams := NewChangesFeedParams()
-	changesFeedParams.channels = r.ReplicationParameters.Channels
+	changesFeedParams.channels = r.Parameters.Channels
 	changesFeedParams.feedType = FEED_TYPE_LONGPOLL
 	changesFeedParams.since = r.LastSequencePushed
-	changesFeedUrl := r.ReplicationParameters.getSourceChangesFeedUrl(*changesFeedParams)
+	changesFeedUrl := r.Parameters.getSourceChangesFeedUrl(*changesFeedParams)
 
-	clog.To("Replicate", "fetching longpoll changes at url: %v", changesFeedUrl)
+	r.LogTo("Replicate", "fetching longpoll changes at url: %v", changesFeedUrl)
 
 	client := &http.Client{}
 	req, _ := http.NewRequest("GET", changesFeedUrl, nil)
 	resp, err := client.Do(req)
-	clog.To("Replicate", "longpoll changes feed resp: %v, err: %v", resp, err)
+	r.LogTo("Replicate", "longpoll changes feed resp: %v, err: %v", resp, err)
 	if err != nil {
-		clog.To("Replicate", "Error getting longpoll changes feed: %v", err)
+		r.LogTo("Replicate", "Error getting longpoll changes feed: %v", err)
 		responseChan <- false
 		return
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		clog.To("Replicate", "Error getting longpoll changes feed.  Resp: %v", resp)
+		r.LogTo("Replicate", "Error getting longpoll changes feed.  Resp: %v", resp)
 		responseChan <- false
 		return
 	}
@@ -168,7 +166,7 @@ func (r ContinuousReplication) fetchLongpollChanges(responseChan chan bool) {
 	changes := Changes{}
 	err = json.Unmarshal(bodyText, &changes)
 	if err != nil {
-		clog.To("Replicate", "Error unmarshalling longpoll changes")
+		r.LogTo("Replicate", "Error unmarshalling longpoll changes")
 		clog.Error(err)
 		responseChan <- false
 		return
@@ -182,7 +180,7 @@ func (r ContinuousReplication) fetchLongpollChanges(responseChan chan bool) {
 func (r ContinuousReplication) startOneShotReplication() chan ReplicationNotification {
 
 	notificationChan := make(chan ReplicationNotification)
-	replication := r.Factory(r.ReplicationParameters, notificationChan)
+	replication := r.Factory(r.Parameters, notificationChan)
 	replication.Start()
 	return notificationChan
 
@@ -199,7 +197,7 @@ func stateFnCatchingUp(r *ContinuousReplication) stateFnContinuous {
 	notificationChan := r.startOneShotReplication()
 
 	for {
-		clog.To("Replicate", "stateFnCatchingUp, waiting for event")
+		r.LogTo("Replicate", "stateFnCatchingUp, waiting for event")
 		select {
 		case event := <-r.EventChan:
 			switch event {
@@ -207,22 +205,22 @@ func stateFnCatchingUp(r *ContinuousReplication) stateFnContinuous {
 				r.NotificationChan <- CANCELLED
 				return nil
 			default:
-				clog.To("Replicate", "Got unknown event, ignoring: %v", event)
+				r.LogTo("Replicate", "Got unknown event, ignoring: %v", event)
 			}
 		case notification := <-notificationChan:
 			switch notification.Status {
 			case REPLICATION_STOPPED:
-				clog.To("Replicate", "Replication stopped, caught up")
+				r.LogTo("Replicate", "Replication stopped, caught up")
 				stats := notification.Data.(ReplicationStats)
 				r.LastSequencePushed = stats.EndLastSeq
 				atomic.AddUint32(&r.ReplicationStats.DocsRead, stats.DocsRead)
 				atomic.AddUint32(&r.ReplicationStats.DocsWritten, stats.DocsWritten)
 				return stateFnWaitNewChanges
 			case REPLICATION_ABORTED:
-				clog.To("Replicate", "Replication aborted .. try again")
+				r.LogTo("Replicate", "Replication aborted .. try again")
 				return stateFnBackoffRetry
 			default:
-				clog.To("Replicate", "Unexpected notification, ignore")
+				r.LogTo("Replicate", "Unexpected notification, ignore")
 			}
 		}
 
@@ -239,7 +237,7 @@ func stateFnWaitNewChanges(r *ContinuousReplication) stateFnContinuous {
 		resultChan := make(chan bool)
 		go r.fetchLongpollChanges(resultChan)
 
-		clog.To("Replicate", "stateFnWaitNewChanges, waiting for event")
+		r.LogTo("Replicate", "stateFnWaitNewChanges, waiting for event")
 		select {
 		case event := <-r.EventChan:
 			switch event {
@@ -247,15 +245,15 @@ func stateFnWaitNewChanges(r *ContinuousReplication) stateFnContinuous {
 				r.NotificationChan <- CANCELLED
 				return nil
 			default:
-				clog.To("Replicate", "Got unknown event, ignoring: %v", event)
+				r.LogTo("Replicate", "Got unknown event, ignoring: %v", event)
 			}
 		case foundNewChanges := <-resultChan:
 			switch foundNewChanges {
 			case true:
-				clog.To("Replicate", "Got new longpoll changes")
+				r.LogTo("Replicate", "Got new longpoll changes")
 				return stateFnCatchingUp
 			case false:
-				clog.To("Replicate", "No new longpoll changes yet")
+				r.LogTo("Replicate", "No new longpoll changes yet")
 				// try again ..
 			}
 
@@ -267,7 +265,7 @@ func stateFnWaitNewChanges(r *ContinuousReplication) stateFnContinuous {
 
 func stateFnBackoffRetry(r *ContinuousReplication) stateFnContinuous {
 
-	clog.To("Replicate", "entered stateFnBackoffRertry")
+	r.LogTo("Replicate", "entered stateFnBackoffRertry")
 
 	r.NotificationChan <- ABORTED_WAITING_TO_RETRY
 
@@ -279,10 +277,10 @@ func stateFnBackoffRetry(r *ContinuousReplication) stateFnContinuous {
 				r.NotificationChan <- CANCELLED
 				return nil
 			default:
-				clog.To("Replicate", "Got unknown event, ignoring: %v", event)
+				r.LogTo("Replicate", "Got unknown event, ignoring: %v", event)
 			}
 		case <-time.After(r.AbortedReplicationRetryTime):
-			clog.To("Replicate", "Done waiting to retry")
+			r.LogTo("Replicate", "Done waiting to retry")
 			return stateFnCatchingUp
 		}
 	}

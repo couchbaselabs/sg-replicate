@@ -3,8 +3,6 @@ package sgreplicate
 import (
 	"fmt"
 	"strings"
-
-	"github.com/couchbase/clog"
 )
 
 type Checkpoint struct {
@@ -149,7 +147,7 @@ func generateBulkGetRequest(revsDiff RevsDiffResponseMap) BulkGetRequest {
 	return bulkDocsRequest
 }
 
-func generateBulkDocsRequest(documents []Document) BulkDocsRequest {
+func generateBulkDocsRequest(r Replication, documents []Document) BulkDocsRequest {
 	documentBodies := []DocumentBody{}
 	// we can only send the documents _without_ attachments in _bulk_docs
 	for _, document := range documents {
@@ -157,7 +155,7 @@ func generateBulkDocsRequest(documents []Document) BulkDocsRequest {
 			documentBodies = append(documentBodies, document.Body)
 		} else {
 			for _, attachment := range document.Attachments {
-				clog.To("Replicate", "attachment.Headers :%v", attachment.Headers)
+				r.LogTo("Replicate", "attachment.Headers :%v", attachment.Headers)
 			}
 		}
 	}
