@@ -36,7 +36,7 @@ type ReplicationStats struct {
 }
 
 type Replication struct {
-	Parameters              ReplicationParameters
+	LoggingReplication
 	Stats                   ReplicationStats
 	EventChan               chan ReplicationEvent
 	NotificationChan        chan ReplicationNotification
@@ -61,9 +61,9 @@ func NewReplication(params ReplicationParameters, notificationChan chan Replicat
 	eventChan := make(chan ReplicationEvent)
 
 	replication := &Replication{
-		Parameters:       params,
-		EventChan:        eventChan,
-		NotificationChan: notificationChan,
+		LoggingReplication: LoggingReplication{params},
+		EventChan:          eventChan,
+		NotificationChan:   notificationChan,
 	}
 
 	// spawn a go-routine that reads from event channel and acts on events
@@ -79,15 +79,15 @@ func (r Replication) Start() error {
 }
 
 // Stop this replication
-func (r *Replication) Stop() error {
+func (r Replication) Stop() error {
 	return r.sendEventWithTimeout(NewReplicationEvent(REPLICATION_STOP))
 }
 
-func (r *Replication) GetParameters() ReplicationParameters {
+func (r Replication) GetParameters() ReplicationParameters {
 	return r.Parameters
 }
 
-func (r *Replication) GetStats() ReplicationStats {
+func (r Replication) GetStats() ReplicationStats {
 	return r.Stats
 }
 
@@ -128,9 +128,9 @@ func (r *Replication) processEvents() {
 
 	for state := stateFnPreStarted; state != nil; {
 		state = state(r)
-		clog.To("Replicate", "new state: %v", state)
+		r.LogTo("Replicate", "new state: %v", state)
 	}
-	clog.To("Replicate", "processEvents() is done")
+	r.LogTo("Replicate", "processEvents() is done")
 
 }
 
@@ -188,10 +188,10 @@ func (r Replication) fetchTargetCheckpoint() {
 	client := globalClient
 	req, _ := http.NewRequest("GET", destUrl, nil)
 	resp, err := client.Do(req)
-	clog.To("Replicate", "resp: %v, err: %v", resp, err)
+	r.LogTo("Replicate", "resp: %v, err: %v", resp, err)
 
 	if err != nil {
-		clog.To("Replicate", "Error getting checkpoint: %v", err)
+		r.LogTo("Replicate", "Error getting checkpoint: %v", err)
 		event := NewReplicationEvent(FETCH_CHECKPOINT_FAILED)
 		r.sendEventWithTimeout(event)
 		return
@@ -199,54 +199,54 @@ func (r Replication) fetchTargetCheckpoint() {
 	defer resp.Body.Close()
 	if resp.StatusCode == 404 {
 		// valid response, continue with empty remote checkpoint
-		clog.To("Replicate", "404 trying to get checkpoint, continue..")
+		r.LogTo("Replicate", "404 trying to get checkpoint, continue..")
 		event := NewReplicationEvent(FETCH_CHECKPOINT_SUCCEEDED)
 		checkpoint := Checkpoint{LastSequence: "0"}
 		event.Data = checkpoint
 		r.sendEventWithTimeout(event)
 	} else if resp.StatusCode >= 400 {
 		// we got an error, lets abort
-		clog.To("Replicate", "4xx error(not 404) getting checkpoint")
+		r.LogTo("Replicate", "4xx error(not 404) getting checkpoint")
 		event := NewReplicationEvent(FETCH_CHECKPOINT_FAILED)
 		r.sendEventWithTimeout(event)
 	} else if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		// looks like we got a valid checkpoint
-		clog.To("Replicate", "valid checkpoint")
+		r.LogTo("Replicate", "valid checkpoint")
 
 		bodyText, _ := ioutil.ReadAll(resp.Body)
-		clog.To("Replicate", "body: %v", string(bodyText))
+		r.LogTo("Replicate", "body: %v", string(bodyText))
 		checkpoint := Checkpoint{}
 		err = json.Unmarshal(bodyText, &checkpoint)
 		if err != nil {
-			clog.To("Replicate", "Error unmarshalling checkpoint")
+			r.LogTo("Replicate", "Error unmarshalling checkpoint")
 			clog.Error(err)
 			event := NewReplicationEvent(FETCH_CHECKPOINT_FAILED)
 			r.sendEventWithTimeout(event)
 			return
 		}
 		if len(checkpoint.LastSequence) == 0 {
-			clog.To("Replicate", "Invalid checkpoint, no lastsequence")
+			r.LogTo("Replicate", "Invalid checkpoint, no lastsequence")
 			event := NewReplicationEvent(FETCH_CHECKPOINT_FAILED)
 			r.sendEventWithTimeout(event)
 			return
 		}
 		expectedId := fmt.Sprintf("_local/%s", r.targetCheckpointAddress())
 		if checkpoint.Id != expectedId {
-			clog.To("Replicate", "Got %s, expected %s", checkpoint.Id, expectedId)
+			r.LogTo("Replicate", "Got %s, expected %s", checkpoint.Id, expectedId)
 			event := NewReplicationEvent(FETCH_CHECKPOINT_FAILED)
 			r.sendEventWithTimeout(event)
 			return
 		}
-		clog.To("Replicate", "checkpoint: %v", checkpoint.LastSequence)
+		r.LogTo("Replicate", "checkpoint: %v", checkpoint.LastSequence)
 		event := NewReplicationEvent(FETCH_CHECKPOINT_SUCCEEDED)
 		event.Data = checkpoint
-		clog.To("Replicate", "event: %v", event)
+		r.LogTo("Replicate", "event: %v", event)
 
 		r.sendEventWithTimeout(event)
 
 	} else {
 		// unexpected http status, abort
-		clog.To("Replicate", "unexpected http status %v", resp.StatusCode)
+		r.LogTo("Replicate", "unexpected http status %v", resp.StatusCode)
 		event := NewReplicationEvent(FETCH_CHECKPOINT_FAILED)
 		r.sendEventWithTimeout(event)
 	}
@@ -260,18 +260,18 @@ func (r Replication) fetchChangesFeed() {
 	client := globalClient
 	req, _ := http.NewRequest("GET", destUrl, nil)
 	resp, err := client.Do(req)
-	clog.To("Replicate", "changes feed resp: %v, err: %v", resp, err)
+	r.LogTo("Replicate", "changes feed resp: %v, err: %v", resp, err)
 	if err != nil {
-		clog.To("Replicate", "Error getting changes feed: %v", err)
+		r.LogTo("Replicate", "Error getting changes feed: %v", err)
 		event := NewReplicationEvent(FETCH_CHANGES_FEED_FAILED)
 		r.sendEventWithTimeout(event)
 		return
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		clog.To("Replicate", "Error getting changes feed.  Resp: %v", resp)
+		r.LogTo("Replicate", "Error getting changes feed.  Resp: %v", resp)
 		event := NewReplicationEvent(FETCH_CHANGES_FEED_FAILED)
-		clog.To("Replicate", "channel: %v", r.EventChan)
+		r.LogTo("Replicate", "channel: %v", r.EventChan)
 		r.sendEventWithTimeout(event)
 		return
 	}
@@ -280,7 +280,7 @@ func (r Replication) fetchChangesFeed() {
 	changes := Changes{}
 	err = json.Unmarshal(bodyText, &changes)
 	if err != nil {
-		clog.To("Replicate", "Error unmarshalling change")
+		r.LogTo("Replicate", "Error unmarshalling change")
 		clog.Error(err)
 		event := NewReplicationEvent(FETCH_CHANGES_FEED_FAILED)
 		r.sendEventWithTimeout(event)
@@ -288,7 +288,7 @@ func (r Replication) fetchChangesFeed() {
 	}
 	event := NewReplicationEvent(FETCH_CHANGES_FEED_SUCCEEDED)
 	event.Data = changes
-	clog.To("Replicate", "event: %v", event)
+	r.LogTo("Replicate", "event: %v", event)
 	r.sendEventWithTimeout(event)
 
 }
@@ -299,7 +299,7 @@ func (r Replication) fetchRevsDiff() {
 	revsDiffMap := generateRevsDiffMap(r.Changes)
 	revsDiffMapJson, err := json.Marshal(revsDiffMap)
 	if err != nil {
-		clog.To("Replicate", "Error marshaling %v", revsDiffMap)
+		r.LogTo("Replicate", "Error marshaling %v", revsDiffMap)
 		clog.Error(err)
 		event := NewReplicationEvent(FETCH_REVS_DIFF_FAILED)
 		r.sendEventWithTimeout(event)
@@ -308,7 +308,7 @@ func (r Replication) fetchRevsDiff() {
 
 	req, err := http.NewRequest("POST", revsDiffUrl, bytes.NewReader(revsDiffMapJson))
 	if err != nil {
-		clog.To("Replicate", "Error creating request %v", revsDiffMapJson)
+		r.LogTo("Replicate", "Error creating request %v", revsDiffMapJson)
 		clog.Error(err)
 		event := NewReplicationEvent(FETCH_REVS_DIFF_FAILED)
 		r.sendEventWithTimeout(event)
@@ -318,16 +318,16 @@ func (r Replication) fetchRevsDiff() {
 	client := globalClient
 
 	resp, err := client.Do(req)
-	clog.To("Replicate", "revs diff resp: %v, err: %v", resp, err)
+	r.LogTo("Replicate", "revs diff resp: %v, err: %v", resp, err)
 	if err != nil {
-		clog.To("Replicate", "Error getting revs diff: %v", err)
+		r.LogTo("Replicate", "Error getting revs diff: %v", err)
 		event := NewReplicationEvent(FETCH_REVS_DIFF_FAILED)
 		r.sendEventWithTimeout(event)
 		return
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		clog.To("Replicate", "Unexpected response getting revs diff: %v", resp)
+		r.LogTo("Replicate", "Unexpected response getting revs diff: %v", resp)
 		event := NewReplicationEvent(FETCH_REVS_DIFF_FAILED)
 		r.sendEventWithTimeout(event)
 		return
@@ -337,7 +337,7 @@ func (r Replication) fetchRevsDiff() {
 	revsDiffJson := RevsDiffResponseMap{}
 	err = json.Unmarshal(bodyText, &revsDiffJson)
 	if err != nil {
-		clog.To("Replicate", "Error unmarshalling json")
+		r.LogTo("Replicate", "Error unmarshalling json")
 		clog.Error(err)
 		event := NewReplicationEvent(FETCH_REVS_DIFF_FAILED)
 		r.sendEventWithTimeout(event)
@@ -345,7 +345,7 @@ func (r Replication) fetchRevsDiff() {
 	}
 	event := NewReplicationEvent(FETCH_REVS_DIFF_SUCCEEDED)
 	event.Data = revsDiffJson
-	clog.To("Replicate", "event: %v", event)
+	r.LogTo("Replicate", "event: %v", event)
 	r.sendEventWithTimeout(event)
 
 }
@@ -353,12 +353,12 @@ func (r Replication) fetchRevsDiff() {
 func (r Replication) fetchBulkGet() {
 
 	bulkGetUrl := r.getBulkGetUrl()
-	clog.To("Replicate", "bulkGetUrl %v", bulkGetUrl)
+	r.LogTo("Replicate", "bulkGetUrl %v", bulkGetUrl)
 	bulkGetRequest := generateBulkGetRequest(r.RevsDiff)
 
 	bulkGetRequestJson, err := json.Marshal(bulkGetRequest)
 	if err != nil {
-		clog.To("Replicate", "Error marshaling %v", bulkGetRequest)
+		r.LogTo("Replicate", "Error marshaling %v", bulkGetRequest)
 		clog.Error(err)
 		event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
 		r.sendEventWithTimeout(event)
@@ -366,9 +366,9 @@ func (r Replication) fetchBulkGet() {
 	}
 
 	req, err := http.NewRequest("POST", bulkGetUrl, bytes.NewReader(bulkGetRequestJson))
-	clog.To("Replicate", "bulkGet req %v", req)
+	r.LogTo("Replicate", "bulkGet req %v", req)
 	if err != nil {
-		clog.To("Replicate", "Error creating request %v", bulkGetRequestJson)
+		r.LogTo("Replicate", "Error creating request %v", bulkGetRequestJson)
 		clog.Error(err)
 		event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
 		r.sendEventWithTimeout(event)
@@ -378,16 +378,16 @@ func (r Replication) fetchBulkGet() {
 	client := globalClient
 
 	resp, err := client.Do(req)
-	clog.To("Replicate", "bulk get resp: %v, err: %v", resp, err)
+	r.LogTo("Replicate", "bulk get resp: %v, err: %v", resp, err)
 	if err != nil {
-		clog.To("Replicate", "Error getting bulk get: %v", err)
+		r.LogTo("Replicate", "Error getting bulk get: %v", err)
 		event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
 		r.sendEventWithTimeout(event)
 		return
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		clog.To("Replicate", "Unexpected response getting bulk get: %v", resp)
+		r.LogTo("Replicate", "Unexpected response getting bulk get: %v", resp)
 		event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
 		r.sendEventWithTimeout(event)
 		return
@@ -410,26 +410,26 @@ func (r Replication) fetchBulkGet() {
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			clog.To("Replicate", "Error getting next part: %v", err)
+			r.LogTo("Replicate", "Error getting next part: %v", err)
 			event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
 			event.Data = err
 			r.sendEventWithTimeout(event)
 			return
 		}
 
-		clog.To("Replicate", "mainPart: %v.  Header: %v", mainPart, mainPart.Header)
+		r.LogTo("Replicate", "mainPart: %v.  Header: %v", mainPart, mainPart.Header)
 		mainPartContentTypes := mainPart.Header["Content-Type"] // why a slice?
 		mainPartContentType := mainPartContentTypes[0]
 		contentType, attrs, _ := mime.ParseMediaType(mainPartContentType)
-		clog.To("Replicate", "contentType: %v", contentType)
-		clog.To("Replicate", "boundary: %v", attrs["boundary"])
+		r.LogTo("Replicate", "contentType: %v", contentType)
+		r.LogTo("Replicate", "boundary: %v", attrs["boundary"])
 		switch contentType {
 		case "application/json":
 			documentBody := DocumentBody{}
 			decoder := json.NewDecoder(mainPart)
 
 			if err = decoder.Decode(&documentBody); err != nil {
-				clog.To("Replicate", "Error decoding part: %v", err)
+				r.LogTo("Replicate", "Error decoding part: %v", err)
 				event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
 				event.Data = err
 				r.sendEventWithTimeout(event)
@@ -449,25 +449,25 @@ func (r Replication) fetchBulkGet() {
 				if err == io.EOF {
 					break
 				} else if err != nil {
-					clog.To("Replicate", "err nested nextpart: %v", err)
+					r.LogTo("Replicate", "err nested nextpart: %v", err)
 					event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
 					event.Data = err
 					r.sendEventWithTimeout(event)
 					return
 				}
-				clog.To("Replicate", "nestedPart: %v.  Header: %v", nestedPart, nestedPart.Header)
+				r.LogTo("Replicate", "nestedPart: %v.  Header: %v", nestedPart, nestedPart.Header)
 				nestedPartContentTypes := nestedPart.Header["Content-Type"]
 				nestedPartContentType := nestedPartContentTypes[0]
 				nestedContentType, nestedAttrs, _ := mime.ParseMediaType(nestedPartContentType)
-				clog.To("Replicate", "nestedContentType: %v", nestedContentType)
-				clog.To("Replicate", "nestedAttrs: %v", nestedAttrs)
+				r.LogTo("Replicate", "nestedContentType: %v", nestedContentType)
+				r.LogTo("Replicate", "nestedAttrs: %v", nestedAttrs)
 
 				switch nestedContentType {
 				case "application/json":
 					nestedDecoder := json.NewDecoder(nestedPart)
 					nestedDocBody := DocumentBody{}
 					if err = nestedDecoder.Decode(&nestedDocBody); err != nil {
-						clog.To("Replicate", "Error decoding part: %v", err)
+						r.LogTo("Replicate", "Error decoding part: %v", err)
 						event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
 						event.Data = err
 						r.sendEventWithTimeout(event)
@@ -478,9 +478,9 @@ func (r Replication) fetchBulkGet() {
 
 				default:
 					// handle attachment
-					attachment, err := NewAttachment(nestedPart)
+					attachment, err := NewAttachment(&r, nestedPart)
 					if err != nil {
-						clog.To("Replicate", "Error decoding attachment: %v", err)
+						r.LogTo("Replicate", "Error decoding attachment: %v", err)
 						event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
 						event.Data = err
 						r.sendEventWithTimeout(event)
@@ -497,7 +497,7 @@ func (r Replication) fetchBulkGet() {
 
 			mainPart.Close()
 		default:
-			clog.To("Replicate", "ignoring unexpected content type: %v", contentType)
+			r.LogTo("Replicate", "ignoring unexpected content type: %v", contentType)
 
 		}
 
@@ -515,7 +515,7 @@ func (r Replication) pushAttachmentDocs() {
 	docs := subsetDocsWithAttachemnts(r.Documents)
 	for _, doc := range docs {
 		url := r.getPutDocWithAttatchmentUrl(doc)
-		clog.To("Replicate", "pushAttatchmentDocs url: %v", url)
+		r.LogTo("Replicate", "pushAttatchmentDocs url: %v", url)
 		body := &bytes.Buffer{}
 		writer := multipart.NewWriter(body)
 
@@ -575,7 +575,7 @@ func (r Replication) pushAttachmentDocs() {
 		client := globalClient
 
 		resp, err := client.Do(req)
-		clog.To("Replicate", "bulk get resp: %v, err: %v", resp, err)
+		r.LogTo("Replicate", "bulk get resp: %v, err: %v", resp, err)
 		if err != nil {
 			r.sendErrorEvent(failed, "Performing request", err)
 			return
@@ -583,7 +583,7 @@ func (r Replication) pushAttachmentDocs() {
 
 		defer resp.Body.Close()
 		if resp.StatusCode >= 400 {
-			clog.To("Replicate", "Unexpected response getting bulk get: %v", resp)
+			r.LogTo("Replicate", "Unexpected response getting bulk get: %v", resp)
 			event := NewReplicationEvent(PUSH_ATTACHMENT_DOCS_FAILED)
 			r.sendEventWithTimeout(event)
 			return
@@ -598,7 +598,7 @@ func (r Replication) pushAttachmentDocs() {
 }
 
 func (r Replication) sendErrorEvent(signal ReplicationEventSignal, msg string, err error) {
-	clog.To("Replicate", "%v: %v", msg, err)
+	r.LogTo("Replicate", "%v: %v", msg, err)
 	event := NewReplicationEvent(signal)
 	event.Data = err
 	r.sendEventWithTimeout(event)
@@ -607,11 +607,11 @@ func (r Replication) sendErrorEvent(signal ReplicationEventSignal, msg string, e
 func (r Replication) pushBulkDocs() {
 
 	bulkDocsUrl := r.getBulkDocsUrl()
-	bulkDocsRequest := generateBulkDocsRequest(r.Documents)
+	bulkDocsRequest := generateBulkDocsRequest(r, r.Documents)
 
 	bulkDocsRequestJson, err := json.Marshal(bulkDocsRequest)
 	if err != nil {
-		clog.To("Replicate", "Error marshaling %v", bulkDocsRequest)
+		r.LogTo("Replicate", "Error marshaling %v", bulkDocsRequest)
 		clog.Error(err)
 		event := NewReplicationEvent(PUSH_BULK_DOCS_FAILED)
 		r.sendEventWithTimeout(event)
@@ -620,7 +620,7 @@ func (r Replication) pushBulkDocs() {
 
 	req, err := http.NewRequest("POST", bulkDocsUrl, bytes.NewReader(bulkDocsRequestJson))
 	if err != nil {
-		clog.To("Replicate", "Error creating request %v", bulkDocsRequestJson)
+		r.LogTo("Replicate", "Error creating request %v", bulkDocsRequestJson)
 		clog.Error(err)
 		event := NewReplicationEvent(PUSH_BULK_DOCS_FAILED)
 		r.sendEventWithTimeout(event)
@@ -630,16 +630,16 @@ func (r Replication) pushBulkDocs() {
 	client := globalClient
 
 	resp, err := client.Do(req)
-	clog.To("Replicate", "bulk get resp: %v, err: %v", resp, err)
+	r.LogTo("Replicate", "bulk get resp: %v, err: %v", resp, err)
 	if err != nil {
-		clog.To("Replicate", "Error getting bulk get: %v", err)
+		r.LogTo("Replicate", "Error getting bulk get: %v", err)
 		event := NewReplicationEvent(PUSH_BULK_DOCS_FAILED)
 		r.sendEventWithTimeout(event)
 		return
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		clog.To("Replicate", "Unexpected response getting bulk get: %v", resp)
+		r.LogTo("Replicate", "Unexpected response getting bulk get: %v", resp)
 		event := NewReplicationEvent(PUSH_BULK_DOCS_FAILED)
 		r.sendEventWithTimeout(event)
 		return
@@ -648,7 +648,7 @@ func (r Replication) pushBulkDocs() {
 	bulkDocsResponse := []DocumentRevisionPair{}
 	decoder := json.NewDecoder(resp.Body)
 	if err = decoder.Decode(&bulkDocsResponse); err != nil {
-		clog.To("Replicate", "Error decoding json: %v", err)
+		r.LogTo("Replicate", "Error decoding json: %v", err)
 		event := NewReplicationEvent(PUSH_BULK_DOCS_FAILED)
 		r.sendEventWithTimeout(event)
 		return
@@ -675,15 +675,15 @@ func (r Replication) generatePushCheckpointRequest() PushCheckpointRequest {
 func (r Replication) pushCheckpoint() {
 
 	checkpointUrl := r.getCheckpointUrl()
-	clog.To("Replicate", "calling pushCheckpointRequest. r.FetchedTargetCheckpoint: %v", r.FetchedTargetCheckpoint)
+	r.LogTo("Replicate", "calling pushCheckpointRequest. r.FetchedTargetCheckpoint: %v", r.FetchedTargetCheckpoint)
 	pushCheckpointRequest := r.generatePushCheckpointRequest()
-	clog.To("Replicate", "pushCheckpointRequest %v", pushCheckpointRequest)
-	clog.To("Replicate", "r.Changes %v", r.Changes)
-	clog.To("Replicate", "r.Changes.LastSequence %v", r.Changes.LastSequence)
+	r.LogTo("Replicate", "pushCheckpointRequest %v", pushCheckpointRequest)
+	r.LogTo("Replicate", "r.Changes %v", r.Changes)
+	r.LogTo("Replicate", "r.Changes.LastSequence %v", r.Changes.LastSequence)
 
 	requestJson, err := json.Marshal(pushCheckpointRequest)
 	if err != nil {
-		clog.To("Replicate", "Error marshaling %v", pushCheckpointRequest)
+		r.LogTo("Replicate", "Error marshaling %v", pushCheckpointRequest)
 		clog.Error(err)
 		event := NewReplicationEvent(PUSH_CHECKPOINT_FAILED)
 		r.sendEventWithTimeout(event)
@@ -692,7 +692,7 @@ func (r Replication) pushCheckpoint() {
 
 	req, err := http.NewRequest("PUT", checkpointUrl, bytes.NewReader(requestJson))
 	if err != nil {
-		clog.To("Replicate", "Error creating request %v", requestJson)
+		r.LogTo("Replicate", "Error creating request %v", requestJson)
 		clog.Error(err)
 		event := NewReplicationEvent(PUSH_CHECKPOINT_FAILED)
 		r.sendEventWithTimeout(event)
@@ -702,16 +702,16 @@ func (r Replication) pushCheckpoint() {
 	client := globalClient
 
 	resp, err := client.Do(req)
-	clog.To("Replicate", "push checkpoint resp: %v, err: %v", resp, err)
+	r.LogTo("Replicate", "push checkpoint resp: %v, err: %v", resp, err)
 	if err != nil {
-		clog.To("Replicate", "Error pushing checkpoint: %v", err)
+		r.LogTo("Replicate", "Error pushing checkpoint: %v", err)
 		event := NewReplicationEvent(PUSH_CHECKPOINT_FAILED)
 		r.sendEventWithTimeout(event)
 		return
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		clog.To("Replicate", "Unexpected response pushing checkpoint: %v", resp)
+		r.LogTo("Replicate", "Unexpected response pushing checkpoint: %v", resp)
 		event := NewReplicationEvent(PUSH_CHECKPOINT_FAILED)
 		r.sendEventWithTimeout(event)
 		return
@@ -720,14 +720,14 @@ func (r Replication) pushCheckpoint() {
 	checkpointResponse := PushCheckpointResponse{}
 	decoder := json.NewDecoder(resp.Body)
 	if err = decoder.Decode(&checkpointResponse); err != nil {
-		clog.To("Replicate", "Error decoding json: %v", err)
+		r.LogTo("Replicate", "Error decoding json: %v", err)
 		event := NewReplicationEvent(PUSH_CHECKPOINT_FAILED)
 		r.sendEventWithTimeout(event)
 		return
 	}
 
 	if checkpointResponse.Ok != true {
-		clog.To("Replicate", "Error, checkpoint response !ok")
+		r.LogTo("Replicate", "Error, checkpoint response !ok")
 		event := NewReplicationEvent(PUSH_CHECKPOINT_FAILED)
 		r.sendEventWithTimeout(event)
 		return

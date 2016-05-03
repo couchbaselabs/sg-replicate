@@ -370,7 +370,7 @@ func TestOneShotReplicationGetRevsDiffHappyPath(t *testing.T) {
 		if strings.Contains(path, "/db/_changes") {
 
 			params, err := url.ParseQuery(savedReq.Request.URL.RawQuery)
-			clog.To("TEST", "params: %v", params)
+			replication.LogTo("TEST", "params: %v", params)
 			assert.True(t, err == nil)
 			assert.Equals(t, params["since"][0], lastSequence)
 		}
@@ -936,13 +936,13 @@ func DISTestOneShotIntegrationReplication(t *testing.T) {
 	for {
 		select {
 		case replicationNotification := <-notificationChan:
-			clog.To("TEST", "Got notification %v", replicationNotification)
+			replication.LogTo("TEST", "Got notification %v", replicationNotification)
 			if replicationNotification.Status == REPLICATION_ABORTED {
 				clog.Panic("Got REPLICATION_ABORTED")
 				return
 			}
 			if replicationNotification.Status == REPLICATION_STOPPED {
-				clog.To("TEST", "Replication stopped")
+				replication.LogTo("TEST", "Replication stopped")
 				return
 			}
 		case <-time.After(time.Second * 10):
@@ -1070,18 +1070,18 @@ func fakeBulkDocsResponse2() string {
 }
 
 func waitForNotificationAndStop(replication *Replication, expected ReplicationStatus) {
-	clog.To("TEST", "Waiting for %v", expected)
+	replication.LogTo("TEST", "Waiting for %v", expected)
 	notificationChan := replication.NotificationChan
 
 	for {
 		select {
 		case replicationNotification := <-notificationChan:
 			if replicationNotification.Status == expected {
-				clog.To("TEST", "Got %v", expected)
+				replication.LogTo("TEST", "Got %v", expected)
 				replication.Stop()
 				return
 			} else {
-				clog.To("TEST", "Waiting for %v but got %v, igoring", expected, replicationNotification.Status)
+				replication.LogTo("TEST", "Waiting for %v but got %v, igoring", expected, replicationNotification.Status)
 			}
 		case <-time.After(time.Second * 10):
 			clog.Panic("Timeout waiting for %v", expected)
@@ -1111,7 +1111,7 @@ func waitForReplicationStoppedNotification(replication *Replication) (remoteChec
 }
 
 func waitForNotification(replication *Replication, expected ReplicationStatus) {
-	clog.To("TEST", "Waiting for %v", expected)
+	replication.LogTo("TEST", "Waiting for %v", expected)
 	notificationChan := replication.NotificationChan
 
 	for {
@@ -1128,10 +1128,10 @@ func waitForNotification(replication *Replication, expected ReplicationStatus) {
 				}
 			}
 			if replicationNotification.Status == expected {
-				clog.To("TEST", "Got %v", expected)
+				replication.LogTo("TEST", "Got %v", expected)
 				return
 			} else {
-				clog.To("TEST", "Waiting for %v but got %v, igoring", expected, replicationNotification.Status)
+				replication.LogTo("TEST", "Waiting for %v but got %v, igoring", expected, replicationNotification.Status)
 			}
 
 		case <-time.After(time.Second * 10):
@@ -1153,7 +1153,7 @@ func TestGetTargetCheckpoint(t *testing.T) {
 	params.Target = targetServer.URL
 	replication := NewReplication(params, nil)
 	targetCheckpoint := replication.targetCheckpointAddress()
-	clog.To("TEST", "checkpoint: %v", targetCheckpoint)
+	replication.LogTo("TEST", "checkpoint: %v", targetCheckpoint)
 
 }
 
@@ -1166,7 +1166,7 @@ func TestGeneratePushCheckpointRequest(t *testing.T) {
 	// should _not_ have a _rev version
 	replication := NewReplication(ReplicationParameters{}, nil)
 	pushCheckpointRequest := replication.generatePushCheckpointRequest()
-	clog.To("TEST", "pushCheckpointRequest: %v", pushCheckpointRequest)
+	replication.LogTo("TEST", "pushCheckpointRequest: %v", pushCheckpointRequest)
 	assert.True(t, len(pushCheckpointRequest.Revision) == 0)
 
 }

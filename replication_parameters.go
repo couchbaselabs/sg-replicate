@@ -19,7 +19,7 @@ func (l *ReplicationLifecycle) UnmarshalJSON(data []byte) error {
 
 	var s string
 	error := json.Unmarshal(data, &s)
-	clog.To("Replicate", "replciation lifecycle string: %v", s)
+	clog.To("Replicate", "replication lifecycle string: %v", s)
 	if error == nil {
 		switch s {
 		case "oneshot":
