@@ -27,10 +27,21 @@ func (event ContinuousReplicationEvent) String() string {
 	}
 }
 
-type ContinuousReplicationNotification int
+type ContinuousReplicationNotification struct {
+	Status ContinuousReplicationStatus
+	Stats  ReplicationStats
+}
+
+func NewContinuousReplicationNotification(status ContinuousReplicationStatus) *ContinuousReplicationNotification {
+	return &ContinuousReplicationNotification{
+		Status: status,
+	}
+}
+
+type ContinuousReplicationStatus int
 
 const (
-	UNKNOWN_NOTIFICATION = ContinuousReplicationNotification(iota)
+	UNKNOWN_NOTIFICATION = ContinuousReplicationStatus(iota)
 	CATCHING_UP
 	CAUGHT_UP
 	CANCELLED
@@ -39,7 +50,7 @@ const (
 )
 
 func (notification ContinuousReplicationNotification) String() string {
-	switch notification {
+	switch notification.Status {
 	case CATCHING_UP:
 		return "CATCHING_UP"
 	case CAUGHT_UP:
@@ -192,7 +203,9 @@ type stateFnContinuous func(*ContinuousReplication) stateFnContinuous
 
 func stateFnCatchingUp(r *ContinuousReplication) stateFnContinuous {
 
-	r.NotificationChan <- CATCHING_UP
+	notification := NewContinuousReplicationNotification(CATCHING_UP)
+	notification.Stats = r.ReplicationStats
+	r.NotificationChan <- *notification
 
 	// run a replication to catch up
 	notificationChan := r.startOneShotReplication()
@@ -203,7 +216,9 @@ func stateFnCatchingUp(r *ContinuousReplication) stateFnContinuous {
 		case event := <-r.EventChan:
 			switch event {
 			case STOP:
-				r.NotificationChan <- CANCELLED
+				notification := NewContinuousReplicationNotification(CANCELLED)
+				notification.Stats = r.ReplicationStats
+				r.NotificationChan <- *notification
 				return nil
 			default:
 				r.LogTo("Replicate", "Got unknown event, ignoring: %v", event)
@@ -214,6 +229,7 @@ func stateFnCatchingUp(r *ContinuousReplication) stateFnContinuous {
 				r.LogTo("Replicate", "Replication stopped, caught up")
 				stats := notification.Data.(ReplicationStats)
 				r.LastSequencePushed = stats.EndLastSeq
+				r.ReplicationStats = notification.Stats
 				atomic.AddUint32(&r.ReplicationStats.DocsRead, stats.DocsRead)
 				atomic.AddUint32(&r.ReplicationStats.DocsWritten, stats.DocsWritten)
 				return stateFnWaitNewChanges
@@ -231,7 +247,9 @@ func stateFnCatchingUp(r *ContinuousReplication) stateFnContinuous {
 
 func stateFnWaitNewChanges(r *ContinuousReplication) stateFnContinuous {
 
-	r.NotificationChan <- CAUGHT_UP
+	notification := NewContinuousReplicationNotification(CAUGHT_UP)
+	notification.Stats = r.ReplicationStats
+	r.NotificationChan <- *notification
 
 	for {
 
@@ -243,7 +261,9 @@ func stateFnWaitNewChanges(r *ContinuousReplication) stateFnContinuous {
 		case event := <-r.EventChan:
 			switch event {
 			case STOP:
-				r.NotificationChan <- CANCELLED
+				notification := NewContinuousReplicationNotification(CANCELLED)
+				notification.Stats = r.ReplicationStats
+				r.NotificationChan <- *notification
 				return nil
 			default:
 				r.LogTo("Replicate", "Got unknown event, ignoring: %v", event)
@@ -268,14 +288,18 @@ func stateFnBackoffRetry(r *ContinuousReplication) stateFnContinuous {
 
 	r.LogTo("Replicate", "entered stateFnBackoffRertry")
 
-	r.NotificationChan <- ABORTED_WAITING_TO_RETRY
+	notification := NewContinuousReplicationNotification(ABORTED_WAITING_TO_RETRY)
+	notification.Stats = r.ReplicationStats
+	r.NotificationChan <- *notification
 
 	for {
 		select {
 		case event := <-r.EventChan:
 			switch event {
 			case STOP:
-				r.NotificationChan <- CANCELLED
+				notification := NewContinuousReplicationNotification(CANCELLED)
+				notification.Stats = r.ReplicationStats
+				r.NotificationChan <- *notification
 				return nil
 			default:
 				r.LogTo("Replicate", "Got unknown event, ignoring: %v", event)
