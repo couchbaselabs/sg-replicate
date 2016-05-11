@@ -94,7 +94,7 @@ func (r Replication) GetStats() ReplicationStats {
 }
 
 // Run a one-shot replication synchronously (eg, block until finished)
-func RunOneShotReplication(params ReplicationParameters) (ReplicationStatus, error) {
+func RunOneShotReplication(params ReplicationParameters) (ReplicationStatus, ReplicationStats, error) {
 
 	replication := StartOneShotReplication(params)
 	return replication.WaitUntilDone()
@@ -108,18 +108,18 @@ func StartOneShotReplication(params ReplicationParameters) *Replication {
 	return replication
 }
 
-func (r *Replication) WaitUntilDone() (ReplicationStatus, error) {
+func (r *Replication) WaitUntilDone() (ReplicationStatus, ReplicationStats, error) {
 	for {
 		select {
 		case replicationNotification := <-r.NotificationChan:
 			if replicationNotification.Status == REPLICATION_ABORTED {
-				return REPLICATION_ABORTED, fmt.Errorf("Replication Aborted")
+				return REPLICATION_ABORTED, replicationNotification.Stats, fmt.Errorf("Replication Aborted")
 			}
 			if replicationNotification.Status == REPLICATION_STOPPED {
-				return REPLICATION_STOPPED, nil
+				return REPLICATION_STOPPED, replicationNotification.Stats, nil
 			}
 		case <-time.After(time.Second * 300):
-			return REPLICATION_ABORTED, fmt.Errorf("Replication timed out")
+			return REPLICATION_ABORTED, ReplicationStats{}, fmt.Errorf("Replication timed out")
 		}
 	}
 }
