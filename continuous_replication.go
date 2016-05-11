@@ -6,8 +6,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/couchbase/clog"
 	"sync/atomic"
+
+	"github.com/couchbase/clog"
 )
 
 type ContinuousReplicationEvent int
@@ -110,9 +111,9 @@ func (r ContinuousReplication) Stop() error {
 	return nil
 }
 
-func (r ContinuousReplication) GetParameters() ReplicationParameters {
+/*func (r ContinuousReplication) GetParameters() ReplicationParameters {
 	return r.Parameters
-}
+}*/
 
 func (r ContinuousReplication) GetStats() ReplicationStats {
 	return r.ReplicationStats

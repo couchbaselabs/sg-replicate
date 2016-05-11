@@ -22,7 +22,7 @@ var globalClient *http.Client
 
 // Interface for interacting with either Replication or ContinuousReplication
 type SGReplication interface {
-	GetParameters() ReplicationParameters
+	// GetParameters() ReplicationParameters
 	GetStats() ReplicationStats
 	Stop() error
 }
@@ -83,9 +83,11 @@ func (r Replication) Stop() error {
 	return r.sendEventWithTimeout(NewReplicationEvent(REPLICATION_STOP))
 }
 
+/*
 func (r Replication) GetParameters() ReplicationParameters {
 	return r.Parameters
 }
+*/
 
 func (r Replication) GetStats() ReplicationStats {
 	return r.Stats
