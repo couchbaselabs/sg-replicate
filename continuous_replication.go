@@ -237,7 +237,7 @@ func stateFnCatchingUp(r *ContinuousReplication) stateFnContinuous {
 				r.LogTo("Replicate", "Replication aborted .. try again")
 				return stateFnBackoffRetry
 			default:
-				r.LogTo("Replicate", "Unexpected notification, ignore")
+				r.LogTo("Replicate", "Unexpected notification: %s, ignoring", notification.Status)
 			}
 		}
 
