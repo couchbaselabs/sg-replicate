@@ -11,7 +11,7 @@ type LoggingReplication struct {
 }
 
 func (lr LoggingReplication) LogTo(key string, format string, args ...interface{}) {
-	clog.To(key, prefixWithReplicationId(lr, format), args)
+	clog.To(key, prefixWithReplicationId(lr, format), args...)
 }
 
 func (lr LoggingReplication) Warn(args ...interface{}) {
