@@ -1,9 +1,10 @@
 package sgreplicate
 
 import (
-	"strings"
-	"github.com/couchbase/clog"
 	"fmt"
+	"strings"
+
+	"github.com/couchbase/clog"
 )
 
 type LoggingReplication struct {
@@ -11,7 +12,11 @@ type LoggingReplication struct {
 }
 
 func (lr LoggingReplication) LogTo(key string, format string, args ...interface{}) {
-	clog.To(key, prefixWithReplicationId(lr, format), args)
+
+	clog.Log("LoggingReplication.LogTo called with key: %v, format: %v, args: %v", key, format, args)
+	prefixedFormat := prefixWithReplicationId(lr, format)
+	clog.Log("LoggingReplication.LogTo prefixedFormat: %v", prefixedFormat)
+	clog.To(key, prefixedFormat, args...)
 }
 
 func (lr LoggingReplication) Warn(args ...interface{}) {
@@ -25,9 +30,8 @@ func prefixWithReplicationId(lr LoggingReplication, raw string) string {
 	replicationId := lr.Parameters.ReplicationId
 
 	if replicationId != "" {
-		return strings.Join([]string{"[",replicationId ,"] ", raw}, "")
+		return strings.Join([]string{"[", replicationId, "] ", raw}, "")
 	}
 
 	return raw
 }
-
