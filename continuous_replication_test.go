@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/couchbaselabs/go.assert"
 	"github.com/couchbase/clog"
+	"github.com/couchbaselabs/go.assert"
 )
 
 func init() {
@@ -62,7 +62,7 @@ func (r MockOneShotReplication) pretendToBeAOneShotReplicator() {
 
 }
 
-func waitForContinuousNotification(notificationChan chan ContinuousReplicationNotification, expected ContinuousReplicationNotification) {
+func waitForContinuousNotification(notificationChan chan ContinuousReplicationNotification, expected ContinuousReplicationStatus) {
 
 	clog.To("TEST", "Waiting for %v", expected)
 
@@ -73,7 +73,7 @@ func waitForContinuousNotification(notificationChan chan ContinuousReplicationNo
 				clog.Panic("TEST", "notificationChan appears to be closed")
 				return
 			}
-			if notification == expected {
+			if notification.Status == expected {
 				clog.To("TEST", "Got %v", expected)
 				return
 			} else {
