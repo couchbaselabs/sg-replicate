@@ -1,8 +1,8 @@
 package sgreplicate
 
 import (
-	"time"
 	"sync/atomic"
+	"time"
 )
 
 // stateFn represents the state as a function that returns the next state.
@@ -17,6 +17,7 @@ func stateFnPreStarted(r *Replication) stateFn {
 		r.LogTo("Replicate", "stateFnPreStarted got START event: %v", event)
 
 		notification := NewReplicationNotification(REPLICATION_ACTIVE)
+		notification.Stats = r.Stats
 		r.NotificationChan <- *notification
 		r.LogTo("Replicate", "sent notificication: %v", notification)
 
@@ -42,6 +43,7 @@ func stateFnActiveFetchCheckpoint(r *Replication) stateFn {
 	case REPLICATION_STOP:
 		r.shutdownEventChannel()
 		notification := NewReplicationNotification(REPLICATION_CANCELLED)
+		notification.Stats = r.Stats
 		r.LogTo("Replicate", "stateFnActiveFetchCheckpoint: %v", notification)
 		r.NotificationChan <- *notification
 		r.LogTo("Replicate", "going to return nil state")
@@ -49,6 +51,7 @@ func stateFnActiveFetchCheckpoint(r *Replication) stateFn {
 	case FETCH_CHECKPOINT_FAILED:
 		r.shutdownEventChannel()
 		notification := NewReplicationNotification(REPLICATION_ABORTED)
+		notification.Stats = r.Stats
 		notification.Error = NewReplicationError(FETCH_CHECKPOINT_FAILED)
 		r.NotificationChan <- *notification
 		return nil
@@ -58,6 +61,7 @@ func stateFnActiveFetchCheckpoint(r *Replication) stateFn {
 		r.FetchedTargetCheckpoint = checkpoint
 
 		notification := NewReplicationNotification(REPLICATION_FETCHED_CHECKPOINT)
+		notification.Stats = r.Stats
 		r.NotificationChan <- *notification
 
 		r.LogTo("Replicate", "call fetchChangesFeed()")
@@ -84,11 +88,13 @@ func stateFnActiveFetchChangesFeed(r *Replication) stateFn {
 	case REPLICATION_STOP:
 		r.shutdownEventChannel()
 		notification := NewReplicationNotification(REPLICATION_CANCELLED)
+		notification.Stats = r.Stats
 		r.NotificationChan <- *notification
 		return nil
 	case FETCH_CHANGES_FEED_FAILED:
 		r.shutdownEventChannel()
 		notification := NewReplicationNotification(REPLICATION_ABORTED)
+		notification.Stats = r.Stats
 		notification.Error = NewReplicationError(FETCH_CHECKPOINT_FAILED)
 		r.NotificationChan <- *notification
 		return nil
@@ -97,6 +103,7 @@ func stateFnActiveFetchChangesFeed(r *Replication) stateFn {
 		r.Changes = event.Data.(Changes)
 
 		notification := NewReplicationNotification(REPLICATION_FETCHED_CHANGES_FEED)
+		notification.Stats = r.Stats
 		r.NotificationChan <- *notification
 
 		if len(r.Changes.Results) == 0 {
@@ -105,6 +112,7 @@ func stateFnActiveFetchChangesFeed(r *Replication) stateFn {
 			notification := NewReplicationNotification(REPLICATION_STOPPED)
 			r.Stats.EndLastSeq = r.Changes.LastSequence
 			notification.Data = r.Stats
+			notification.Stats = r.Stats
 			r.NotificationChan <- *notification
 			return nil
 		} else {
@@ -133,12 +141,14 @@ func stateFnActiveFetchRevDiffs(r *Replication) stateFn {
 	case REPLICATION_STOP:
 		r.shutdownEventChannel()
 		notification := NewReplicationNotification(REPLICATION_CANCELLED)
+		notification.Stats = r.Stats
 		r.LogTo("Replicate", "stateFnActiveFetchRevDiffs: %v", notification)
 		r.NotificationChan <- *notification
 		return nil
 	case FETCH_REVS_DIFF_FAILED:
 		r.shutdownEventChannel()
 		notification := NewReplicationNotification(REPLICATION_ABORTED)
+		notification.Stats = r.Stats
 		notification.Error = NewReplicationError(FETCH_REVS_DIFF_FAILED)
 		r.NotificationChan <- *notification
 		return nil
@@ -147,6 +157,7 @@ func stateFnActiveFetchRevDiffs(r *Replication) stateFn {
 		r.RevsDiff = event.Data.(RevsDiffResponseMap)
 
 		notification := NewReplicationNotification(REPLICATION_FETCHED_REVS_DIFF)
+		notification.Stats = r.Stats
 		r.NotificationChan <- *notification
 
 		if len(r.RevsDiff) == 0 {
@@ -182,12 +193,14 @@ func stateFnActiveFetchBulkGet(r *Replication) stateFn {
 	case REPLICATION_STOP:
 		r.shutdownEventChannel()
 		notification := NewReplicationNotification(REPLICATION_CANCELLED)
+		notification.Stats = r.Stats
 		r.LogTo("Replicate", "stateFnActiveFetchBulkGet: %v", notification)
 		r.NotificationChan <- *notification
 		return nil
 	case FETCH_BULK_GET_FAILED:
 		r.shutdownEventChannel()
 		notification := NewReplicationNotification(REPLICATION_ABORTED)
+		notification.Stats = r.Stats
 		notification.Error = NewReplicationError(FETCH_BULK_GET_FAILED)
 		r.NotificationChan <- *notification
 		return nil
@@ -200,18 +213,21 @@ func stateFnActiveFetchBulkGet(r *Replication) stateFn {
 			r.shutdownEventChannel()
 			r.LogTo("Replicate", "Got unexpected type: %v", event.Data)
 			notification := NewReplicationNotification(REPLICATION_ABORTED)
+			notification.Stats = r.Stats
 			notification.Error = NewReplicationError(FETCH_BULK_GET_FAILED)
 			r.NotificationChan <- *notification
 			return nil
 		}
 
 		notification := NewReplicationNotification(REPLICATION_FETCHED_BULK_GET)
+		notification.Stats = r.Stats
 		r.NotificationChan <- *notification
 
 		if len(r.Documents) == 0 {
 			r.shutdownEventChannel()
 			r.LogTo("Replicate", "len(r.DocumentBodies) == 0")
 			notification := NewReplicationNotification(REPLICATION_ABORTED)
+			notification.Stats = r.Stats
 			notification.Error = NewReplicationError(FETCH_BULK_GET_FAILED)
 			r.NotificationChan <- *notification
 			return nil
@@ -249,12 +265,14 @@ func stateFnActivePushBulkDocs(r *Replication) stateFn {
 	case REPLICATION_STOP:
 		r.shutdownEventChannel()
 		notification := NewReplicationNotification(REPLICATION_CANCELLED)
+		notification.Stats = r.Stats
 		r.LogTo("Replicate", "stateFnActivePushBulkDocs: %v", notification)
 		r.NotificationChan <- *notification
 		return nil
 	case PUSH_BULK_DOCS_FAILED:
 		r.shutdownEventChannel()
 		notification := NewReplicationNotification(REPLICATION_ABORTED)
+		notification.Stats = r.Stats
 		notification.Error = NewReplicationError(PUSH_BULK_DOCS_FAILED)
 		r.NotificationChan <- *notification
 		return nil
@@ -263,12 +281,14 @@ func stateFnActivePushBulkDocs(r *Replication) stateFn {
 		r.PushedBulkDocs = event.Data.([]DocumentRevisionPair)
 
 		notification := NewReplicationNotification(REPLICATION_PUSHED_BULK_DOCS)
+		notification.Stats = r.Stats
 		r.NotificationChan <- *notification
 
 		if len(r.PushedBulkDocs) == 0 {
 			r.shutdownEventChannel()
 			r.LogTo("Replicate", "len(r.PushedBulkDocs) == 0")
 			notification := NewReplicationNotification(REPLICATION_ABORTED)
+			notification.Stats = r.Stats
 			notification.Error = NewReplicationError(PUSH_BULK_DOCS_FAILED)
 			r.NotificationChan <- *notification
 			return nil
@@ -308,12 +328,14 @@ func stateFnActivePushAttachmentDocs(r *Replication) stateFn {
 	case REPLICATION_STOP:
 		r.shutdownEventChannel()
 		notification := NewReplicationNotification(REPLICATION_CANCELLED)
+		notification.Stats = r.Stats
 		r.LogTo("Replicate", "stateFnActivePushAttachmentDocs: %v", notification)
 		r.NotificationChan <- *notification
 		return nil
 	case PUSH_ATTACHMENT_DOCS_FAILED:
 		r.shutdownEventChannel()
 		notification := NewReplicationNotification(REPLICATION_ABORTED)
+		notification.Stats = r.Stats
 		notification.Error = NewReplicationError(PUSH_ATTACHMENT_DOCS_FAILED)
 		r.NotificationChan <- *notification
 		return nil
@@ -322,6 +344,7 @@ func stateFnActivePushAttachmentDocs(r *Replication) stateFn {
 		// TODO: we could record all the docs pushed in the r object
 
 		notification := NewReplicationNotification(REPLICATION_PUSHED_ATTACHMENT_DOCS)
+		notification.Stats = r.Stats
 		r.NotificationChan <- *notification
 
 		// TODO: we could also make sure that we pushed the expected number of docs and
@@ -349,18 +372,21 @@ func stateFnActivePushCheckpoint(r *Replication) stateFn {
 	case REPLICATION_STOP:
 		r.shutdownEventChannel()
 		notification := NewReplicationNotification(REPLICATION_CANCELLED)
+		notification.Stats = r.Stats
 		r.LogTo("Replicate", "stateFnActivePushCheckpoint: %v", notification)
 		r.NotificationChan <- *notification
 		return nil
 	case PUSH_CHECKPOINT_FAILED:
 		r.shutdownEventChannel()
 		notification := NewReplicationNotification(REPLICATION_ABORTED)
+		notification.Stats = r.Stats
 		notification.Error = NewReplicationError(PUSH_CHECKPOINT_FAILED)
 		r.NotificationChan <- *notification
 		return nil
 	case PUSH_CHECKPOINT_SUCCEEDED:
 
 		notification := NewReplicationNotification(REPLICATION_PUSHED_CHECKPOINT)
+		notification.Stats = r.Stats
 		notification.Data = r.Changes.LastSequence
 		r.NotificationChan <- *notification
 

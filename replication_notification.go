@@ -28,6 +28,7 @@ const (
 
 type ReplicationNotification struct {
 	Status ReplicationStatus
+	Stats  ReplicationStats
 	Error  *ReplicationError
 	Data   interface{}
 }
