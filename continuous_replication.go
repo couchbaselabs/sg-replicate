@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/couchbase/clog"
-	"sync/atomic"
 )
 
 type ContinuousReplicationEvent int
@@ -110,11 +109,7 @@ func (r ContinuousReplication) Stop() error {
 	return nil
 }
 
-func (r ContinuousReplication) GetParameters() ReplicationParameters {
-	return r.Parameters
-}
-
-func (r ContinuousReplication) GetStats() ReplicationStats {
+func (r *ContinuousReplication) GetStats() ReplicationStats {
 	return r.ReplicationStats
 }
 
@@ -212,9 +207,9 @@ func stateFnCatchingUp(r *ContinuousReplication) stateFnContinuous {
 			case REPLICATION_STOPPED:
 				r.LogTo("Replicate", "Replication stopped, caught up")
 				stats := notification.Data.(ReplicationStats)
-				r.LastSequencePushed = stats.EndLastSeq
-				atomic.AddUint32(&r.ReplicationStats.DocsRead, stats.DocsRead)
-				atomic.AddUint32(&r.ReplicationStats.DocsWritten, stats.DocsWritten)
+				r.LastSequencePushed = stats.GetEndLastSeq()
+				r.ReplicationStats.AddDocsRead(stats.GetDocsRead())
+				r.ReplicationStats.AddDocsWritten(stats.GetDocsWritten())
 				return stateFnWaitNewChanges
 			case REPLICATION_ABORTED:
 				r.LogTo("Replicate", "Replication aborted .. try again")
