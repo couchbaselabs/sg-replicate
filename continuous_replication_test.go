@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/couchbaselabs/go.assert"
 	"github.com/couchbase/clog"
+	"github.com/couchbaselabs/go.assert"
 )
 
 func init() {
@@ -46,7 +46,7 @@ func (r MockOneShotReplication) pretendToBeAOneShotReplicator() {
 		clog.To("TEST", "send REPLICATION_STOPPED to %v", r.NotificationChan)
 
 		notification := *(NewReplicationNotification(REPLICATION_STOPPED))
-		r.fakeStats.EndLastSeq = r.fakeCheckpoint
+		r.fakeStats.SetEndLastSeq(r.fakeCheckpoint)
 		notification.Data = r.fakeStats
 		r.NotificationChan <- notification
 

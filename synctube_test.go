@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/couchbaselabs/go.assert"
 	"github.com/couchbase/clog"
+	"github.com/couchbaselabs/go.assert"
 	"github.com/tleyden/fakehttp"
 )
 
@@ -1100,7 +1100,8 @@ func waitForReplicationStoppedNotification(replication *Replication) (remoteChec
 				return
 			}
 			if replicationNotification.Status == REPLICATION_STOPPED {
-				remoteCheckpoint = replicationNotification.Data.(ReplicationStats).EndLastSeq
+				stats := replicationNotification.Data.(ReplicationStats)
+				remoteCheckpoint = (&stats).GetEndLastSeq()
 				return
 			}
 		case <-time.After(time.Second * 10):
