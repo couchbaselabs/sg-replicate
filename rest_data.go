@@ -116,6 +116,8 @@ func generateRevsDiffMap(changes Changes) RevsDiffQueryMap {
 type DocumentRevisionPair struct {
 	Id       string `json:"id"`
 	Revision string `json:"rev"`
+	Error    string `json:"error,omitempty"`
+	Reason   string `json:"reason,omitempty"`
 }
 
 type BulkGetRequest struct {
@@ -163,4 +165,13 @@ func generateBulkDocsRequest(r Replication, documents []Document) BulkDocsReques
 		NewEdits:       false,
 		DocumentBodies: documentBodies,
 	}
+}
+
+func bulkDocsHaveErrors(docRevPairs []DocumentRevisionPair) bool {
+	for _, docRevPair := range docRevPairs {
+		if docRevPair.Error != "" {
+			return true
+		}
+	}
+	return false
 }

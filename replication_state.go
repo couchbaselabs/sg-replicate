@@ -250,6 +250,7 @@ func stateFnActivePushBulkDocs(r *Replication) stateFn {
 		r.NotificationChan <- *notification
 		return nil
 	case PUSH_BULK_DOCS_FAILED:
+		r.LogTo("Replicate", "stateFnActivePushBulkDocs got PUSH_BULK_DOCS_FAILED")
 		r.shutdownEventChannel()
 		notification := NewReplicationNotification(REPLICATION_ABORTED)
 		notification.Error = NewReplicationError(PUSH_BULK_DOCS_FAILED)
@@ -259,9 +260,21 @@ func stateFnActivePushBulkDocs(r *Replication) stateFn {
 
 		r.PushedBulkDocs = event.Data.([]DocumentRevisionPair)
 
-		notification := NewReplicationNotification(REPLICATION_PUSHED_BULK_DOCS)
-		r.NotificationChan <- *notification
+		// if any of the bulk docs have errors, then go back to the FetchCheckpoint state and try again
+		if bulkDocsHaveErrors(r.PushedBulkDocs) {
+			r.LogTo("Replicate", "BulkDoc response contains partial errors: %+v, going to retry", r.PushedBulkDocs)
 
+			go func() {
+				// sleep for 1 second to avoid a tight loop hammering SG
+				time.Sleep(time.Second)
+
+				r.fetchTargetCheckpoint()
+			}()
+
+			return stateFnActiveFetchCheckpoint
+		}
+
+		// if the response was empty (how can this even happen!?) then abort replication
 		if len(r.PushedBulkDocs) == 0 {
 			r.shutdownEventChannel()
 			r.LogTo("Replicate", "len(r.PushedBulkDocs) == 0")
@@ -269,23 +282,31 @@ func stateFnActivePushBulkDocs(r *Replication) stateFn {
 			notification.Error = NewReplicationError(PUSH_BULK_DOCS_FAILED)
 			r.NotificationChan <- *notification
 			return nil
-		} else {
+		}
 
-			r.Stats.AddDocsWritten(uint32(len(r.Documents)))
-			switch numDocsWithAttachments(r.Documents) > 0 {
-			case true:
-				go r.pushAttachmentDocs()
-				r.LogTo("Replicate", "Transition from stateFnActivePushBulkDocs -> stateFnActivePushAttachmentDocs")
-				return stateFnActivePushAttachmentDocs
+		// update stats:
+		// TODO: is this accurate when some of the docs had attachments and still need to be pushed?
+		r.Stats.AddDocsWritten(uint32(len(r.Documents)))
 
-			case false:
-				go r.pushCheckpoint()
+		// if we made it this far, send a notification that the bulk_docs succeeded
+		notification := NewReplicationNotification(REPLICATION_PUSHED_BULK_DOCS)
+		r.NotificationChan <- *notification
 
-				r.LogTo("Replicate", "Transition from stateFnActivePushBulkDocs -> stateFnActivePushCheckpoint")
+		// if any of the docs have attachments, we need to push those
+		// separately.  otherwise, just push the checkpoint with the latest sequence
+		// returned from the previous changes feed request
+		switch numDocsWithAttachments(r.Documents) > 0 {
+		case true:
+			go r.pushAttachmentDocs()
+			r.LogTo("Replicate", "Transition from stateFnActivePushBulkDocs -> stateFnActivePushAttachmentDocs")
+			return stateFnActivePushAttachmentDocs
 
-				return stateFnActivePushCheckpoint
+		case false:
+			go r.pushCheckpoint()
 
-			}
+			r.LogTo("Replicate", "Transition from stateFnActivePushBulkDocs -> stateFnActivePushCheckpoint")
+
+			return stateFnActivePushCheckpoint
 
 		}
 
