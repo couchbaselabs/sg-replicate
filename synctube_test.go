@@ -278,7 +278,7 @@ func TestOneShotReplicationGetRevsDiffFailed(t *testing.T) {
 
 func TestOneShotReplicationGetRevsDiffEmpty(t *testing.T) {
 
-	sourceServer, targetServer := fakeServers(6015, 6014)
+	sourceServer, targetServer := fakeServers(6017, 6016)
 
 	params := replicationParams(sourceServer.URL, targetServer.URL)
 
@@ -542,6 +542,84 @@ func TestOneShotReplicationBulkDocsHappyPath(t *testing.T) {
 	// expect to get a replication active event
 	replicationNotification := <-notificationChan
 	assert.Equals(t, replicationNotification.Status, REPLICATION_ACTIVE)
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
+
+	assert.Equals(t, replication.FetchedTargetCheckpoint.Revision, "0-1")
+
+	waitForNotification(replication, REPLICATION_FETCHED_REVS_DIFF)
+
+	waitForNotification(replication, REPLICATION_FETCHED_BULK_GET)
+
+	waitForNotification(replication, REPLICATION_PUSHED_BULK_DOCS)
+
+	replication.Stop()
+
+	waitForNotification(replication, REPLICATION_CANCELLED)
+
+	assertNotificationChannelClosed(notificationChan)
+
+}
+
+// Regression test for https://github.com/couchbase/sync_gateway/issues/1846
+func TestOneShotReplicationBulkDocsSporadicError(t *testing.T) {
+
+	sourceServer, targetServer := fakeServers(6015, 6014)
+
+	params := replicationParams(sourceServer.URL, targetServer.URL)
+
+	notificationChan := make(chan ReplicationNotification)
+
+	// create a new replication and start it
+	replication := NewReplication(params, notificationChan)
+
+	// fake response to get checkpoint
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), "1"))
+
+	// fake response to changes feed
+	lastSequence := "3"
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed(lastSequence))
+
+	// fake response to bulk get
+	boundary := fakeBoundary()
+	sourceServer.Response(200, jsonHeadersMultipart(boundary), fakeBulkGetResponse(boundary))
+
+	// fake response to revs_diff
+	targetServer.Response(200, jsonHeaders(), fakeRevsDiff())
+
+	// fake response to bulk docs with errors
+	targetServer.Response(200, jsonHeaders(), fakeBulkDocsResponseWithErrors())
+
+	// fake response to get checkpoint -- after the bulk docs response returns errors,
+	// it should try again, starting with fetching the remote checkpoint
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), "1"))
+
+	// fake response to changes feed
+	lastSequence = "3"
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed(lastSequence))
+
+	// fake response to bulk get
+	sourceServer.Response(200, jsonHeadersMultipart(boundary), fakeBulkGetResponse(boundary))
+
+	// fake response to revs_diff
+	targetServer.Response(200, jsonHeaders(), fakeRevsDiff())
+
+	// fake response to bulk docs with NO errors this time
+	targetServer.Response(200, jsonHeaders(), fakeBulkDocsResponse2())
+
+	replication.Start()
+
+	// expect to get a replication active event
+	replicationNotification := <-notificationChan
+	assert.Equals(t, replicationNotification.Status, REPLICATION_ACTIVE)
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
+
+	assert.Equals(t, replication.FetchedTargetCheckpoint.Revision, "0-1")
+
+	waitForNotification(replication, REPLICATION_FETCHED_REVS_DIFF)
+
+	waitForNotification(replication, REPLICATION_FETCHED_BULK_GET)
 
 	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
 
@@ -1067,6 +1145,10 @@ func fakeBulkDocsResponse() string {
 
 func fakeBulkDocsResponse2() string {
 	return `[{"id":"doc4","rev":"1-786e"}]`
+}
+
+func fakeBulkDocsResponseWithErrors() string {
+	return `[{"id":"doc4","error":"conflict","reason":"Document update conflict."}]`
 }
 
 func waitForNotificationAndStop(replication *Replication, expected ReplicationStatus) {
