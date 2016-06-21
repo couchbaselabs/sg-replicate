@@ -689,7 +689,7 @@ func (r Replication) pushCheckpoint() {
 	client := globalClient
 
 	resp, err := client.Do(req)
-	r.LogTo("Replicate", "push checkpoint resp: %v, err: %v", resp, err)
+	r.LogTo("Replicate", "push checkpoint resp: %+v, err: %v", resp, err)
 	if err != nil {
 		r.LogTo("Replicate", "Error pushing checkpoint: %v", err)
 		event := NewReplicationEvent(PUSH_CHECKPOINT_FAILED)
