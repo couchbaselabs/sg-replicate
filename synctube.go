@@ -166,26 +166,11 @@ func (r Replication) targetCheckpointAddress() string {
 		replicationParamsJson = fmt.Sprintf("%v%v", replicationParamsJson, hostname)
 	}
 
-	// The pattern for generating a hash is `sha1.New()`,
-	// `sha1.Write(bytes)`, then `sha1.Sum([]byte{})`.
-	// Here we start with a new hash.
-	h := sha1.New()
+	// calculate raw sha1 hash
+	shaBytes := sha1.Sum([]byte(replicationParamsJson))
 
-	// `Write` expects bytes. If you have a string `s`,
-	// use `[]byte(s)` to coerce it to bytes.
-	h.Write([]byte(replicationParamsJson))
-
-	// This gets the finalized hash result as a byte
-	// slice. The argument to `Sum` can be used to append
-	// to an existing byte slice: it usually isn't needed.
-	bs := h.Sum(nil)
-
-	// SHA1 values are often printed in hex, for example
-	// in git commits. Use the `%x` format verb to convert
-	// a hash results to a hex string.
-	checkpoint := fmt.Sprintf("%x", bs)
-
-	return checkpoint
+	// return hex output
+	return fmt.Sprintf("%x", shaBytes)
 
 }
 
