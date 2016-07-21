@@ -1253,3 +1253,36 @@ func TestGeneratePushCheckpointRequest(t *testing.T) {
 	assert.True(t, len(pushCheckpointRequest.Revision) == 0)
 
 }
+
+func TestCheckpointsUniquePerReplication(t *testing.T) {
+
+	// Reproduce https://github.com/couchbaselabs/sg-replicate/issues/16
+
+	sourceServerUrl, _ := url.Parse("http://localhost:4984")
+	targetServerUrl, _ := url.Parse("http://localhost:4984")
+
+	params1 := ReplicationParameters{}
+	params1.Source = sourceServerUrl
+	params1.SourceDb = "db"
+	params1.Target = targetServerUrl
+	params1.TargetDb = "db"
+	params1.Channels = []string{"A"}
+	params1.Lifecycle = ONE_SHOT
+
+	params2 := ReplicationParameters{}
+	params2.Source = sourceServerUrl
+	params2.SourceDb = "db"
+	params2.Target = targetServerUrl
+	params2.TargetDb = "db"
+	params2.Channels = []string{"B"}
+	params2.Lifecycle = ONE_SHOT
+
+	replication1 := NewReplication(params1, nil)
+	replication2 := NewReplication(params2, nil)
+
+	checkpoint1 := replication1.targetCheckpointAddress()
+	checkpoint2 := replication2.targetCheckpointAddress()
+
+	assert.True(t, checkpoint1 != checkpoint2)
+
+}
