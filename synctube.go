@@ -2,8 +2,7 @@ package sgreplicate
 
 import (
 	"bytes"
-	"crypto"
-	"encoding/hex"
+	"crypto/sha1"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,6 +11,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
+	"os"
 	"time"
 
 	"github.com/couchbase/clog"
@@ -27,7 +27,7 @@ type SGReplication interface {
 }
 
 type Replication struct {
-	LoggingReplication
+	LoggingReplication      // ReplicationParams are inside this embedded struct (TODO: fix this, it's confusing)
 	Stats                   ReplicationStats
 	EventChan               chan ReplicationEvent
 	NotificationChan        chan ReplicationNotification
@@ -140,13 +140,53 @@ func (r *Replication) shutdownEventChannel() {
 
 func (r Replication) targetCheckpointAddress() string {
 
-	// TODO: this needs to take into account other aspects
-	// of replication (filters, filterparams, etc)
+	// Calculate a target checkpoint address / local document ID for storing checkpoint "local doc" on the remote
+	// target Sync Gateway.  This checkpoint address / local document ID should be as unique as possible, to avoid
+	// issues like #16 where different replications erroneously use the same checkpoint and docs
+	// fail to transfer.  This code tries to emulate the behavior in Couchbase Lite iOS
+	// CBL_ReplicatorSettings.m::remoteCheckpointDocIDForLocalUUID (http://bit.ly/2a3HMdx) as much as possible.
 
-	targetUrlString := r.Parameters.GetTargetDbUrl()
-	hash := crypto.SHA1.New()
-	hash.Sum([]byte(targetUrlString))
-	return hex.EncodeToString(hash.Sum(nil))
+	// serialize the parameters to JSON
+	replicationParamsJsonBytes, err := json.Marshal(r.Parameters)
+	if err != nil {
+		// TODO: this should return an error rather than panicking
+		clog.Panic("Unable to generate checkpoint address. Err: %v", err)
+	}
+	replicationParamsJson := string(replicationParamsJsonBytes)
+
+	// We don't have a local UUID for the local database, because there is no local database
+	// in the sg-replicate case.  However, we should avoid the case where different machines
+	// are running sg-replicate with the exact same parameters, and then step on each other's
+	// remote checkpoints.  So to try to guard against that, try to append the hostname to the string
+	// that will be used to calculate the hash.  Of course, this isn't perfect, especially
+	// when this is running on networks where the System Administrator sets the hostname of
+	// all machines to 'localhost'.
+	hostname, err := os.Hostname()
+	if err == nil {
+		replicationParamsJson = fmt.Sprintf("%v%v", replicationParamsJson, hostname)
+	}
+
+	// The pattern for generating a hash is `sha1.New()`,
+	// `sha1.Write(bytes)`, then `sha1.Sum([]byte{})`.
+	// Here we start with a new hash.
+	h := sha1.New()
+
+	// `Write` expects bytes. If you have a string `s`,
+	// use `[]byte(s)` to coerce it to bytes.
+	h.Write([]byte(replicationParamsJson))
+
+	// This gets the finalized hash result as a byte
+	// slice. The argument to `Sum` can be used to append
+	// to an existing byte slice: it usually isn't needed.
+	bs := h.Sum(nil)
+
+	// SHA1 values are often printed in hex, for example
+	// in git commits. Use the `%x` format verb to convert
+	// a hash results to a hex string.
+	checkpoint := fmt.Sprintf("%x\n", bs)
+
+	return checkpoint
+
 }
 
 func (r Replication) sendEventWithTimeout(event *ReplicationEvent) error {
