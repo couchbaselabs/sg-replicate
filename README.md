@@ -90,15 +90,9 @@ $ go build && ./cli
      * `continuous` replications are started in parallel with other continuous replications, and run indefinitely until they have a non-recoverable error.
 
 
-
-# Release Status
-
-**Alpha / Experimental**
-
 # Todo
 
 * Logs are difficult to disentangle when multiple replications are running -- workaround: use separate instances and separate config files for each replication
-* Integration test with actual sync gateway (the unit tests currently run against a mock sync gateway)
 * Clean up API to only expose what's necessary
 * Attachments handling should be made to be more efficient.  Currently, attachment data is temporarily stored in memory before it is pushed to the target server.
 * targetCheckpointAddress needs to take more things into account when generating checkpoint address.
