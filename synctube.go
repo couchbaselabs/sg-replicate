@@ -405,7 +405,7 @@ func (r Replication) fetchBulkGet() {
 		return
 	}
 
-	documents, err := readBulkGetResponse(resp)
+	documents, err := ReadBulkGetResponse(resp)
 	if err == nil {
 		event := NewReplicationEvent(FETCH_BULK_GET_SUCCEEDED)
 		event.Data = documents
@@ -709,7 +709,7 @@ func (r Replication) getBulkGetUrl() string {
 
 // Read the documents from the _bulk_get response.  It's up to the
 // caller to call resp.Body.Close()
-func readBulkGetResponse(resp *http.Response) ([]Document, error) {
+func ReadBulkGetResponse(resp *http.Response) ([]Document, error) {
 
 	contentType := resp.Header.Get("Content-Type")
 
