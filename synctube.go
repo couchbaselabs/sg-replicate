@@ -405,7 +405,7 @@ func (r Replication) fetchBulkGet() {
 		return
 	}
 
-	documents, err := ReadBulkGetResponse(resp)
+	documents, err := ReadBulkGetResponse(resp, r.getLoggerFunction())
 	if err == nil {
 		event := NewReplicationEvent(FETCH_BULK_GET_SUCCEEDED)
 		event.Data = documents
@@ -709,7 +709,7 @@ func (r Replication) getBulkGetUrl() string {
 
 // Read the documents from the _bulk_get response.  It's up to the
 // caller to call resp.Body.Close()
-func ReadBulkGetResponse(resp *http.Response) ([]Document, error) {
+func ReadBulkGetResponse(resp *http.Response, logger loggerFunction) ([]Document, error) {
 
 	contentType := resp.Header.Get("Content-Type")
 
@@ -731,12 +731,12 @@ func ReadBulkGetResponse(resp *http.Response) ([]Document, error) {
 			return documents, fmt.Errorf("Error getting next part: %v", err)
 		}
 
-		LogTo("Replicate", "mainPart: %v.  Header: %v", mainPart, mainPart.Header)
+		logger("Replicate", "mainPart: %v.  Header: %v", mainPart, mainPart.Header)
 		mainPartContentTypes := mainPart.Header["Content-Type"] // why a slice?
 		mainPartContentType := mainPartContentTypes[0]
 		contentType, attrs, _ := mime.ParseMediaType(mainPartContentType)
-		LogTo("Replicate", "contentType: %v", contentType)
-		LogTo("Replicate", "boundary: %v", attrs["boundary"])
+		logger("Replicate", "contentType: %v", contentType)
+		logger("Replicate", "boundary: %v", attrs["boundary"])
 		switch contentType {
 		case "application/json":
 			documentBody := DocumentBody{}
@@ -761,12 +761,12 @@ func ReadBulkGetResponse(resp *http.Response) ([]Document, error) {
 				} else if err != nil {
 					return documents, fmt.Errorf("Error nested nextpart: %v", err)
 				}
-				LogTo("Replicate", "nestedPart: %v.  Header: %v", nestedPart, nestedPart.Header)
+				logger("Replicate", "nestedPart: %v.  Header: %v", nestedPart, nestedPart.Header)
 				nestedPartContentTypes := nestedPart.Header["Content-Type"]
 				nestedPartContentType := nestedPartContentTypes[0]
 				nestedContentType, nestedAttrs, _ := mime.ParseMediaType(nestedPartContentType)
-				LogTo("Replicate", "nestedContentType: %v", nestedContentType)
-				LogTo("Replicate", "nestedAttrs: %v", nestedAttrs)
+				logger("Replicate", "nestedContentType: %v", nestedContentType)
+				logger("Replicate", "nestedAttrs: %v", nestedAttrs)
 
 				switch nestedContentType {
 				case "application/json":
@@ -780,7 +780,7 @@ func ReadBulkGetResponse(resp *http.Response) ([]Document, error) {
 
 				default:
 					// handle attachment
-					attachment, err := NewAttachment(nestedPart)
+					attachment, err := NewAttachment(nestedPart, logger)
 					if err != nil {
 						return documents, fmt.Errorf("Error decoding attachment: %v", err)
 					}
@@ -795,7 +795,7 @@ func ReadBulkGetResponse(resp *http.Response) ([]Document, error) {
 
 			mainPart.Close()
 		default:
-			LogTo("Replicate", "ignoring unexpected content type: %v", contentType)
+			logger("Replicate", "ignoring unexpected content type: %v", contentType)
 
 		}
 
