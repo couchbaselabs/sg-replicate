@@ -21,14 +21,6 @@ func (lr LoggingReplication) Warn(args ...interface{}) {
 	}
 }
 
-// This returns a function closure bound to this particular replication
-// instance, so that it emits the replication id when invoked.
-func (lr LoggingReplication) getLoggerFunction() loggerFunction {
-	return func(key string, format string, args ...interface{}) {
-		clog.To(key, prefixWithReplicationId(lr, format), args...)
-	}
-}
-
 func prefixWithReplicationId(lr LoggingReplication, raw string) string {
 
 	replicationId := lr.Parameters.ReplicationId

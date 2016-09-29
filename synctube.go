@@ -405,7 +405,7 @@ func (r Replication) fetchBulkGet() {
 		return
 	}
 
-	documents, err := ReadBulkGetResponse(resp, r.getLoggerFunction())
+	documents, err := ReadBulkGetResponse(resp, r.LogTo)
 	if err == nil {
 		event := NewReplicationEvent(FETCH_BULK_GET_SUCCEEDED)
 		event.Data = documents
