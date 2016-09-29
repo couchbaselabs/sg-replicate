@@ -1,8 +1,8 @@
 package sgreplicate
 
 import (
-	"github.com/couchbaselabs/go.assert"
 	"github.com/couchbase/clog"
+	"github.com/couchbaselabs/go.assert"
 	"strings"
 	"testing"
 )
