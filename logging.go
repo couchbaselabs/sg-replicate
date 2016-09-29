@@ -1,9 +1,10 @@
 package sgreplicate
 
 import (
-	"strings"
-	"github.com/couchbase/clog"
 	"fmt"
+	"strings"
+
+	"github.com/couchbase/clog"
 )
 
 type LoggingReplication struct {
@@ -25,9 +26,10 @@ func prefixWithReplicationId(lr LoggingReplication, raw string) string {
 	replicationId := lr.Parameters.ReplicationId
 
 	if replicationId != "" {
-		return strings.Join([]string{"[",replicationId ,"] ", raw}, "")
+		return strings.Join([]string{"[", replicationId, "] ", raw}, "")
 	}
 
 	return raw
 }
 
+type loggerFunction func(key string, format string, args ...interface{})

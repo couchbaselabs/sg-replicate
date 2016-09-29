@@ -10,7 +10,7 @@ type Attachment struct {
 	Data    []byte
 }
 
-func NewAttachment(r *Replication, part *multipart.Part) (*Attachment, error) {
+func NewAttachment(part *multipart.Part, logger loggerFunction) (*Attachment, error) {
 
 	attachment := &Attachment{
 		Headers: make(map[string]string),
@@ -19,15 +19,15 @@ func NewAttachment(r *Replication, part *multipart.Part) (*Attachment, error) {
 	// copy headers into Headers
 	contentType := part.Header["Content-Type"][0]
 	contentDisposition := part.Header["Content-Disposition"][0]
-	r.LogTo("Replicate", "attachment contentType: %v", contentType)
-	r.LogTo("Replicate", "attachment contentDisposition: %v", contentDisposition)
+	logger("Replicate", "attachment contentType: %v", contentType)
+	logger("Replicate", "attachment contentDisposition: %v", contentDisposition)
 	attachment.Headers["Content-Type"] = contentType
 	attachment.Headers["Content-Disposition"] = contentDisposition
 
 	// read part body into Data
 	data, err := ioutil.ReadAll(part)
 	if err != nil {
-		r.LogTo("Replicate", "error reading attachment body: %v", err)
+		logger("Replicate", "error reading attachment body: %v", err)
 		return nil, err
 	}
 	attachment.Data = data

@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/couchbaselabs/go.assert"
 	"github.com/couchbase/clog"
+	"github.com/couchbaselabs/go.assert"
 )
 
 func init() {

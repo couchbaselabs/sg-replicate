@@ -405,119 +405,18 @@ func (r Replication) fetchBulkGet() {
 		return
 	}
 
-	contentType := resp.Header.Get("Content-Type")
+	documents, err := ReadBulkGetResponse(resp, r.LogTo)
+	if err == nil {
+		event := NewReplicationEvent(FETCH_BULK_GET_SUCCEEDED)
+		event.Data = documents
+		r.sendEventWithTimeout(event)
 
-	mediaType, attrs, _ := mime.ParseMediaType(contentType)
-	boundary := attrs["boundary"]
-
-	if mediaType != "multipart/mixed" {
-		clog.Panic("unexpected mediaType: %v", mediaType)
+	} else {
+		r.LogTo("Replicate", "Error reading bulk get response: %v", err)
+		event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
+		event.Data = err
+		r.sendEventWithTimeout(event)
 	}
-
-	reader := multipart.NewReader(resp.Body, boundary)
-	documents := []Document{}
-
-	for {
-		mainPart, err := reader.NextPart()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			r.LogTo("Replicate", "Error getting next part: %v", err)
-			event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
-			event.Data = err
-			r.sendEventWithTimeout(event)
-			return
-		}
-
-		r.LogTo("Replicate", "mainPart: %v.  Header: %v", mainPart, mainPart.Header)
-		mainPartContentTypes := mainPart.Header["Content-Type"] // why a slice?
-		mainPartContentType := mainPartContentTypes[0]
-		contentType, attrs, _ := mime.ParseMediaType(mainPartContentType)
-		r.LogTo("Replicate", "contentType: %v", contentType)
-		r.LogTo("Replicate", "boundary: %v", attrs["boundary"])
-		switch contentType {
-		case "application/json":
-			documentBody := DocumentBody{}
-			decoder := json.NewDecoder(mainPart)
-
-			if err = decoder.Decode(&documentBody); err != nil {
-				r.LogTo("Replicate", "Error decoding part: %v", err)
-				event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
-				event.Data = err
-				r.sendEventWithTimeout(event)
-				return
-			}
-			document := Document{
-				Body: documentBody,
-			}
-			documents = append(documents, document)
-			mainPart.Close()
-		case "multipart/related":
-			nestedReader := multipart.NewReader(mainPart, attrs["boundary"])
-			nestedDoc := Document{}
-			nestedAttachments := []*Attachment{}
-			for {
-				nestedPart, err := nestedReader.NextPart()
-				if err == io.EOF {
-					break
-				} else if err != nil {
-					r.LogTo("Replicate", "err nested nextpart: %v", err)
-					event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
-					event.Data = err
-					r.sendEventWithTimeout(event)
-					return
-				}
-				r.LogTo("Replicate", "nestedPart: %v.  Header: %v", nestedPart, nestedPart.Header)
-				nestedPartContentTypes := nestedPart.Header["Content-Type"]
-				nestedPartContentType := nestedPartContentTypes[0]
-				nestedContentType, nestedAttrs, _ := mime.ParseMediaType(nestedPartContentType)
-				r.LogTo("Replicate", "nestedContentType: %v", nestedContentType)
-				r.LogTo("Replicate", "nestedAttrs: %v", nestedAttrs)
-
-				switch nestedContentType {
-				case "application/json":
-					nestedDecoder := json.NewDecoder(nestedPart)
-					nestedDocBody := DocumentBody{}
-					if err = nestedDecoder.Decode(&nestedDocBody); err != nil {
-						r.LogTo("Replicate", "Error decoding part: %v", err)
-						event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
-						event.Data = err
-						r.sendEventWithTimeout(event)
-						return
-					}
-					nestedDoc.Body = nestedDocBody
-					nestedPart.Close()
-
-				default:
-					// handle attachment
-					attachment, err := NewAttachment(&r, nestedPart)
-					if err != nil {
-						r.LogTo("Replicate", "Error decoding attachment: %v", err)
-						event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
-						event.Data = err
-						r.sendEventWithTimeout(event)
-						return
-					}
-					nestedAttachments = append(nestedAttachments, attachment)
-				}
-
-			}
-			if len(nestedAttachments) > 0 {
-				nestedDoc.Attachments = nestedAttachments
-			}
-			documents = append(documents, nestedDoc)
-
-			mainPart.Close()
-		default:
-			r.LogTo("Replicate", "ignoring unexpected content type: %v", contentType)
-
-		}
-
-	}
-
-	event := NewReplicationEvent(FETCH_BULK_GET_SUCCEEDED)
-	event.Data = documents
-	r.sendEventWithTimeout(event)
 
 }
 
@@ -805,5 +704,103 @@ func (r Replication) getBulkGetUrl() string {
 	return fmt.Sprintf(
 		"%s/_bulk_get?revs=true&attachments=true",
 		dbUrl)
+
+}
+
+// Read the documents from the _bulk_get response.  It's up to the
+// caller to call resp.Body.Close()
+func ReadBulkGetResponse(resp *http.Response, logger loggerFunction) ([]Document, error) {
+
+	contentType := resp.Header.Get("Content-Type")
+
+	mediaType, attrs, _ := mime.ParseMediaType(contentType)
+	boundary := attrs["boundary"]
+
+	if mediaType != "multipart/mixed" {
+		clog.Panic("unexpected mediaType: %v", mediaType)
+	}
+
+	reader := multipart.NewReader(resp.Body, boundary)
+	documents := []Document{}
+
+	for {
+		mainPart, err := reader.NextPart()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return documents, fmt.Errorf("Error getting next part: %v", err)
+		}
+
+		logger("Replicate", "mainPart: %v.  Header: %v", mainPart, mainPart.Header)
+		mainPartContentTypes := mainPart.Header["Content-Type"] // why a slice?
+		mainPartContentType := mainPartContentTypes[0]
+		contentType, attrs, _ := mime.ParseMediaType(mainPartContentType)
+		logger("Replicate", "contentType: %v", contentType)
+		logger("Replicate", "boundary: %v", attrs["boundary"])
+		switch contentType {
+		case "application/json":
+			documentBody := DocumentBody{}
+			decoder := json.NewDecoder(mainPart)
+
+			if err = decoder.Decode(&documentBody); err != nil {
+				return documents, fmt.Errorf("Error decoding part: %v", err)
+			}
+			document := Document{
+				Body: documentBody,
+			}
+			documents = append(documents, document)
+			mainPart.Close()
+		case "multipart/related":
+			nestedReader := multipart.NewReader(mainPart, attrs["boundary"])
+			nestedDoc := Document{}
+			nestedAttachments := []*Attachment{}
+			for {
+				nestedPart, err := nestedReader.NextPart()
+				if err == io.EOF {
+					break
+				} else if err != nil {
+					return documents, fmt.Errorf("Error nested nextpart: %v", err)
+				}
+				logger("Replicate", "nestedPart: %v.  Header: %v", nestedPart, nestedPart.Header)
+				nestedPartContentTypes := nestedPart.Header["Content-Type"]
+				nestedPartContentType := nestedPartContentTypes[0]
+				nestedContentType, nestedAttrs, _ := mime.ParseMediaType(nestedPartContentType)
+				logger("Replicate", "nestedContentType: %v", nestedContentType)
+				logger("Replicate", "nestedAttrs: %v", nestedAttrs)
+
+				switch nestedContentType {
+				case "application/json":
+					nestedDecoder := json.NewDecoder(nestedPart)
+					nestedDocBody := DocumentBody{}
+					if err = nestedDecoder.Decode(&nestedDocBody); err != nil {
+						return documents, fmt.Errorf("Error decoding part: %v", err)
+					}
+					nestedDoc.Body = nestedDocBody
+					nestedPart.Close()
+
+				default:
+					// handle attachment
+					attachment, err := NewAttachment(nestedPart, logger)
+					if err != nil {
+						return documents, fmt.Errorf("Error decoding attachment: %v", err)
+					}
+					nestedAttachments = append(nestedAttachments, attachment)
+				}
+
+			}
+			if len(nestedAttachments) > 0 {
+				nestedDoc.Attachments = nestedAttachments
+			}
+			documents = append(documents, nestedDoc)
+
+			mainPart.Close()
+		default:
+			logger("Replicate", "ignoring unexpected content type: %v", contentType)
+
+		}
+
+	}
+
+	return documents, nil
 
 }
