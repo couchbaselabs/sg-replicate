@@ -89,6 +89,9 @@ $ go build && ./cli
      * `oneshot` replications will be run inline (synchronously), and it will not start the following replications until the oneshot replication completes.  
      * `continuous` replications are started in parallel with other continuous replications, and run indefinitely until they have a non-recoverable error.
 
+# Filing Issues
+
+Please file issues in the [Sync Gateway](https://github.com/couchbase/sync_gateway/issues) issue tracker.  sg-replicate is now an officially supported component of Sync Gateway.
 
 # Todo
 
