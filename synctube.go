@@ -494,7 +494,7 @@ func (r Replication) pushAttachmentDocs() {
 
 		defer resp.Body.Close()
 		if resp.StatusCode >= 400 {
-			r.LogTo("Replicate", "Unexpected response getting bulk get: %v", resp)
+			r.LogTo("Replicate", "Unexpected response pushing attachment docs: %v", resp)
 			event := NewReplicationEvent(PUSH_ATTACHMENT_DOCS_FAILED)
 			r.sendEventWithTimeout(event)
 			return
@@ -550,7 +550,7 @@ func (r Replication) pushBulkDocs() {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		r.LogTo("Replicate", "Unexpected response getting bulk get: %v", resp)
+		r.LogTo("Replicate", "Unexpected response pushing bulk docs: %v", resp)
 		event := NewReplicationEvent(PUSH_BULK_DOCS_FAILED)
 		r.sendEventWithTimeout(event)
 		return
