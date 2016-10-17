@@ -73,6 +73,20 @@ type Document struct {
 	Attachments []*Attachment
 }
 
+func (d DocumentBody) ChannelNames() []string {
+	channelNames := []string{}
+	channelNamesIface, ok := d["channels"]
+	if !ok {
+		return channelNames
+	}
+	channelNamesIfaceSlice := channelNamesIface.([]interface{})
+	for _, channelNameIface := range channelNamesIfaceSlice {
+		channelNameStr := channelNameIface.(string)
+		channelNames = append(channelNames, channelNameStr)
+	}
+	return channelNames
+}
+
 func subsetDocsWithoutAttachemnts(docs []Document) []Document {
 	docsWithoutAttachemnts := []Document{}
 	for _, doc := range docs {
