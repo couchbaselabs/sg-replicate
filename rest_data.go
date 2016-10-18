@@ -2,6 +2,7 @@ package sgreplicate
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -132,6 +133,15 @@ type DocumentRevisionPair struct {
 	Revision string `json:"rev"`
 	Error    string `json:"error,omitempty"`
 	Reason   string `json:"reason,omitempty"`
+}
+
+func (drp DocumentRevisionPair) GetGeneration() (int, error) {
+	revParts := strings.Split(drp.Revision, "-")
+	generation, err := strconv.Atoi(revParts[0])
+	if err != nil {
+		return 0, err
+	}
+	return generation, nil
 }
 
 type BulkGetRequest struct {
