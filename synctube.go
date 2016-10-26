@@ -664,6 +664,7 @@ func (r Replication) getNormalChangesFeedUrl() string {
 func (r Replication) getLongpollChangesFeedUrl() string {
 	changesFeedParams := NewChangesFeedParams()
 	changesFeedParams.channels = r.Parameters.Channels
+	changesFeedParams.limit = r.Parameters.ChangesFeedLimit
 	changesFeedParams.feedType = FEED_TYPE_LONGPOLL
 	return r.getChangesFeedUrl(*changesFeedParams)
 }

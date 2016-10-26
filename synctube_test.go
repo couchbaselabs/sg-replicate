@@ -1263,6 +1263,8 @@ func TestChangesLimitParameterUsed(t *testing.T) {
 	replication := NewReplication(replicationParams, nil)
 	changesFeedUrl := replication.getNormalChangesFeedUrl()
 	assert.True(t, strings.Contains(changesFeedUrl, "limit=300"))
+	changesFeedUrl = replication.getLongpollChangesFeedUrl()
+	assert.True(t, strings.Contains(changesFeedUrl, "limit=300"))
 }
 
 func TestCheckpointsUniquePerReplication(t *testing.T) {
