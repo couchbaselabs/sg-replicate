@@ -1267,6 +1267,17 @@ func TestChangesLimitParameterUsed(t *testing.T) {
 	assert.True(t, strings.Contains(changesFeedUrl, "limit=300"))
 }
 
+func TestChangesUrlSinceValue(t *testing.T) {
+	replicationParams := ReplicationParameters{
+		ChangesFeedLimit: 300,
+	}
+	replication := NewContinuousReplication(replicationParams, nil, nil, time.Duration(0))
+	replication.LastSequencePushed = 100
+	changesFeedUrl := replication.getLongpollChangesFeedUrlSinceLastSeqPushed()
+	assert.True(t, strings.Contains(changesFeedUrl, "limit=300"))
+	assert.True(t, strings.Contains(changesFeedUrl, "since=100"))
+}
+
 func TestCheckpointsUniquePerReplication(t *testing.T) {
 
 	// Reproduce https://github.com/couchbaselabs/sg-replicate/issues/16

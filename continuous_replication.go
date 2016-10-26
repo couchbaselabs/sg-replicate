@@ -133,11 +133,7 @@ func (r *ContinuousReplication) processEvents() {
 
 func (r ContinuousReplication) fetchLongpollChanges(responseChan chan bool) {
 
-	changesFeedParams := NewChangesFeedParams()
-	changesFeedParams.channels = r.Parameters.Channels
-	changesFeedParams.feedType = FEED_TYPE_LONGPOLL
-	changesFeedParams.since = r.LastSequencePushed
-	changesFeedUrl := r.Parameters.getSourceChangesFeedUrl(*changesFeedParams)
+	changesFeedUrl := r.getLongpollChangesFeedUrlSinceLastSeqPushed()
 
 	r.LogTo("Replicate", "fetching longpoll changes at url: %v", changesFeedUrl)
 
@@ -170,6 +166,15 @@ func (r ContinuousReplication) fetchLongpollChanges(responseChan chan bool) {
 	gotChanges := len(changes.Results) > 0
 	responseChan <- gotChanges
 
+}
+
+func (r ContinuousReplication) getLongpollChangesFeedUrlSinceLastSeqPushed() string {
+	changesFeedParams := NewChangesFeedParams()
+	changesFeedParams.channels = r.Parameters.Channels
+	changesFeedParams.limit = r.Parameters.ChangesFeedLimit
+	changesFeedParams.feedType = FEED_TYPE_LONGPOLL
+	changesFeedParams.since = r.LastSequencePushed
+	return r.Parameters.getSourceChangesFeedUrl(*changesFeedParams)
 }
 
 func (r ContinuousReplication) startOneShotReplication() chan ReplicationNotification {
