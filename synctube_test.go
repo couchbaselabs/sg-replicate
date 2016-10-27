@@ -1254,6 +1254,30 @@ func TestGeneratePushCheckpointRequest(t *testing.T) {
 
 }
 
+// Reproduce "changes_feed_limit is not taken into account in sg-replicate configuration"
+// https://github.com/couchbase/sync_gateway/issues/2147
+func TestChangesLimitParameterUsed(t *testing.T) {
+	replicationParams := ReplicationParameters{
+		ChangesFeedLimit: 300,
+	}
+	replication := NewReplication(replicationParams, nil)
+	changesFeedUrl := replication.getNormalChangesFeedUrl()
+	assert.True(t, strings.Contains(changesFeedUrl, "limit=300"))
+	changesFeedUrl = replication.getLongpollChangesFeedUrl()
+	assert.True(t, strings.Contains(changesFeedUrl, "limit=300"))
+}
+
+func TestChangesUrlSinceValue(t *testing.T) {
+	replicationParams := ReplicationParameters{
+		ChangesFeedLimit: 300,
+	}
+	replication := NewContinuousReplication(replicationParams, nil, nil, time.Duration(0))
+	replication.LastSequencePushed = 100
+	changesFeedUrl := replication.getLongpollChangesFeedUrlSinceLastSeqPushed()
+	assert.True(t, strings.Contains(changesFeedUrl, "limit=300"))
+	assert.True(t, strings.Contains(changesFeedUrl, "since=100"))
+}
+
 func TestCheckpointsUniquePerReplication(t *testing.T) {
 
 	// Reproduce https://github.com/couchbaselabs/sg-replicate/issues/16
