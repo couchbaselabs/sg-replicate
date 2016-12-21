@@ -2,6 +2,11 @@ build:
   image: golang
   commands:
     - go version
-    - go get -t
+    - go get -t ./...
     - go build
     - go test 
+    - go get github.com/axw/gocov/gocov
+    - go get github.com/mattn/goveralls
+    - goveralls -service drone.io -repotoken $COVERALLS_TOKEN
+  environment:
+    - COVERALLS_TOKEN=$$COVERALLS_TOKEN
