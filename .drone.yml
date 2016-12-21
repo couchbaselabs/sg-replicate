@@ -2,7 +2,7 @@ build:
   image: golang
   commands:
     - go version
-    - go get -t
+    - go get -t ./...
     - go build
     - go test 
     - go get github.com/axw/gocov/gocov
