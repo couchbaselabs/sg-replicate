@@ -988,6 +988,45 @@ func TestOneShotReplicationNoOp(t *testing.T) {
 
 }
 
+func TestChangesFeedRemovedDocs(t *testing.T) {
+
+	sourceServer, targetServer := fakeServers(6013, 6012)
+
+	params := replicationParams(sourceServer.URL, targetServer.URL)
+
+	notificationChan := make(chan ReplicationNotification)
+
+	// create a new replication and start it
+	replication := NewReplication(params, notificationChan)
+
+	// fake response to get checkpoint
+	targetServer.Response(404, jsonHeaders(), bogusJson())
+
+	// fake response to changes feed
+	lastSequence := "3"
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeedRemovedDocs(lastSequence))
+
+	replication.Start()
+
+	// expect to get a replication active event
+	replicationNotification := <-notificationChan
+	assert.Equals(t, replicationNotification.Status, REPLICATION_ACTIVE)
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHANGES_FEED)
+
+	// Since the fakeChangesFeedRemovedDocs returned two docs, but
+	// both are _removed_ since they have the "removed": ["channel"], property,
+	// the replication should just behave as if there were _no_ changes
+	// returned.  In otherwords, it should not call _revs_diff, _bulk_get
+	// or _bulk_docs
+
+	remoteCheckpoint := waitForReplicationStoppedNotification(replication)
+	assert.Equals(t, remoteCheckpoint, lastSequence)
+
+}
+
 // Integration test.  Not fully automated; should be commented out.
 // After adding attachment support its failing
 func DISTestOneShotIntegrationReplication(t *testing.T) {
@@ -1069,6 +1108,10 @@ func fakeChangesFeedEmpty(lastSequence string) string {
 
 func fakeEmptyChangesFeed() string {
 	return fakeChangesFeedEmpty("4")
+}
+
+func fakeChangesFeedRemovedDocs(lastSequence string) string {
+	return fmt.Sprintf(`{"results":[{"seq":"2","id":"doc2","removed":["channel1"], "changes":[{"rev":"1-5e38"}]},{"seq":"3","id":"doc3", "removed": ["channel1"], "changes":[{"rev":"1-563b"}]}],"last_seq":"%v"}`, lastSequence)
 }
 
 func fakeRevsDiff() string {
