@@ -7,6 +7,10 @@ It was created because the Sync Gateway can only serve as a passive replication 
 
 ![architecture](http://tleyden-misc.s3.amazonaws.com/blog_images/sg-replicate-architecture.png)
 
+# Sync Gateway integration
+
+sg-replicate has been integrated into Sync Gateway itself, and that is probably how you want to use it, unless you have a specific need to run it standalone.  See the documentation on [Sync Gateway Replications](https://developer.couchbase.com/documentation/mobile/1.3/guides/sync-gateway/running-replications/index.html) for usage instructions.
+
 # Quickstart - build from source
 
 *Note: there is no need to clone this repo, because the `go get` command below will take care of that for you*
