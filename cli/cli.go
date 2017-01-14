@@ -29,7 +29,7 @@ func main() {
 	}
 	configFile, err := os.Open(*configFileName)
 	if err != nil {
-		clog.Panic("Unable to open file: %v.  Err: %v", *configFileName, err.Error())
+		clog.Panicf("Unable to open file: %v.  Err: %v", *configFileName, err.Error())
 		return
 	}
 	defer configFile.Close()
