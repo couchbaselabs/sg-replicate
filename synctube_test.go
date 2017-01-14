@@ -990,7 +990,7 @@ func TestOneShotReplicationNoOp(t *testing.T) {
 
 func TestChangesFeedRemovedDocs(t *testing.T) {
 
-	sourceServer, targetServer := fakeServers(6013, 6012)
+	sourceServer, targetServer := fakeServers(6019, 6018)
 
 	params := replicationParams(sourceServer.URL, targetServer.URL)
 
