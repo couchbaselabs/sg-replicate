@@ -298,6 +298,10 @@ func (r Replication) fetchChangesFeed() {
 		r.sendEventWithTimeout(event)
 		return
 	}
+
+	// if any changes entries have a "removed" property, ignore them
+	changes = filterRemovedChanges(changes)
+
 	event := NewReplicationEvent(FETCH_CHANGES_FEED_SUCCEEDED)
 	event.Data = changes
 	r.LogTo("Replicate", "event: %v", event)

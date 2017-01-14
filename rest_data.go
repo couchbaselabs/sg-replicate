@@ -35,22 +35,6 @@ func (checkpoint Checkpoint) IsEmpty() bool {
 	return len(checkpoint.Id) == 0
 }
 
-type ChangedRev struct {
-	Revision string `json:"rev"`
-}
-
-type Change struct {
-	Sequence    interface{}  `json:"seq"`
-	Id          string       `json:"id"`
-	ChangedRevs []ChangedRev `json:"changes"`
-	Deleted     bool         `json:"deleted"`
-}
-
-type Changes struct {
-	Results      []Change    `json:"results"`
-	LastSequence interface{} `json:"last_seq"`
-}
-
 type RevsDiffDocumentResponse struct {
 	Missing []string `json:"missing"`
 }
