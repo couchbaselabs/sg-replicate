@@ -1333,7 +1333,18 @@ func TestCheckpointsUniquePerReplication(t *testing.T) {
 
 }
 
-
+// This test verifies that if channel based filtering is used for replication
+// on the public port (as opposed to admin port), and a document is removed from
+// a channel on the source Sync Gateway, then sg-replicate will handle the situation
+// gracefully.
+//
+// This test handles the case where the _only_ doc returned by _bulk_get has been
+// removed.
+//
+// In other tests, the fake _bulk_get reponses will return a _removed:true doc along
+// with valid non-removed docs, and the _removed:true doc is ignored
+// 
+// For more details, see https://github.com/couchbase/sync_gateway/issues/2212
 func TestRemovedDocsChannel(t *testing.T) {
 
 	sourceServer, targetServer := fakeServers(6019, 6018)
@@ -1368,9 +1379,6 @@ func TestRemovedDocsChannel(t *testing.T) {
 	// fake response to changes feed w/ empty changes, which will stop replication
 	sourceServer.Response(200, jsonHeaders(), fakeChangesFeedEmpty(lastSequence))
 
-	// since all docs removed, don't expect any more requests, it should
-	// just push the checkpoint after doing the _bulk_get
-
 	replication.Start()
 
 	// expect to get a replication active event
@@ -1384,6 +1392,11 @@ func TestRemovedDocsChannel(t *testing.T) {
 	waitForNotification(replication, REPLICATION_FETCHED_REVS_DIFF)
 
 	waitForNotification(replication, REPLICATION_FETCHED_BULK_GET)
+
+	// Normally after a _bulk_get we would expect the replicator to issue a _bulk_docs
+	// request.  However, the fake _bulk_get response returns only a single
+	// doc that has been removed, and so the replicator is expected to just
+	// skip the _bulk_docs phase and go directly to the push_checkpoint phase.
 
 	waitForNotification(replication, REPLICATION_PUSHED_CHECKPOINT)
 
