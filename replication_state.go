@@ -214,6 +214,17 @@ func stateFnActiveFetchBulkGet(r *Replication) stateFn {
 			return nil
 		} else {
 
+			// Filter out the _removed:true docs since there is no point in pushing them via _bulk_docs
+			r.Documents = filterRemovedDocs(r.Documents)
+
+			if len(r.Documents) == 0 {
+				// If there are no docs left after filtering out _removed:true docs, then
+				// skip the _bulk_docs step and go straight to the pushCheckpoint step
+				go r.pushCheckpoint()
+				r.LogTo("Replicate", "Transition from stateFnActiveFetchBulkGet -> stateFnActivePushCheckpoint since all docs were _removed:true")
+				return stateFnActivePushCheckpoint
+			}
+
 			r.LogTo("Replicate", "num docs w/o attachemnts: %v", numDocsWithoutAttachments(r.Documents))
 			r.LogTo("Replicate", "num docs w/ attachemnts: %v", numDocsWithAttachments(r.Documents))
 			switch numDocsWithoutAttachments(r.Documents) > 0 {
