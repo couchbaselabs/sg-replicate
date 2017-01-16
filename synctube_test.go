@@ -1100,8 +1100,12 @@ func fakeBulkGetResponse(boundary string) string {
 Content-Type: application/json
 
 {"_id":"doc2","_rev":"1-5e38","_revisions":{"ids":["5e38"],"start":1},"fakefield1":false,"fakefield2":1, "fakefield3":"blah"}
+--%s
+Content-Type: application/json
+
+{"_id":"doc3_removed","_removed":true,"_rev":"2-4bbb"}
 --%s--
-`, boundary, boundary)
+`, boundary, boundary, boundary)
 }
 
 func fakeBulkGetResponseWithTextAttachment(boundary1, boundary2 string) string {
@@ -1135,8 +1139,12 @@ func fakeBulkGetResponse2(boundary string) string {
 Content-Type: application/json
 
 {"_id":"doc4","_rev":"1-786e","_revisions":{"ids":["786e"],"start":1},"fakefield1":true,"fakefield2":3, "fakefield3":"woof"}
+--%s
+Content-Type: application/json
+
+{"_id":"doc5_removed","_removed":true,"_rev":"2-4bbb"}
 --%s--
-`, boundary, boundary)
+`, boundary, boundary, boundary)
 }
 
 func fakeBulkGetResponseAllDocsRemoved(boundary string) string {
