@@ -1071,6 +1071,10 @@ func fakeEmptyChangesFeed() string {
 	return fakeChangesFeedEmpty("4")
 }
 
+func fakeChangesFeedRemovedDocs(lastSequence string) string {
+	return fmt.Sprintf(`{"results":[{"seq":"2","id":"doc2","removed":["channel1"], "changes":[{"rev":"1-5e38"}]},{"seq":"3","id":"doc3", "removed": ["channel1"], "changes":[{"rev":"1-563b"}]}],"last_seq":"%v"}`, lastSequence)
+}
+
 func fakeRevsDiff() string {
 	return `{"doc2":{"missing":["1-5e38"]}}`
 }
@@ -1134,6 +1138,16 @@ Content-Type: application/json
 --%s--
 `, boundary, boundary)
 }
+
+func fakeBulkGetResponseAllDocsRemoved(boundary string) string {
+	return fmt.Sprintf(`--%s
+Content-Type: application/json
+
+{"_id":"doc2","_removed":true,"_rev":"1-5e38","_revisions":{"ids":["5e38"],"start":1},"fakefield1":false,"fakefield2":1, "fakefield3":"blah"}
+--%s--
+`, boundary, boundary)
+}
+
 
 func fakePutDocAttachmentResponse() string {
 	return `[{"id":"doc2","rev":"1-5e38", "ok":true}]`
@@ -1308,5 +1322,67 @@ func TestCheckpointsUniquePerReplication(t *testing.T) {
 	checkpoint2 := replication2.targetCheckpointAddress()
 
 	assert.True(t, checkpoint1 != checkpoint2)
+
+}
+
+
+func TestRemovedDocsChannel(t *testing.T) {
+
+	sourceServer, targetServer := fakeServers(6019, 6018)
+
+	params := replicationParams(sourceServer.URL, targetServer.URL)
+
+	notificationChan := make(chan ReplicationNotification)
+
+	// create a new replication and start it
+	replication := NewReplication(params, notificationChan)
+
+	// fake response to push checkpoint
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), "1"))
+
+	// fake response to changes feed
+	lastSequence := "3"
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeedRemovedDocs(lastSequence))
+
+	// fake response to bulk get with docs removed
+	boundary := fakeBoundary()
+	sourceServer.Response(200, jsonHeadersMultipart(boundary), fakeBulkGetResponseAllDocsRemoved(boundary))
+
+	// fake response to revs_diff
+	targetServer.Response(200, jsonHeaders(), fakeRevsDiff())
+
+	// fake response to push checkpoint
+	targetServer.Response(200, jsonHeaders(), fakePushCheckpointResponse(replication.targetCheckpointAddress()))
+
+	// fake response to fetch checkpoint
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), "1"))
+
+	// fake response to changes feed w/ empty changes, which will stop replication
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeedEmpty(lastSequence))
+
+	// since all docs removed, don't expect any more requests, it should
+	// just push the checkpoint after doing the _bulk_get
+
+	replication.Start()
+
+	// expect to get a replication active event
+	replicationNotification := <-notificationChan
+	assert.Equals(t, replicationNotification.Status, REPLICATION_ACTIVE)
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHANGES_FEED)
+
+	waitForNotification(replication, REPLICATION_FETCHED_REVS_DIFF)
+
+	waitForNotification(replication, REPLICATION_FETCHED_BULK_GET)
+
+	waitForNotification(replication, REPLICATION_PUSHED_CHECKPOINT)
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
+
+	waitForNotification(replication, REPLICATION_STOPPED)
+
+	assertNotificationChannelClosed(notificationChan)
 
 }
