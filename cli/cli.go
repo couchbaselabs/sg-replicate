@@ -29,7 +29,7 @@ func main() {
 	}
 	configFile, err := os.Open(*configFileName)
 	if err != nil {
-		clog.Panic("Unable to open file: %v.  Err: %v", *configFileName, err.Error())
+		clog.Panicf("Unable to open file: %v.  Err: %v", *configFileName, err.Error())
 		return
 	}
 	defer configFile.Close()
@@ -37,7 +37,7 @@ func main() {
 	configReader := bufio.NewReader(configFile)
 	replicationsConfig, err := ParseReplicationsConfig(configReader)
 	if err != nil {
-		clog.Panic("Unable to parse config: %v. Err: %v", *configFileName, err.Error())
+		clog.Panicf("Unable to parse config: %v. Err: %v", *configFileName, err.Error())
 		return
 	}
 
@@ -63,7 +63,7 @@ func launchReplications(replicationsConfig ReplicationsConfig) {
 				replicationParams,
 			)
 			if err != nil {
-				clog.Panic("Unable to run replication: %v. Err: %v", replicationParams, err.Error())
+				clog.Panicf("Unable to run replication: %v. Err: %v", replicationParams, err.Error())
 			}
 			clog.To("CLI", "Successfully ran one shot replication: %v", replicationParams)
 		case sgreplicate.CONTINUOUS:
@@ -85,7 +85,7 @@ func launchReplications(replicationsConfig ReplicationsConfig) {
 		<-doneChan
 
 		// if any continuous replications die, just panic.
-		clog.Panic("One or more replications stopped")
+		clog.Panicf("One or more replications stopped")
 	}
 
 }

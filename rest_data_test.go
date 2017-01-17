@@ -25,3 +25,37 @@ func TestGenerateRevsMap(t *testing.T) {
 	assert.Equals(t, len(revsDiffMap["doc3"]), 1)
 	clog.To("TEST", "revsDiffMap: %v", revsDiffMap)
 }
+
+
+func TestFilterRemovedDocs(t *testing.T) {
+
+	doc1 := Document{
+		Body: map[string]interface{}{},
+	}
+	doc1.Body["_id"] = "1"
+	doc1.Body["_removed"] = true
+	doc2 := Document{
+		Body: map[string]interface{}{},
+	}
+	doc2.Body["_id"] = "2"
+	doc2.Body["_removed"] = false
+	doc3 := Document{
+		Body: map[string]interface{}{},
+	}
+	doc3.Body["_id"] = "3"
+	docs := []Document{
+		doc1,
+		doc2,
+		doc3,
+	}
+	filtered := filterRemovedDocs(docs)
+	assert.Equals(t, len(filtered), 2)
+	foundDoc1 := false
+	for _, doc := range filtered {
+		if doc.Body["_id"] == "1" {
+			foundDoc1 = true
+		}
+	}
+	assert.True(t, !foundDoc1)
+
+}

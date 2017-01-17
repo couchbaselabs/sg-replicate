@@ -1071,6 +1071,10 @@ func fakeEmptyChangesFeed() string {
 	return fakeChangesFeedEmpty("4")
 }
 
+func fakeChangesFeedRemovedDocs(lastSequence string) string {
+	return fmt.Sprintf(`{"results":[{"seq":"2","id":"doc2","removed":["channel1"], "changes":[{"rev":"1-5e38"}]},{"seq":"3","id":"doc3", "removed": ["channel1"], "changes":[{"rev":"1-563b"}]}],"last_seq":"%v"}`, lastSequence)
+}
+
 func fakeRevsDiff() string {
 	return `{"doc2":{"missing":["1-5e38"]}}`
 }
@@ -1096,8 +1100,12 @@ func fakeBulkGetResponse(boundary string) string {
 Content-Type: application/json
 
 {"_id":"doc2","_rev":"1-5e38","_revisions":{"ids":["5e38"],"start":1},"fakefield1":false,"fakefield2":1, "fakefield3":"blah"}
+--%s
+Content-Type: application/json
+
+{"_id":"doc3_removed","_removed":true,"_rev":"2-4bbb"}
 --%s--
-`, boundary, boundary)
+`, boundary, boundary, boundary)
 }
 
 func fakeBulkGetResponseWithTextAttachment(boundary1, boundary2 string) string {
@@ -1131,9 +1139,23 @@ func fakeBulkGetResponse2(boundary string) string {
 Content-Type: application/json
 
 {"_id":"doc4","_rev":"1-786e","_revisions":{"ids":["786e"],"start":1},"fakefield1":true,"fakefield2":3, "fakefield3":"woof"}
+--%s
+Content-Type: application/json
+
+{"_id":"doc5_removed","_removed":true,"_rev":"2-4bbb"}
+--%s--
+`, boundary, boundary, boundary)
+}
+
+func fakeBulkGetResponseAllDocsRemoved(boundary string) string {
+	return fmt.Sprintf(`--%s
+Content-Type: application/json
+
+{"_id":"doc2","_removed":true,"_rev":"1-5e38","_revisions":{"ids":["5e38"],"start":1},"fakefield1":false,"fakefield2":1, "fakefield3":"blah"}
 --%s--
 `, boundary, boundary)
 }
+
 
 func fakePutDocAttachmentResponse() string {
 	return `[{"id":"doc2","rev":"1-5e38", "ok":true}]`
@@ -1308,5 +1330,80 @@ func TestCheckpointsUniquePerReplication(t *testing.T) {
 	checkpoint2 := replication2.targetCheckpointAddress()
 
 	assert.True(t, checkpoint1 != checkpoint2)
+
+}
+
+// This test verifies that if channel based filtering is used for replication
+// on the public port (as opposed to admin port), and a document is removed from
+// a channel on the source Sync Gateway, then sg-replicate will handle the situation
+// gracefully.
+//
+// This test handles the case where the _only_ doc returned by _bulk_get has been
+// removed.
+//
+// In other tests, the fake _bulk_get reponses will return a _removed:true doc along
+// with valid non-removed docs, and the _removed:true doc is ignored
+// 
+// For more details, see https://github.com/couchbase/sync_gateway/issues/2212
+func TestRemovedDocsChannel(t *testing.T) {
+
+	sourceServer, targetServer := fakeServers(6019, 6018)
+
+	params := replicationParams(sourceServer.URL, targetServer.URL)
+
+	notificationChan := make(chan ReplicationNotification)
+
+	// create a new replication and start it
+	replication := NewReplication(params, notificationChan)
+
+	// fake response to push checkpoint
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), "1"))
+
+	// fake response to changes feed
+	lastSequence := "3"
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeedRemovedDocs(lastSequence))
+
+	// fake response to bulk get with docs removed
+	boundary := fakeBoundary()
+	sourceServer.Response(200, jsonHeadersMultipart(boundary), fakeBulkGetResponseAllDocsRemoved(boundary))
+
+	// fake response to revs_diff
+	targetServer.Response(200, jsonHeaders(), fakeRevsDiff())
+
+	// fake response to push checkpoint
+	targetServer.Response(200, jsonHeaders(), fakePushCheckpointResponse(replication.targetCheckpointAddress()))
+
+	// fake response to fetch checkpoint
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), "1"))
+
+	// fake response to changes feed w/ empty changes, which will stop replication
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeedEmpty(lastSequence))
+
+	replication.Start()
+
+	// expect to get a replication active event
+	replicationNotification := <-notificationChan
+	assert.Equals(t, replicationNotification.Status, REPLICATION_ACTIVE)
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHANGES_FEED)
+
+	waitForNotification(replication, REPLICATION_FETCHED_REVS_DIFF)
+
+	waitForNotification(replication, REPLICATION_FETCHED_BULK_GET)
+
+	// Normally after a _bulk_get we would expect the replicator to issue a _bulk_docs
+	// request.  However, the fake _bulk_get response returns only a single
+	// doc that has been removed, and so the replicator is expected to just
+	// skip the _bulk_docs phase and go directly to the push_checkpoint phase.
+
+	waitForNotification(replication, REPLICATION_PUSHED_CHECKPOINT)
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
+
+	waitForNotification(replication, REPLICATION_STOPPED)
+
+	assertNotificationChannelClosed(notificationChan)
 
 }
