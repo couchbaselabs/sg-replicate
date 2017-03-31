@@ -765,6 +765,10 @@ func ReadBulkGetResponse(resp *http.Response, logger loggerFunction) ([]Document
 				}
 				logger("Replicate", "nestedPart: %v.  Header: %v", nestedPart, nestedPart.Header)
 				nestedPartContentTypes := nestedPart.Header["Content-Type"]
+				if nestedPartContentTypes == nil {
+					logger("Replicate", "skipping attachment with no defined content type. Header: %v",nestedPart.Header)
+					continue
+				}
 				nestedPartContentType := nestedPartContentTypes[0]
 				nestedContentType, nestedAttrs, _ := mime.ParseMediaType(nestedPartContentType)
 				logger("Replicate", "nestedContentType: %v", nestedContentType)
@@ -788,7 +792,6 @@ func ReadBulkGetResponse(resp *http.Response, logger loggerFunction) ([]Document
 					}
 					nestedAttachments = append(nestedAttachments, attachment)
 				}
-
 			}
 			if len(nestedAttachments) > 0 {
 				nestedDoc.Attachments = nestedAttachments
@@ -798,11 +801,7 @@ func ReadBulkGetResponse(resp *http.Response, logger loggerFunction) ([]Document
 			mainPart.Close()
 		default:
 			logger("Replicate", "ignoring unexpected content type: %v", contentType)
-
 		}
-
 	}
-
 	return documents, nil
-
 }

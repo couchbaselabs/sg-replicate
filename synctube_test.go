@@ -988,6 +988,133 @@ func TestOneShotReplicationNoOp(t *testing.T) {
 
 }
 
+func TestOneShotReplicationWithUntypedAttachment(t *testing.T) {
+
+	sourceServer, targetServer := fakeServers(6021, 6020)
+
+	params := replicationParams(sourceServer.URL, targetServer.URL)
+
+	notificationChan := make(chan ReplicationNotification)
+
+	// create a new replication and start it
+	replication := NewReplication(params, notificationChan)
+
+	// fake response to get checkpoint
+	targetServer.Response(404, jsonHeaders(), bogusJson())
+
+	// fake response to changes feed
+	lastSequence := "3"
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed(lastSequence))
+
+	// fake response to bulk get
+	boundary1 := fakeBoundary()
+	boundary2 := fakeBoundary2()
+	sourceServer.Response(200, jsonHeadersMultipart(boundary1), fakeBulkGetResponseWithUntypedAttachment(boundary1, boundary2))
+
+	// fake response to revs_diff
+	targetServer.Response(200, jsonHeaders(), fakeRevsDiff())
+
+	// fake response to bulk docs
+	targetServer.Response(200, jsonHeaders(), fakeBulkDocsResponse())
+
+	// fake response to push checkpoint
+	targetServer.Response(200, jsonHeaders(), fakePushCheckpointResponse(replication.targetCheckpointAddress()))
+
+	// TODO: the fake server should return the last pushed checkpoint in this case
+	// rather than hardcoding to 3
+
+	// fake second call to get checkpoint
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), "3"))
+
+	// fake second response to changes feed
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed2())
+
+	// fake second reponse to bulk get
+	sourceServer.Response(200, jsonHeadersMultipart(boundary1), fakeBulkGetResponse2(boundary1))
+
+	// fake second response to revs_diff
+	targetServer.Response(200, jsonHeaders(), fakeRevsDiff2())
+
+	// fake second response to bulk docs
+	targetServer.Response(200, jsonHeaders(), fakeBulkDocsResponse2())
+
+	// fake second response to push checkpoint
+	targetServer.Response(200, jsonHeaders(), fakePushCheckpointResponse(replication.targetCheckpointAddress()))
+
+	// fake third response to get checkpoint
+	lastSequence = "4"
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), lastSequence))
+
+	// fake third response to changes feed
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeedEmpty(lastSequence))
+
+	replication.Start()
+
+	// expect to get a replication active event
+	replicationNotification := <-notificationChan
+	assert.Equals(t, replicationNotification.Status, REPLICATION_ACTIVE)
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
+
+	waitForNotification(replication, REPLICATION_FETCHED_REVS_DIFF)
+
+	waitForNotification(replication, REPLICATION_FETCHED_BULK_GET)
+
+	waitForNotification(replication, REPLICATION_PUSHED_BULK_DOCS)
+
+	waitForNotification(replication, REPLICATION_PUSHED_CHECKPOINT)
+
+	waitForNotification(replication, REPLICATION_STOPPED)
+
+	assertNotificationChannelClosed(notificationChan)
+
+	putCheckpointRequestIndex := 0
+	for _, savedReq := range targetServer.SavedRequests {
+
+		path := savedReq.Request.URL.Path
+		if strings.Contains(path, "/db/_local") {
+			if savedReq.Request.Method == "PUT" {
+
+				pushCheckpointRequest := PushCheckpointRequest{}
+				err := json.Unmarshal(savedReq.Data, &pushCheckpointRequest)
+				assert.True(t, err == nil)
+
+				if putCheckpointRequestIndex == 0 {
+					// since the checkpoint response above was a 404,
+					// the first time we push a checkpoint there should be no
+					// revision field.
+					assert.True(t, len(pushCheckpointRequest.Revision) == 0)
+
+				} else if putCheckpointRequestIndex == 1 {
+					// since second fake checkpoint is "0-1", expect
+					// to push with "0-1" as rev
+					assert.True(t, pushCheckpointRequest.Revision == "0-1")
+
+				}
+				putCheckpointRequestIndex += 1
+
+			}
+		}
+
+	}
+
+	getChangesRequestIndex := 0
+	for _, savedReq := range sourceServer.SavedRequests {
+		path := savedReq.Request.URL.Path
+		if strings.Contains(path, "/db/_changes") {
+			params, err := url.ParseQuery(savedReq.Request.URL.RawQuery)
+			assert.True(t, err == nil)
+			if getChangesRequestIndex > 0 {
+				assert.True(t, len(params["since"][0]) > 0)
+			}
+			getChangesRequestIndex += 1
+		}
+	}
+
+	// we should expect to see _bulk_doc requests for these docs
+	assertBulkDocsDocIds(t, targetServer.SavedRequests, []string{"doc1", "doc4"})
+}
+
 // Integration test.  Not fully automated; should be commented out.
 // After adding attachment support its failing
 func DISTestOneShotIntegrationReplication(t *testing.T) {
@@ -1133,6 +1260,32 @@ Content-Disposition: attachment; filename="attachment.txt"
 `, boundary1, boundary1, boundary2, boundary2, boundary2, boundary2, boundary1)
 	return response
 }
+
+func fakeBulkGetResponseWithUntypedAttachment(boundary1, boundary2 string) string {
+
+	response := fmt.Sprintf(`--%s
+Content-Type: application/json
+
+{"_id":"doc1","_rev":"1-6b5f","_revisions":{"ids":["6b5f"],"start":1},"fakefield1":true,"fakefield2":2}
+--%s
+X-Doc-Id: doc2
+X-Rev-Id: 1-5e38
+Content-Type: multipart/related; boundary="%s"
+
+--%s
+Content-Type: application/json
+
+{"_attachments":{"attachment.txt":{"content_type":"text/plain","digest":"sha1-3a30948f8cd5655fede389d73b5fecd91251df4a","follows":true,"length":10,"revpos":1}},"_id":"doc2","_rev":"1-5e38","_revisions":{"ids":["5e38"],"start":1},"fakefield1":false,"fakefield2":1, "fakefield3":"blah"}
+--%s
+Content-Disposition: attachment; filename="attachment.txt"
+
+0123456789
+--%s--
+--%s--
+`, boundary1, boundary1, boundary2, boundary2, boundary2, boundary2, boundary1)
+	return response
+}
+
 
 func fakeBulkGetResponse2(boundary string) string {
 	return fmt.Sprintf(`--%s
