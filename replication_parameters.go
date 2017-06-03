@@ -41,10 +41,16 @@ type ReplicationParameters struct {
 	Channels         []string
 	Target           *url.URL
 	TargetDb         string
-	ChangesFeedLimit *int
+	ChangesFeedLimit int
 	Lifecycle        ReplicationLifecycle
 	Disabled         bool
 	Async            bool
+}
+
+func NewReplicationParameters() *ReplicationParameters {
+	return &ReplicationParameters{
+		ChangesFeedLimit: DefaultChangesFeedLimit,
+	}
 }
 
 func (rp ReplicationParameters) GetSourceDbUrl() string {
@@ -56,10 +62,7 @@ func (rp ReplicationParameters) GetTargetDbUrl() string {
 }
 
 func (rp ReplicationParameters) GetChangesFeedLimit() int {
-	if rp.ChangesFeedLimit != nil {
-		return *rp.ChangesFeedLimit
-	}
-	return DefaultChangesFeedLimit
+	return rp.ChangesFeedLimit
 }
 
 func (rp ReplicationParameters) Equals(other ReplicationParameters) bool {

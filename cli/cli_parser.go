@@ -10,7 +10,7 @@ import (
 )
 
 type ReplicationsConfig struct {
-	ChangesFeedLimit      *int
+	ChangesFeedLimit      int
 	ContinuousRetryTimeMs int
 	Replications          []sgreplicate.ReplicationParameters
 }
@@ -35,20 +35,29 @@ type ReplicationParametersJson struct {
 func (r ReplicationsConfigJson) Export() (ReplicationsConfig, error) {
 
 	result := ReplicationsConfig{}
-	result.ChangesFeedLimit = r.ChangesFeedLimit
+
+	if r.ChangesFeedLimit != nil {
+		result.ChangesFeedLimit = *r.ChangesFeedLimit
+	} else {
+		result.ChangesFeedLimit = sgreplicate.DefaultChangesFeedLimit
+	}
+
 
 	log.Printf("ReplicationsConfig after calling result.ChangesFeedLimit: %+v", result)
 
 	result.ContinuousRetryTimeMs = r.ContinuousRetryTimeMs
 
-	for k, v := range r.ReplicationsMap {
+	for k, replicationParametersJson := range r.ReplicationsMap {
 
-		if replicationParams, err := v.Export(); err != nil {
+		if replicationParams, err := replicationParametersJson.Export(); err != nil {
 			return result, err
 		} else {
 			replicationParams.ReplicationId = k
-			if replicationParams.ChangesFeedLimit == nil {
-				replicationParams.ChangesFeedLimit = r.ChangesFeedLimit
+
+			// If there ChangesFeedLimit wasn't specified in the JSON in the per-replication config
+			// section, then default to the value specified at the top level of the config
+			if replicationParametersJson.ChangesFeedLimit == nil {
+				replicationParams.ChangesFeedLimit = result.ChangesFeedLimit
 			}
 
 			result.Replications = append(result.Replications, replicationParams)
@@ -85,7 +94,13 @@ func (p ReplicationParametersJson) Export() (sgreplicate.ReplicationParameters, 
 	result.Lifecycle = p.Lifecycle
 	result.Channels = p.Channels
 	result.Disabled = p.Disabled
-	result.ChangesFeedLimit = p.ChangesFeedLimit
+
+	if p.ChangesFeedLimit != nil {
+		result.ChangesFeedLimit = *p.ChangesFeedLimit
+	} else {
+		result.ChangesFeedLimit = sgreplicate.DefaultChangesFeedLimit
+	}
+
 	return result, nil
 
 }

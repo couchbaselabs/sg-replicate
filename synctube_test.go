@@ -11,6 +11,7 @@ import (
 	"github.com/couchbase/clog"
 	"github.com/couchbaselabs/go.assert"
 	"github.com/tleyden/fakehttp"
+	"log"
 )
 
 func init() {
@@ -24,7 +25,7 @@ func replicationParams(sourceServerUrl *url.URL, targetServerUrl *url.URL) Repli
 	params.SourceDb = "db"
 	params.Target = targetServerUrl
 	params.TargetDb = "db"
-	params.ChangesFeedLimit = intPointer(2)
+	params.ChangesFeedLimit = 2
 	params.Lifecycle = ONE_SHOT
 	return params
 }
@@ -1431,7 +1432,7 @@ func TestGeneratePushCheckpointRequest(t *testing.T) {
 // https://github.com/couchbase/sync_gateway/issues/2147
 func TestChangesLimitParameterUsed(t *testing.T) {
 	replicationParams := ReplicationParameters{
-		ChangesFeedLimit: intPointer(300),
+		ChangesFeedLimit: 300,
 	}
 	replication := NewReplication(replicationParams, nil)
 	changesFeedUrl := replication.getNormalChangesFeedUrl()
@@ -1440,20 +1441,21 @@ func TestChangesLimitParameterUsed(t *testing.T) {
 	assert.True(t, strings.Contains(changesFeedUrl, "limit=300"))
 }
 
-// Reproduce issue where it's using 0 for changes_feed_limit instead of default value of 50
+// Make sure changes_feed_limit defaults to 50
 // https://github.com/couchbase/sync_gateway/issues/2615
 func TestChangesLimitParameterDefault(t *testing.T) {
-	replicationParams := ReplicationParameters{}
-	replication := NewReplication(replicationParams, nil)
+	replicationParams := NewReplicationParameters()
+	replication := NewReplication(*replicationParams, nil)
 	changesFeedUrl := replication.getNormalChangesFeedUrl()
-	assert.True(t, strings.Contains(changesFeedUrl, fmt.Sprintf("limit=%d", DefaultChangesFeedLimit)))
+	log.Printf("changesFeedUrl: %v", changesFeedUrl)
+	assert.True(t, strings.Contains(changesFeedUrl, fmt.Sprintf("limit=%v", DefaultChangesFeedLimit)))
 	changesFeedUrl = replication.getLongpollChangesFeedUrl()
-	assert.True(t, strings.Contains(changesFeedUrl, fmt.Sprintf("limit=%d", DefaultChangesFeedLimit)))
+	assert.True(t, strings.Contains(changesFeedUrl, fmt.Sprintf("limit=%v", DefaultChangesFeedLimit)))
 }
 
 func TestChangesUrlSinceValue(t *testing.T) {
 	replicationParams := ReplicationParameters{
-		ChangesFeedLimit: intPointer(300),
+		ChangesFeedLimit: 300,
 	}
 	replication := NewContinuousReplication(replicationParams, nil, nil, time.Duration(0))
 	replication.LastSequencePushed = 100
@@ -1570,6 +1572,3 @@ func TestRemovedDocsChannel(t *testing.T) {
 
 }
 
-func intPointer(val int) *int {
-	return &val
-}

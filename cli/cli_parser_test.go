@@ -45,7 +45,7 @@ func TestParseConfig(t *testing.T) {
 	assert.Equals(t, replicationsConfig.Replications[0].Lifecycle, sgreplicate.ONE_SHOT)
 	assert.Equals(t, replicationsConfig.Replications[0].Disabled, false)
 	assert.Equals(t, replicationsConfig.Replications[1].Disabled, true)
-	assert.Equals(t, *replicationsConfig.Replications[0].ChangesFeedLimit, 100)
-	assert.Equals(t, *replicationsConfig.Replications[1].ChangesFeedLimit, 100)
+	assert.Equals(t, replicationsConfig.Replications[0].ChangesFeedLimit, 100)
+	assert.Equals(t, replicationsConfig.Replications[1].ChangesFeedLimit, 100)
 
 }
