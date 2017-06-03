@@ -171,7 +171,7 @@ func (r ContinuousReplication) fetchLongpollChanges(responseChan chan bool) {
 func (r ContinuousReplication) getLongpollChangesFeedUrlSinceLastSeqPushed() string {
 	changesFeedParams := NewChangesFeedParams()
 	changesFeedParams.channels = r.Parameters.Channels
-	changesFeedParams.limit = r.Parameters.ChangesFeedLimit
+	changesFeedParams.limit = *r.Parameters.ChangesFeedLimit
 	changesFeedParams.feedType = FEED_TYPE_LONGPOLL
 	changesFeedParams.since = r.LastSequencePushed
 	return r.Parameters.getSourceChangesFeedUrl(*changesFeedParams)

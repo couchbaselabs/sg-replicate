@@ -41,7 +41,7 @@ type ReplicationParameters struct {
 	Channels         []string
 	Target           *url.URL
 	TargetDb         string
-	ChangesFeedLimit int
+	ChangesFeedLimit *int
 	Lifecycle        ReplicationLifecycle
 	Disabled         bool
 	Async            bool
@@ -53,6 +53,13 @@ func (rp ReplicationParameters) GetSourceDbUrl() string {
 
 func (rp ReplicationParameters) GetTargetDbUrl() string {
 	return fmt.Sprintf("%s/%s", rp.Target, rp.TargetDb)
+}
+
+func (rp ReplicationParameters) GetChangesFeedLimit() int {
+	if rp.ChangesFeedLimit != nil {
+		return *rp.ChangesFeedLimit
+	}
+	return DefaultChangesFeedLimit
 }
 
 func (rp ReplicationParameters) Equals(other ReplicationParameters) bool {

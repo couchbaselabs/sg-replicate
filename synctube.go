@@ -657,14 +657,14 @@ func (r Replication) getCheckpointUrl() string {
 func (r Replication) getNormalChangesFeedUrl() string {
 	changesFeedParams := NewChangesFeedParams()
 	changesFeedParams.channels = r.Parameters.Channels
-	changesFeedParams.limit = r.Parameters.ChangesFeedLimit
+	changesFeedParams.limit = r.Parameters.GetChangesFeedLimit()
 	return r.getChangesFeedUrl(*changesFeedParams)
 }
 
 func (r Replication) getLongpollChangesFeedUrl() string {
 	changesFeedParams := NewChangesFeedParams()
 	changesFeedParams.channels = r.Parameters.Channels
-	changesFeedParams.limit = r.Parameters.ChangesFeedLimit
+	changesFeedParams.limit = r.Parameters.GetChangesFeedLimit()
 	changesFeedParams.feedType = FEED_TYPE_LONGPOLL
 	return r.getChangesFeedUrl(*changesFeedParams)
 }
@@ -766,7 +766,7 @@ func ReadBulkGetResponse(resp *http.Response, logger loggerFunction) ([]Document
 				logger("Replicate", "nestedPart: %v.  Header: %v", nestedPart, nestedPart.Header)
 				nestedPartContentTypes := nestedPart.Header["Content-Type"]
 				if nestedPartContentTypes == nil {
-					logger("Replicate", "skipping attachment with no defined content type. Header: %v",nestedPart.Header)
+					logger("Replicate", "skipping attachment with no defined content type. Header: %v", nestedPart.Header)
 					continue
 				}
 				nestedPartContentType := nestedPartContentTypes[0]

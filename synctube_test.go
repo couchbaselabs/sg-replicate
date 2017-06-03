@@ -24,7 +24,7 @@ func replicationParams(sourceServerUrl *url.URL, targetServerUrl *url.URL) Repli
 	params.SourceDb = "db"
 	params.Target = targetServerUrl
 	params.TargetDb = "db"
-	params.ChangesFeedLimit = 2
+	params.ChangesFeedLimit = intPointer(2)
 	params.Lifecycle = ONE_SHOT
 	return params
 }
@@ -1286,7 +1286,6 @@ Content-Disposition: attachment; filename="attachment.txt"
 	return response
 }
 
-
 func fakeBulkGetResponse2(boundary string) string {
 	return fmt.Sprintf(`--%s
 Content-Type: application/json
@@ -1308,7 +1307,6 @@ Content-Type: application/json
 --%s--
 `, boundary, boundary)
 }
-
 
 func fakePutDocAttachmentResponse() string {
 	return `[{"id":"doc2","rev":"1-5e38", "ok":true}]`
@@ -1433,7 +1431,7 @@ func TestGeneratePushCheckpointRequest(t *testing.T) {
 // https://github.com/couchbase/sync_gateway/issues/2147
 func TestChangesLimitParameterUsed(t *testing.T) {
 	replicationParams := ReplicationParameters{
-		ChangesFeedLimit: 300,
+		ChangesFeedLimit: intPointer(300),
 	}
 	replication := NewReplication(replicationParams, nil)
 	changesFeedUrl := replication.getNormalChangesFeedUrl()
@@ -1442,9 +1440,20 @@ func TestChangesLimitParameterUsed(t *testing.T) {
 	assert.True(t, strings.Contains(changesFeedUrl, "limit=300"))
 }
 
+// Reproduce issue where it's using 0 for changes_feed_limit instead of default value of 50
+// https://github.com/couchbase/sync_gateway/issues/2615
+func TestChangesLimitParameterDefault(t *testing.T) {
+	replicationParams := ReplicationParameters{}
+	replication := NewReplication(replicationParams, nil)
+	changesFeedUrl := replication.getNormalChangesFeedUrl()
+	assert.True(t, strings.Contains(changesFeedUrl, fmt.Sprintf("limit=%d", DefaultChangesFeedLimit)))
+	changesFeedUrl = replication.getLongpollChangesFeedUrl()
+	assert.True(t, strings.Contains(changesFeedUrl, fmt.Sprintf("limit=%d", DefaultChangesFeedLimit)))
+}
+
 func TestChangesUrlSinceValue(t *testing.T) {
 	replicationParams := ReplicationParameters{
-		ChangesFeedLimit: 300,
+		ChangesFeedLimit: intPointer(300),
 	}
 	replication := NewContinuousReplication(replicationParams, nil, nil, time.Duration(0))
 	replication.LastSequencePushed = 100
@@ -1496,7 +1505,7 @@ func TestCheckpointsUniquePerReplication(t *testing.T) {
 //
 // In other tests, the fake _bulk_get reponses will return a _removed:true doc along
 // with valid non-removed docs, and the _removed:true doc is ignored
-// 
+//
 // For more details, see https://github.com/couchbase/sync_gateway/issues/2212
 func TestRemovedDocsChannel(t *testing.T) {
 
@@ -1559,4 +1568,8 @@ func TestRemovedDocsChannel(t *testing.T) {
 
 	assertNotificationChannelClosed(notificationChan)
 
+}
+
+func intPointer(val int) *int {
+	return &val
 }

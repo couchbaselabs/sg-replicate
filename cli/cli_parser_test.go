@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/couchbaselabs/go.assert"
 	"github.com/couchbase/clog"
+	"github.com/couchbaselabs/go.assert"
 	sgreplicate "github.com/couchbaselabs/sg-replicate"
 )
 
@@ -17,7 +17,7 @@ func init() {
 func TestParseConfig(t *testing.T) {
 
 	config := `{
-    "changes_feed_limit": 50,
+    "changes_feed_limit": 100,
     "replications":{
 	"checkers":{
 	    "source_url": "http://checkers.sync.couchbasecloud.com",
@@ -45,5 +45,7 @@ func TestParseConfig(t *testing.T) {
 	assert.Equals(t, replicationsConfig.Replications[0].Lifecycle, sgreplicate.ONE_SHOT)
 	assert.Equals(t, replicationsConfig.Replications[0].Disabled, false)
 	assert.Equals(t, replicationsConfig.Replications[1].Disabled, true)
+	assert.Equals(t, *replicationsConfig.Replications[0].ChangesFeedLimit, 100)
+	assert.Equals(t, *replicationsConfig.Replications[1].ChangesFeedLimit, 100)
 
 }

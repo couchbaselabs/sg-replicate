@@ -200,7 +200,6 @@ func bulkDocsHaveErrors(docRevPairs []DocumentRevisionPair) bool {
 	return false
 }
 
-
 // A function that takes a Document as a parameter and returns a boolean value.
 // If keep is true, it will retain the doc.  Otherwise, discard the doc
 type KeepDocFilter func(doc Document) (keep bool)
@@ -208,7 +207,7 @@ type KeepDocFilter func(doc Document) (keep bool)
 // Filter out any documents that has the "_removed":true property
 func filterRemovedDocs(docs []Document) []Document {
 	// This function filters out all the docs that have the _removed:true property
-	filterOutRemovedDocs := func(doc Document) (keep bool)  {
+	filterOutRemovedDocs := func(doc Document) (keep bool) {
 		removedProperty, ok := doc.Body["_removed"]
 		if !ok {
 			// doesn't have _removed property, keep it
