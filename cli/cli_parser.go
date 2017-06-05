@@ -42,9 +42,6 @@ func (r ReplicationsConfigJson) Export() (ReplicationsConfig, error) {
 		result.ChangesFeedLimit = sgreplicate.DefaultChangesFeedLimit
 	}
 
-
-	log.Printf("ReplicationsConfig after calling result.ChangesFeedLimit: %+v", result)
-
 	result.ContinuousRetryTimeMs = r.ContinuousRetryTimeMs
 
 	for k, replicationParametersJson := range r.ReplicationsMap {
@@ -61,7 +58,6 @@ func (r ReplicationsConfigJson) Export() (ReplicationsConfig, error) {
 			}
 
 			result.Replications = append(result.Replications, replicationParams)
-			log.Printf("replicationParams: %+v", replicationParams)
 		}
 	}
 
@@ -69,8 +65,6 @@ func (r ReplicationsConfigJson) Export() (ReplicationsConfig, error) {
 }
 
 func (p ReplicationParametersJson) Export() (sgreplicate.ReplicationParameters, error) {
-
-	log.Printf("ReplicationParametersJson.Export() called.  p: %+v", p)
 
 	result := sgreplicate.ReplicationParameters{}
 	sourceUrl, err := url.Parse(p.Source)
@@ -112,7 +106,6 @@ func ParseReplicationsConfig(r io.Reader) (ReplicationsConfig, error) {
 	if err := decoder.Decode(&replicationsConfigJson); err != nil {
 		return ReplicationsConfig{}, err
 	}
-	log.Printf("replicationsConfigJson: %+v.  replications: %+v", replicationsConfigJson, replicationsConfigJson.ReplicationsMap)
 	result, err := replicationsConfigJson.Export()
 	if err != nil {
 		return ReplicationsConfig{}, err
