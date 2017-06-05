@@ -51,8 +51,9 @@ func (r ReplicationsConfigJson) Export() (ReplicationsConfig, error) {
 		} else {
 			replicationParams.ReplicationId = k
 
-			// If there ChangesFeedLimit wasn't specified in the JSON in the per-replication config
-			// section, then default to the value specified at the top level of the config
+			// For the ChangesFeedLimit parameter, use a hierarchical/layered config where the
+			// per-server config value will be propagated down to the per-replication config value, as long
+			// as nothing was specified in the per-replication config
 			if replicationParametersJson.ChangesFeedLimit == nil {
 				replicationParams.ChangesFeedLimit = result.ChangesFeedLimit
 			}
