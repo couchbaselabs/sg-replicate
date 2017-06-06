@@ -47,12 +47,6 @@ type ReplicationParameters struct {
 	Async            bool
 }
 
-func NewReplicationParameters() *ReplicationParameters {
-	return &ReplicationParameters{
-		ChangesFeedLimit: DefaultChangesFeedLimit,
-	}
-}
-
 func (rp ReplicationParameters) GetSourceDbUrl() string {
 	return fmt.Sprintf("%s/%s", rp.Source, rp.SourceDb)
 }

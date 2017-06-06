@@ -1441,18 +1441,6 @@ func TestChangesLimitParameterUsed(t *testing.T) {
 	assert.True(t, strings.Contains(changesFeedUrl, "limit=300"))
 }
 
-// Make sure changes_feed_limit defaults to 50
-// https://github.com/couchbase/sync_gateway/issues/2615
-func TestChangesLimitParameterDefault(t *testing.T) {
-	replicationParams := NewReplicationParameters()
-	replication := NewReplication(*replicationParams, nil)
-	changesFeedUrl := replication.getNormalChangesFeedUrl()
-	log.Printf("changesFeedUrl: %v", changesFeedUrl)
-	assert.True(t, strings.Contains(changesFeedUrl, fmt.Sprintf("limit=%v", DefaultChangesFeedLimit)))
-	changesFeedUrl = replication.getLongpollChangesFeedUrl()
-	assert.True(t, strings.Contains(changesFeedUrl, fmt.Sprintf("limit=%v", DefaultChangesFeedLimit)))
-}
-
 func TestChangesUrlSinceValue(t *testing.T) {
 	replicationParams := ReplicationParameters{
 		ChangesFeedLimit: 300,
