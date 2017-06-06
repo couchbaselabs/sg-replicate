@@ -11,7 +11,6 @@ import (
 	"github.com/couchbase/clog"
 	"github.com/couchbaselabs/go.assert"
 	"github.com/tleyden/fakehttp"
-	"log"
 )
 
 func init() {
@@ -1559,4 +1558,3 @@ func TestRemovedDocsChannel(t *testing.T) {
 	assertNotificationChannelClosed(notificationChan)
 
 }
-
