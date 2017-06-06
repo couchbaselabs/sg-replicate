@@ -6,7 +6,6 @@ import (
 	"net/url"
 
 	sgreplicate "github.com/couchbaselabs/sg-replicate"
-	"log"
 )
 
 type ReplicationsConfig struct {
