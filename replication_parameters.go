@@ -61,10 +61,6 @@ func (rp ReplicationParameters) GetTargetDbUrl() string {
 	return fmt.Sprintf("%s/%s", rp.Target, rp.TargetDb)
 }
 
-func (rp ReplicationParameters) GetChangesFeedLimit() int {
-	return rp.ChangesFeedLimit
-}
-
 func (rp ReplicationParameters) Equals(other ReplicationParameters) bool {
 	if rp.GetSourceDbUrl() != other.GetSourceDbUrl() {
 		return false
