@@ -26,7 +26,6 @@ func TestGenerateRevsMap(t *testing.T) {
 	clog.To("TEST", "revsDiffMap: %v", revsDiffMap)
 }
 
-
 func TestFilterRemovedDocs(t *testing.T) {
 
 	doc1 := Document{

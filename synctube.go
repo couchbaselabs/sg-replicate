@@ -766,7 +766,7 @@ func ReadBulkGetResponse(resp *http.Response, logger loggerFunction) ([]Document
 				logger("Replicate", "nestedPart: %v.  Header: %v", nestedPart, nestedPart.Header)
 				nestedPartContentTypes := nestedPart.Header["Content-Type"]
 				if nestedPartContentTypes == nil {
-					logger("Replicate", "skipping attachment with no defined content type. Header: %v",nestedPart.Header)
+					logger("Replicate", "skipping attachment with no defined content type. Header: %v", nestedPart.Header)
 					continue
 				}
 				nestedPartContentType := nestedPartContentTypes[0]

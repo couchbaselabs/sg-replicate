@@ -1286,7 +1286,6 @@ Content-Disposition: attachment; filename="attachment.txt"
 	return response
 }
 
-
 func fakeBulkGetResponse2(boundary string) string {
 	return fmt.Sprintf(`--%s
 Content-Type: application/json
@@ -1308,7 +1307,6 @@ Content-Type: application/json
 --%s--
 `, boundary, boundary)
 }
-
 
 func fakePutDocAttachmentResponse() string {
 	return `[{"id":"doc2","rev":"1-5e38", "ok":true}]`
@@ -1496,7 +1494,7 @@ func TestCheckpointsUniquePerReplication(t *testing.T) {
 //
 // In other tests, the fake _bulk_get reponses will return a _removed:true doc along
 // with valid non-removed docs, and the _removed:true doc is ignored
-// 
+//
 // For more details, see https://github.com/couchbase/sync_gateway/issues/2212
 func TestRemovedDocsChannel(t *testing.T) {
 

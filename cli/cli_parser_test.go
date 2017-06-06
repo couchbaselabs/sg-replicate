@@ -4,9 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/couchbaselabs/go.assert"
 	"github.com/couchbase/clog"
+	"github.com/couchbaselabs/go.assert"
 	sgreplicate "github.com/couchbaselabs/sg-replicate"
+	"fmt"
 )
 
 func init() {
@@ -17,7 +18,7 @@ func init() {
 func TestParseConfig(t *testing.T) {
 
 	config := `{
-    "changes_feed_limit": 50,
+    "changes_feed_limit": 100,
     "replications":{
 	"checkers":{
 	    "source_url": "http://checkers.sync.couchbasecloud.com",
@@ -42,8 +43,28 @@ func TestParseConfig(t *testing.T) {
 	clog.To("TEST", "err: %v", err)
 	assert.True(t, err == nil)
 	assert.Equals(t, len(replicationsConfig.Replications), 2)
-	assert.Equals(t, replicationsConfig.Replications[0].Lifecycle, sgreplicate.ONE_SHOT)
-	assert.Equals(t, replicationsConfig.Replications[0].Disabled, false)
-	assert.Equals(t, replicationsConfig.Replications[1].Disabled, true)
+
+
+	var (
+		checkersReplication sgreplicate.ReplicationParameters
+		checkersOtherDirectionReplication sgreplicate.ReplicationParameters
+	)
+
+	for _, replication := range replicationsConfig.Replications {
+		switch  replication.ReplicationId {
+		case "checkers":
+			checkersReplication = replication
+		case "checkers-other-direction":
+			checkersOtherDirectionReplication = replication
+		default:
+			panic(fmt.Sprintf("Unexpected replicationID"))
+		}
+	}
+
+	assert.Equals(t, checkersReplication.Lifecycle, sgreplicate.ONE_SHOT)
+	assert.Equals(t, checkersReplication.Disabled, false)
+	assert.Equals(t, checkersOtherDirectionReplication.Disabled, true)
+	assert.Equals(t, checkersReplication.ChangesFeedLimit, 100)
+	assert.Equals(t, checkersOtherDirectionReplication.ChangesFeedLimit, 100)
 
 }
