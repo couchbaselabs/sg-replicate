@@ -562,7 +562,7 @@ func TestOneShotReplicationBulkDocsHappyPath(t *testing.T) {
 }
 
 // Regression test for https://github.com/couchbase/sync_gateway/issues/1846
-func TestOneShotReplicationBulkDocsSporadicError(t *testing.T) {
+func TestOneShotReplicationBulkDocsTemporaryError(t *testing.T) {
 
 	sourceServer, targetServer := fakeServers(6015, 6014)
 
@@ -588,7 +588,7 @@ func TestOneShotReplicationBulkDocsSporadicError(t *testing.T) {
 	targetServer.Response(200, jsonHeaders(), fakeRevsDiff())
 
 	// fake response to bulk docs with errors
-	targetServer.Response(200, jsonHeaders(), fakeBulkDocsResponseWithErrors())
+	targetServer.Response(200, jsonHeaders(), fakeBulkDocsResponseWithTemporaryErrors())
 
 	// fake response to get checkpoint -- after the bulk docs response returns errors,
 	// it should try again, starting with fetching the remote checkpoint
@@ -1320,8 +1320,8 @@ func fakeBulkDocsResponse2() string {
 	return `[{"id":"doc4","rev":"1-786e"}]`
 }
 
-func fakeBulkDocsResponseWithErrors() string {
-	return `[{"id":"doc4","error":"conflict","reason":"Document update conflict."}]`
+func fakeBulkDocsResponseWithTemporaryErrors() string {
+	return `[{"id":"doc4","error":"Service Unavailable","reason":"Temporary Service Unavailable", "status":503}]`
 }
 
 func waitForNotificationAndStop(replication *Replication, expected ReplicationStatus) {
