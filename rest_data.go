@@ -131,6 +131,7 @@ func generateRevsDiffMap(changes Changes) RevsDiffQueryMap {
 type DocumentRevisionPair struct {
 	Id       string `json:"id"`
 	Revision string `json:"rev"`
+	Status   int    `json:"status,omitempty"`
 	Error    string `json:"error,omitempty"`
 	Reason   string `json:"reason,omitempty"`
 }
@@ -191,9 +192,13 @@ func generateBulkDocsRequest(r Replication, documents []Document) BulkDocsReques
 	}
 }
 
-func bulkDocsHaveErrors(docRevPairs []DocumentRevisionPair) bool {
+// Find out if any of the bulk docs have recoverable errors that should be retried.
+// Loosely based on couchbase lite ios code:
+// https://github.com/couchbase/couchbase-lite-ios/blob/9a8903b9e851d5584abeec069ead4d2637b3bb91/Source/CBLMisc.m#L381
+// But it does not consider 500 and 502 errors as transient / retryable.
+func bulkDocsHaveRecoverableErrors(docRevPairs []DocumentRevisionPair) bool {
 	for _, docRevPair := range docRevPairs {
-		if docRevPair.Error != "" {
+		if docRevPair.Status == 503 || docRevPair.Status == 504 {
 			return true
 		}
 	}

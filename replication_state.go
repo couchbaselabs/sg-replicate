@@ -271,8 +271,8 @@ func stateFnActivePushBulkDocs(r *Replication) stateFn {
 
 		r.PushedBulkDocs = event.Data.([]DocumentRevisionPair)
 
-		// if any of the bulk docs have errors, then go back to the FetchCheckpoint state and try again
-		if bulkDocsHaveErrors(r.PushedBulkDocs) {
+		// if any of the bulk docs have recoverable errors, then go back to the FetchCheckpoint state and try again
+		if bulkDocsHaveRecoverableErrors(r.PushedBulkDocs) {
 			r.LogTo("Replicate", "BulkDoc response contains partial errors: %+v, going to retry", r.PushedBulkDocs)
 
 			go func() {

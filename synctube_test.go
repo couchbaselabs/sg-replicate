@@ -1321,7 +1321,7 @@ func fakeBulkDocsResponse2() string {
 }
 
 func fakeBulkDocsResponseWithErrors() string {
-	return `[{"id":"doc4","error":"conflict","reason":"Document update conflict."}]`
+	return `[{"id":"doc4","error":"Service Unavailable","reason":"Temporary Service Unavailable", "status":503}]`
 }
 
 func waitForNotificationAndStop(replication *Replication, expected ReplicationStatus) {
