@@ -98,7 +98,8 @@ func (r *Replication) WaitUntilDone() (ReplicationStatus, error) {
 		select {
 		case replicationNotification := <-r.NotificationChan:
 			if replicationNotification.Status == REPLICATION_ABORTED {
-				return REPLICATION_ABORTED, fmt.Errorf("Replication Aborted")
+				r.LogTo("Replicate", "REPLICATION_ABORTED due to error: %v", replicationNotification.Error)
+				return REPLICATION_ABORTED, fmt.Errorf("Replication Aborted due to error: %v", replicationNotification.Error)
 			}
 			if replicationNotification.Status == REPLICATION_STOPPED {
 				return REPLICATION_STOPPED, nil
