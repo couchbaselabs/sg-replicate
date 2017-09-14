@@ -23,7 +23,7 @@ func NewAttachment(part *multipart.Part, logger loggerFunction) (*Attachment, er
 		logger("Replicate", "attachment contentType: %v", contentType)
 		attachment.Headers["Content-Type"] = contentType
 	}
-	
+
 	contentDisposition := part.Header["Content-Disposition"][0]
 	logger("Replicate", "attachment contentDisposition: %v", contentDisposition)
 
