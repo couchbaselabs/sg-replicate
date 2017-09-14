@@ -17,11 +17,16 @@ func NewAttachment(part *multipart.Part, logger loggerFunction) (*Attachment, er
 	}
 
 	// copy headers into Headers
-	contentType := part.Header["Content-Type"][0]
+	contentTypes := part.Header["Content-Type"]
+	if contentTypes != nil {
+		contentType := contentTypes[0]
+		logger("Replicate", "attachment contentType: %v", contentType)
+		attachment.Headers["Content-Type"] = contentType
+	}
+	
 	contentDisposition := part.Header["Content-Disposition"][0]
-	logger("Replicate", "attachment contentType: %v", contentType)
 	logger("Replicate", "attachment contentDisposition: %v", contentDisposition)
-	attachment.Headers["Content-Type"] = contentType
+
 	attachment.Headers["Content-Disposition"] = contentDisposition
 
 	// read part body into Data
