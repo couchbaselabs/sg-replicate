@@ -1017,6 +1017,9 @@ func TestOneShotReplicationWithUntypedAttachment(t *testing.T) {
 	// fake response to bulk docs
 	targetServer.Response(200, jsonHeaders(), fakeBulkDocsResponse())
 
+	// fake response to push attached doc
+	targetServer.Response(200, jsonHeaders(), fakePutDocAttachmentResponse())
+
 	// fake response to push checkpoint
 	targetServer.Response(200, jsonHeaders(), fakePushCheckpointResponse(replication.targetCheckpointAddress()))
 
@@ -1029,11 +1032,11 @@ func TestOneShotReplicationWithUntypedAttachment(t *testing.T) {
 	// fake second response to changes feed
 	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed2())
 
-	// fake second reponse to bulk get
-	sourceServer.Response(200, jsonHeadersMultipart(boundary1), fakeBulkGetResponse2(boundary1))
-
 	// fake second response to revs_diff
 	targetServer.Response(200, jsonHeaders(), fakeRevsDiff2())
+
+	// fake second reponse to bulk get
+	sourceServer.Response(200, jsonHeadersMultipart(boundary1), fakeBulkGetResponse2(boundary1))
 
 	// fake second response to bulk docs
 	targetServer.Response(200, jsonHeaders(), fakeBulkDocsResponse2())
@@ -1062,7 +1065,11 @@ func TestOneShotReplicationWithUntypedAttachment(t *testing.T) {
 
 	waitForNotification(replication, REPLICATION_PUSHED_BULK_DOCS)
 
+	waitForNotification(replication, REPLICATION_PUSHED_ATTACHMENT_DOCS)
+
 	waitForNotification(replication, REPLICATION_PUSHED_CHECKPOINT)
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
 
 	waitForNotification(replication, REPLICATION_STOPPED)
 

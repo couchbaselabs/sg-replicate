@@ -765,14 +765,17 @@ func ReadBulkGetResponse(resp *http.Response, logger loggerFunction) ([]Document
 				}
 				logger("Replicate", "nestedPart: %v.  Header: %v", nestedPart, nestedPart.Header)
 				nestedPartContentTypes := nestedPart.Header["Content-Type"]
-				if nestedPartContentTypes == nil {
-					logger("Replicate", "skipping attachment with no defined content type. Header: %v", nestedPart.Header)
-					continue
+
+				nestedContentType := ""
+				if nestedPartContentTypes != nil {
+					var nestedAttrs map[string]string
+					nestedPartContentType := nestedPartContentTypes[0]
+					nestedContentType, nestedAttrs, _ = mime.ParseMediaType(nestedPartContentType)
+					logger("Replicate", "nestedContentType: %v", nestedContentType)
+					logger("Replicate", "nestedAttrs: %v", nestedAttrs)
+				} else{
+					logger("Replicate", "processing nestedPart with no defined content type. Header: %v", nestedPart.Header)
 				}
-				nestedPartContentType := nestedPartContentTypes[0]
-				nestedContentType, nestedAttrs, _ := mime.ParseMediaType(nestedPartContentType)
-				logger("Replicate", "nestedContentType: %v", nestedContentType)
-				logger("Replicate", "nestedAttrs: %v", nestedAttrs)
 
 				switch nestedContentType {
 				case "application/json":
