@@ -774,7 +774,7 @@ func ReadBulkGetResponse(resp *http.Response, logger loggerFunction) ([]Document
 					nestedContentType, nestedAttrs, _ = mime.ParseMediaType(nestedPartContentType)
 					logger("Replicate", "nestedContentType: %v", nestedContentType)
 					logger("Replicate", "nestedAttrs: %v", nestedAttrs)
-				} else{
+				} else {
 					logger("Replicate", "processing nestedPart with no defined content type. Header: %v", nestedPart.Header)
 				}
 

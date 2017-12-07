@@ -4,10 +4,10 @@ import (
 	"strings"
 	"testing"
 
+	"fmt"
 	"github.com/couchbase/clog"
 	"github.com/couchbaselabs/go.assert"
 	sgreplicate "github.com/couchbaselabs/sg-replicate"
-	"fmt"
 )
 
 func init() {
@@ -44,14 +44,13 @@ func TestParseConfig(t *testing.T) {
 	assert.True(t, err == nil)
 	assert.Equals(t, len(replicationsConfig.Replications), 2)
 
-
 	var (
-		checkersReplication sgreplicate.ReplicationParameters
+		checkersReplication               sgreplicate.ReplicationParameters
 		checkersOtherDirectionReplication sgreplicate.ReplicationParameters
 	)
 
 	for _, replication := range replicationsConfig.Replications {
-		switch  replication.ReplicationId {
+		switch replication.ReplicationId {
 		case "checkers":
 			checkersReplication = replication
 		case "checkers-other-direction":

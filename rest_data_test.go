@@ -61,32 +61,30 @@ func TestFilterRemovedDocs(t *testing.T) {
 
 func TestBulkDocsHaveRecoverableErrors(t *testing.T) {
 
-
 	docRevPairsWithRecoverableErrors := []DocumentRevisionPair{
 		{
-			Id: "foo",
+			Id:       "foo",
 			Revision: "1-324234",
-			Error: "temporary failure",
-			Status: 503,
+			Error:    "temporary failure",
+			Status:   503,
 		},
 		{
-			Id: "foo2",
+			Id:       "foo2",
 			Revision: "3-3234",
 		},
 	}
 
 	assert.True(t, bulkDocsHaveRecoverableErrors(docRevPairsWithRecoverableErrors))
 
-
 	docRevPairsWithNonRecoverableErrors := []DocumentRevisionPair{
 		{
-			Id: "foo",
+			Id:       "foo",
 			Revision: "1-324234",
-			Error: "internal error",
-			Status: 500,
+			Error:    "internal error",
+			Status:   500,
 		},
 		{
-			Id: "foo2",
+			Id:       "foo2",
 			Revision: "3-3234",
 		},
 	}
@@ -95,13 +93,11 @@ func TestBulkDocsHaveRecoverableErrors(t *testing.T) {
 
 	docRevPairsWithNoErrors := []DocumentRevisionPair{
 		{
-			Id: "foo2",
+			Id:       "foo2",
 			Revision: "3-3234",
 		},
 	}
 
 	assert.False(t, bulkDocsHaveRecoverableErrors(docRevPairsWithNoErrors))
-
-
 
 }
