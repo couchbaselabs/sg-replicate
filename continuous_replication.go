@@ -77,10 +77,14 @@ type ContinuousReplication struct {
 
 	// The last sequenced pushed by last wrapped replication that was run
 	LastSequencePushed interface{}
+
+	// The current underlying one shot replication
+	OneShotReplication Runnable
 }
 
 type Runnable interface {
 	Start() error
+	Stop() error
 }
 
 type ReplicationFactory func(ReplicationParameters, chan ReplicationNotification) Runnable
@@ -177,10 +181,11 @@ func (r ContinuousReplication) getLongpollChangesFeedUrlSinceLastSeqPushed() str
 	return r.Parameters.getSourceChangesFeedUrl(*changesFeedParams)
 }
 
-func (r ContinuousReplication) startOneShotReplication() chan ReplicationNotification {
+func (r *ContinuousReplication) startOneShotReplication() chan ReplicationNotification {
 
 	notificationChan := make(chan ReplicationNotification)
 	replication := r.Factory(r.Parameters, notificationChan)
+	r.OneShotReplication = replication
 	replication.Start()
 	return notificationChan
 
@@ -202,6 +207,14 @@ func stateFnCatchingUp(r *ContinuousReplication) stateFnContinuous {
 		case event := <-r.EventChan:
 			switch event {
 			case STOP:
+
+				// Stop the underlying one-shot replication
+				if r.OneShotReplication != nil {
+					if err := r.OneShotReplication.Stop(); err != nil {
+						r.LogTo("Replicate", "WARNING: continuous replication got error stopping underlying one-shot replication.  Error: %v", err)
+					}
+				}
+
 				r.NotificationChan <- CANCELLED
 				return nil
 			default:
