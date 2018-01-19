@@ -65,6 +65,9 @@ func (rp ReplicationParameters) Equals(other ReplicationParameters) bool {
 	if rp.Lifecycle != other.Lifecycle {
 		return false
 	}
+	if !sliceEquals(rp.Channels, other.Channels) {
+		return false
+	}
 	return true
 }
 
@@ -77,4 +80,25 @@ func (rp ReplicationParameters) getSourceChangesFeedUrl(p ChangesFeedParams) str
 	)
 	return changesFeedUrl
 
+}
+
+// sliceEquals returns true if the elements in a exactly match those in b, ignoring the order of elements.
+func sliceEquals(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	values := make(map[string]struct{}, len(a))
+	for _, v := range a {
+		values[v] = struct{}{}
+	}
+
+	// If any values in b are not found in the values map they're not equal.
+	for _, v := range b {
+		if _, ok := values[v]; !ok {
+			return false
+		}
+	}
+
+	return true
 }
