@@ -151,7 +151,7 @@ func (r Replication) targetCheckpointAddress() string {
 	replicationParamsJsonBytes, err := json.Marshal(r.Parameters)
 	if err != nil {
 		// TODO: this should return an error rather than panicking
-		clog.Panic("Unable to generate checkpoint address. Err: %v", err)
+		clog.Panicf("Unable to generate checkpoint address. Err: %v", err)
 	}
 	replicationParamsJson := string(replicationParamsJsonBytes)
 
@@ -720,7 +720,7 @@ func ReadBulkGetResponse(resp *http.Response, logger loggerFunction) ([]Document
 	boundary := attrs["boundary"]
 
 	if mediaType != "multipart/mixed" {
-		clog.Panic("unexpected mediaType: %v", mediaType)
+		clog.Panicf("unexpected mediaType: %v", mediaType)
 	}
 
 	reader := multipart.NewReader(resp.Body, boundary)

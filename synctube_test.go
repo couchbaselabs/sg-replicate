@@ -1131,12 +1131,12 @@ func DISTestOneShotIntegrationReplication(t *testing.T) {
 
 	sourceServerUrl, err := url.Parse(sourceServerUrlStr)
 	if err != nil {
-		clog.Panic("could not parse url: %v", sourceServerUrlStr)
+		clog.Panicf("could not parse url: %v", sourceServerUrlStr)
 	}
 
 	targetServerUrl, err := url.Parse(targetServerUrlStr)
 	if err != nil {
-		clog.Panic("could not parse url: %v", targetServerUrlStr)
+		clog.Panicf("could not parse url: %v", targetServerUrlStr)
 	}
 	params := replicationParams(sourceServerUrl, targetServerUrl)
 
@@ -1346,7 +1346,7 @@ func waitForNotificationAndStop(replication *Replication, expected ReplicationSt
 				replication.LogTo("TEST", "Waiting for %v but got %v, igoring", expected, replicationNotification.Status)
 			}
 		case <-time.After(time.Second * 10):
-			clog.Panic("Timeout waiting for %v", expected)
+			clog.Panicf("Timeout waiting for %v", expected)
 		}
 	}
 
@@ -1398,7 +1398,7 @@ func waitForNotification(replication *Replication, expected ReplicationStatus) {
 			}
 
 		case <-time.After(time.Second * 10):
-			clog.Panic("Timeout waiting for %v", expected)
+			clog.Panicf("Timeout waiting for %v", expected)
 		}
 	}
 

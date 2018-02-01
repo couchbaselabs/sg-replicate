@@ -25,7 +25,7 @@ func SequenceNumberToString(sequence interface{}) string {
 		clog.To("Replicate", "sequence is a string")
 		return sequence
 	}
-	clog.Panic("Unable to convert %v to string", sequence)
+	clog.Panicf("Unable to convert %v to string", sequence)
 	return "error"
 
 }
