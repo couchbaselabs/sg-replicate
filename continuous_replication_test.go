@@ -70,7 +70,7 @@ func waitForContinuousNotification(notificationChan chan ContinuousReplicationNo
 		select {
 		case notification, ok := <-notificationChan:
 			if !ok {
-				clog.Panic("TEST", "notificationChan appears to be closed")
+				clog.Panic("TEST: notificationChan appears to be closed")
 				return
 			}
 			if notification == expected {
@@ -81,7 +81,7 @@ func waitForContinuousNotification(notificationChan chan ContinuousReplicationNo
 			}
 
 		case <-time.After(time.Second * 10):
-			clog.Panic("Timeout waiting for %v", expected)
+			clog.Panicf("Timeout waiting for %v", expected)
 		}
 	}
 
@@ -218,12 +218,12 @@ func DISTestContinuousReplicationIntegration(t *testing.T) {
 
 	sourceServerUrl, err := url.Parse(sourceServerUrlStr)
 	if err != nil {
-		clog.Panic("could not parse url: %v", sourceServerUrlStr)
+		clog.Panicf("could not parse url: %v", sourceServerUrlStr)
 	}
 
 	targetServerUrl, err := url.Parse(targetServerUrlStr)
 	if err != nil {
-		clog.Panic("could not parse url: %v", targetServerUrlStr)
+		clog.Panicf("could not parse url: %v", targetServerUrlStr)
 	}
 	params := replicationParams(sourceServerUrl, targetServerUrl)
 
@@ -241,7 +241,7 @@ func DISTestContinuousReplicationIntegration(t *testing.T) {
 		select {
 		case notification, ok := <-notificationChan:
 			if !ok {
-				clog.Panic("TEST", "notificationChan appears to be closed")
+				clog.Panic("TEST: notificationChan appears to be closed")
 				return
 			}
 			clog.To("TEST", "Got notification %v", notification)
