@@ -61,7 +61,7 @@ type ContinuousReplication struct {
 	LoggingReplication
 
 	// Stats of running replication
-	ReplicationStats ReplicationStats
+	ReplicationStats *ReplicationStats
 
 	// the notifications we send out to clients of this api
 	NotificationChan chan ContinuousReplicationNotification
@@ -109,7 +109,7 @@ func (r ContinuousReplication) Stop() error {
 	return nil
 }
 
-func (r *ContinuousReplication) GetStats() ReplicationStats {
+func (r *ContinuousReplication) GetStats() *ReplicationStats {
 	return r.ReplicationStats
 }
 
@@ -210,8 +210,8 @@ func stateFnCatchingUp(r *ContinuousReplication) stateFnContinuous {
 		case notification := <-notificationChan:
 			switch notification.Status {
 			case REPLICATION_STOPPED:
-				r.LogTo("Replicate", "Replication stopped, caught up")
-				stats := notification.Data.(ReplicationStats)
+				r.LogTo("Replicate", "Replication stopped, caqught up")
+				stats := notification.Data.(*ReplicationStats)
 				r.LastSequencePushed = stats.GetEndLastSeq()
 				r.ReplicationStats.AddDocsRead(stats.GetDocsRead())
 				r.ReplicationStats.AddDocsWritten(stats.GetDocsWritten())

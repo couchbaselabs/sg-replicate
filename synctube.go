@@ -22,13 +22,13 @@ var globalClient *http.Client
 
 // Interface for interacting with either Replication or ContinuousReplication
 type SGReplication interface {
-	GetStats() ReplicationStats
+	GetStats() *ReplicationStats
 	Stop() error
 }
 
 type Replication struct {
 	LoggingReplication      // ReplicationParams are inside this embedded struct (TODO: fix this, it's confusing)
-	Stats                   ReplicationStats
+	Stats                   *ReplicationStats
 	EventChan               chan ReplicationEvent
 	NotificationChan        chan ReplicationNotification
 	FetchedTargetCheckpoint Checkpoint
@@ -55,6 +55,7 @@ func NewReplication(params ReplicationParameters, notificationChan chan Replicat
 		LoggingReplication: LoggingReplication{params},
 		EventChan:          eventChan,
 		NotificationChan:   notificationChan,
+		Stats:              &ReplicationStats{},
 	}
 
 	// spawn a go-routine that reads from event channel and acts on events
@@ -74,7 +75,7 @@ func (r Replication) Stop() error {
 	return r.sendEventWithTimeout(NewReplicationEvent(REPLICATION_STOP))
 }
 
-func (r *Replication) GetStats() ReplicationStats {
+func (r *Replication) GetStats() *ReplicationStats {
 	return r.Stats
 }
 
@@ -774,7 +775,7 @@ func ReadBulkGetResponse(resp *http.Response, logger loggerFunction) ([]Document
 					nestedContentType, nestedAttrs, _ = mime.ParseMediaType(nestedPartContentType)
 					logger("Replicate", "nestedContentType: %v", nestedContentType)
 					logger("Replicate", "nestedAttrs: %v", nestedAttrs)
-				} else{
+				} else {
 					logger("Replicate", "processing nestedPart with no defined content type. Header: %v", nestedPart.Header)
 				}
 

@@ -24,7 +24,7 @@ type MockOneShotReplication struct {
 	// fake checkpoint sent in the REPLICATION_STOPPED notification
 	fakeCheckpoint interface{}
 
-	fakeStats ReplicationStats
+	fakeStats *ReplicationStats
 }
 
 func (r MockOneShotReplication) Start() error {
