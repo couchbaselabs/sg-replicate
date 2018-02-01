@@ -95,6 +95,7 @@ func NewContinuousReplication(params ReplicationParameters, factory ReplicationF
 		EventChan:                   eventChan,
 		Factory:                     factory,
 		AbortedReplicationRetryTime: retryTime,
+		ReplicationStats:            &ReplicationStats{},
 	}
 
 	// spawn a go-routine that reads from event channel and acts on events
@@ -210,7 +211,7 @@ func stateFnCatchingUp(r *ContinuousReplication) stateFnContinuous {
 		case notification := <-notificationChan:
 			switch notification.Status {
 			case REPLICATION_STOPPED:
-				r.LogTo("Replicate", "Replication stopped, caqught up")
+				r.LogTo("Replicate", "Replication stopped, caught up")
 				stats := notification.Data.(*ReplicationStats)
 				r.LastSequencePushed = stats.GetEndLastSeq()
 				r.ReplicationStats.AddDocsRead(stats.GetDocsRead())
