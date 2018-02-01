@@ -70,7 +70,7 @@ func waitForContinuousNotification(notificationChan chan ContinuousReplicationNo
 		select {
 		case notification, ok := <-notificationChan:
 			if !ok {
-				clog.To("TEST", "notificationChan appears to be closed")
+				clog.Panic("TEST: notificationChan appears to be closed")
 				return
 			}
 			if notification == expected {
@@ -241,7 +241,7 @@ func DISTestContinuousReplicationIntegration(t *testing.T) {
 		select {
 		case notification, ok := <-notificationChan:
 			if !ok {
-				clog.Panic("TEST", "notificationChan appears to be closed")
+				clog.Panic("TEST: notificationChan appears to be closed")
 				return
 			}
 			clog.To("TEST", "Got notification %v", notification)
