@@ -1362,8 +1362,8 @@ func waitForReplicationStoppedNotification(replication *Replication) (remoteChec
 				return
 			}
 			if replicationNotification.Status == REPLICATION_STOPPED {
-				stats := replicationNotification.Data.(ReplicationStats)
-				remoteCheckpoint = (&stats).GetEndLastSeq()
+				stats := replicationNotification.Data.(*ReplicationStats)
+				remoteCheckpoint = stats.GetEndLastSeq()
 				return
 			}
 		case <-time.After(time.Second * 10):
