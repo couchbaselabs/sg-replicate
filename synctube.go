@@ -95,6 +95,11 @@ func StartOneShotReplication(params ReplicationParameters) *Replication {
 }
 
 func (r *Replication) WaitUntilDone() (ReplicationStatus, error) {
+
+	// Throttle the loop slightly to ease off CPU
+	throttle := time.NewTicker(time.Millisecond * 10)
+	defer throttle.Stop()
+
 	for {
 		select {
 		case replicationNotification := <-r.NotificationChan:
@@ -108,6 +113,8 @@ func (r *Replication) WaitUntilDone() (ReplicationStatus, error) {
 		case <-time.After(time.Second * 300):
 			return REPLICATION_ABORTED, fmt.Errorf("Replication timed out")
 		}
+
+		<-throttle.C
 	}
 }
 
