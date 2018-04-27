@@ -278,7 +278,7 @@ func TestOneShotReplicationGetRevsDiffFailed(t *testing.T) {
 
 func TestOneShotReplicationGetRevsDiffEmpty(t *testing.T) {
 
-	sourceServer, targetServer := fakeServers(6017, 6016)
+	sourceServer, targetServer := fakeServers(6023, 6022)
 
 	params := replicationParams(sourceServer.URL, targetServer.URL)
 
@@ -643,7 +643,7 @@ func TestOneShotReplicationBulkDocsTemporaryError(t *testing.T) {
 // Test for SG #3387: sg-replicate should skip partial bulk_docs errors if status != 503
 func TestOneShotReplicationBulkDocsPermanentError(t *testing.T) {
 
-	sourceServer, targetServer := fakeServers(6015, 6014)
+	sourceServer, targetServer := fakeServers(6017, 6016)
 
 	params := replicationParams(sourceServer.URL, targetServer.URL)
 
