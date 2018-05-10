@@ -278,7 +278,7 @@ func TestOneShotReplicationGetRevsDiffFailed(t *testing.T) {
 
 func TestOneShotReplicationGetRevsDiffEmpty(t *testing.T) {
 
-	sourceServer, targetServer := fakeServers(6017, 6016)
+	sourceServer, targetServer := fakeServers(6023, 6022)
 
 	params := replicationParams(sourceServer.URL, targetServer.URL)
 
@@ -620,6 +620,60 @@ func TestOneShotReplicationBulkDocsTemporaryError(t *testing.T) {
 	waitForNotification(replication, REPLICATION_FETCHED_REVS_DIFF)
 
 	waitForNotification(replication, REPLICATION_FETCHED_BULK_GET)
+
+	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
+
+	assert.Equals(t, replication.FetchedTargetCheckpoint.Revision, "0-1")
+
+	waitForNotification(replication, REPLICATION_FETCHED_REVS_DIFF)
+
+	waitForNotification(replication, REPLICATION_FETCHED_BULK_GET)
+
+	waitForNotification(replication, REPLICATION_PUSHED_BULK_DOCS)
+
+	replication.Stop()
+
+	waitForNotification(replication, REPLICATION_CANCELLED)
+
+	assertNotificationChannelClosed(notificationChan)
+
+}
+
+
+// Test for SG #3387: sg-replicate should skip partial bulk_docs errors if status != 503
+func TestOneShotReplicationBulkDocsPermanentError(t *testing.T) {
+
+	sourceServer, targetServer := fakeServers(6017, 6016)
+
+	params := replicationParams(sourceServer.URL, targetServer.URL)
+
+	notificationChan := make(chan ReplicationNotification)
+
+	// create a new replication and start it
+	replication := NewReplication(params, notificationChan)
+
+	// fake response to get checkpoint
+	targetServer.Response(200, jsonHeaders(), fakeCheckpointResponse(replication.targetCheckpointAddress(), "1"))
+
+	// fake response to changes feed
+	lastSequence := "3"
+	sourceServer.Response(200, jsonHeaders(), fakeChangesFeed(lastSequence))
+
+	// fake response to bulk get
+	boundary := fakeBoundary()
+	sourceServer.Response(200, jsonHeadersMultipart(boundary), fakeBulkGetResponse(boundary))
+
+	// fake response to revs_diff
+	targetServer.Response(200, jsonHeaders(), fakeRevsDiff())
+
+	// fake response to bulk docs with errors
+	targetServer.Response(200, jsonHeaders(), fakeBulkDocsResponseWithPermanentErrors())
+
+	replication.Start()
+
+	// expect to get a replication active event
+	replicationNotification := <-notificationChan
+	assert.Equals(t, replicationNotification.Status, REPLICATION_ACTIVE)
 
 	waitForNotification(replication, REPLICATION_FETCHED_CHECKPOINT)
 
@@ -1329,6 +1383,10 @@ func fakeBulkDocsResponse2() string {
 
 func fakeBulkDocsResponseWithTemporaryErrors() string {
 	return `[{"id":"doc4","error":"Service Unavailable","reason":"Temporary Service Unavailable", "status":503}]`
+}
+
+func fakeBulkDocsResponseWithPermanentErrors() string {
+	return `[{"id":"doc4","error":"forbidden","reason":"Document Rejected By Sync Function", "status":403},{"id":"doc5","rev":"1-786e"}]`
 }
 
 func waitForNotificationAndStop(replication *Replication, expected ReplicationStatus) {
