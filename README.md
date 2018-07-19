@@ -40,11 +40,6 @@ $ go build && ./cli
 * Stateless -- can be interrupted/restarted anytime without negative side effects.
 * Filter replications using channels.
 
-# Limitations
-
-* Only works on recent versions of Sync Gateway (after commit [50d30eb3d](https://github.com/couchbase/sync_gateway/commit/50d30eb3d) on March 7, 2014)
-* Requires access to Sync Gateway Admin port (4985)
-	
 # Documentation
 
 [![GoDoc](https://godoc.org/github.com/couchbaselabs/sg-replicate?status.png)](https://godoc.org/github.com/couchbaselabs/sg-replicate)
