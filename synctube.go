@@ -9,13 +9,13 @@ import (
 	"io/ioutil"
 	"mime"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"net/textproto"
 	"os"
 	"time"
 
 	"github.com/couchbase/clog"
-	"github.com/mreiferson/go-httpclient"
 )
 
 var globalClient *http.Client
@@ -39,12 +39,19 @@ type Replication struct {
 }
 
 func init() {
-	t := &httpclient.Transport{
-		ConnectTimeout:        60 * time.Second,
-		RequestTimeout:        1 * time.Hour,
-		ResponseHeaderTimeout: 60 * time.Second,
+	// Take a copy of the default Transport and modify some timeouts
+	t := *http.DefaultTransport.(*http.Transport)
+	t.ResponseHeaderTimeout = 60 * time.Second
+	t.DialContext = (&net.Dialer{
+		Timeout:   60 * time.Second,
+		KeepAlive: 30 * time.Second,
+		DualStack: true,
+	}).DialContext
+
+	globalClient = &http.Client{
+		Timeout:   1 * time.Hour,
+		Transport: &t,
 	}
-	globalClient = &http.Client{Transport: t}
 }
 
 func NewReplication(params ReplicationParameters, notificationChan chan ReplicationNotification) *Replication {
@@ -199,9 +206,8 @@ func (r Replication) fetchTargetCheckpoint() {
 
 	destUrl := r.getCheckpointUrl()
 
-	client := globalClient
 	req, _ := http.NewRequest("GET", destUrl, nil)
-	resp, err := client.Do(req)
+	resp, err := globalClient.Do(req)
 	r.LogTo("Replicate", "resp: %v, err: %v", resp, err)
 
 	if err != nil {
@@ -271,9 +277,8 @@ func (r Replication) fetchChangesFeed() {
 
 	destUrl := r.getNormalChangesFeedUrl()
 
-	client := globalClient
 	req, _ := http.NewRequest("GET", destUrl, nil)
-	resp, err := client.Do(req)
+	resp, err := globalClient.Do(req)
 	r.LogTo("Replicate", "changes feed resp: %v, err: %v", resp, err)
 	if err != nil {
 		r.LogTo("Replicate", "Error getting changes feed: %v", err)
@@ -329,9 +334,7 @@ func (r Replication) fetchRevsDiff() {
 		return
 	}
 
-	client := globalClient
-
-	resp, err := client.Do(req)
+	resp, err := globalClient.Do(req)
 	r.LogTo("Replicate", "revs diff resp: %v, err: %v", resp, err)
 	if err != nil {
 		r.LogTo("Replicate", "Error getting revs diff: %v", err)
@@ -389,9 +392,7 @@ func (r Replication) fetchBulkGet() {
 		return
 	}
 
-	client := globalClient
-
-	resp, err := client.Do(req)
+	resp, err := globalClient.Do(req)
 	r.LogTo("Replicate", "bulk get resp: %v, err: %v", resp, err)
 	if err != nil {
 		r.LogTo("Replicate", "Error getting bulk get: %v", err)
@@ -485,9 +486,7 @@ func (r Replication) pushAttachmentDocs() {
 		contentType := fmt.Sprintf("multipart/related; boundary=%q", writer.Boundary())
 		req.Header.Set("Content-Type", contentType)
 
-		client := globalClient
-
-		resp, err := client.Do(req)
+		resp, err := globalClient.Do(req)
 		r.LogTo("Replicate", "bulk get resp: %v, err: %v", resp, err)
 		if err != nil {
 			r.sendErrorEvent(failed, "Performing request", err)
@@ -540,9 +539,7 @@ func (r Replication) pushBulkDocs() {
 		return
 	}
 
-	client := globalClient
-
-	resp, err := client.Do(req)
+	resp, err := globalClient.Do(req)
 	r.LogTo("Replicate", "bulk get resp: %v, err: %v", resp, err)
 	if err != nil {
 		r.LogTo("Replicate", "Error getting bulk get: %v", err)
@@ -612,9 +609,7 @@ func (r Replication) pushCheckpoint() {
 		return
 	}
 
-	client := globalClient
-
-	resp, err := client.Do(req)
+	resp, err := globalClient.Do(req)
 	r.LogTo("Replicate", "push checkpoint resp: %+v, err: %v", resp, err)
 	if err != nil {
 		r.LogTo("Replicate", "Error pushing checkpoint: %v", err)
