@@ -42,6 +42,7 @@ func init() {
 	// Take a copy of the default Transport and modify some timeouts
 	t := *http.DefaultTransport.(*http.Transport)
 	t.ResponseHeaderTimeout = 60 * time.Second
+	t.MaxIdleConnsPerHost = 100
 	t.DialContext = (&net.Dialer{
 		Timeout:   60 * time.Second,
 		KeepAlive: 30 * time.Second,
