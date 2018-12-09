@@ -8,43 +8,43 @@ type ReplicationStats struct {
 	docsWritten                uint32
 	docWriteFailures           uint32
 	startLastSeq               uint32
-	numAttachmentsTransferred  uint32
-	attachmentBytesTransferred uint32
-	docsCheckedSent            uint32
+	numAttachmentsTransferred  uint64
+	attachmentBytesTransferred uint64
+	docsCheckedSent            uint64
 	endLastSeq                 interface{}
 }
 
-func (rs *ReplicationStats) GetNumAttachmentsTransferred() uint32 {
+func (rs *ReplicationStats) GetNumAttachmentsTransferred() uint64 {
 	rs.lock.RLock()
 	defer rs.lock.RUnlock()
 	return rs.numAttachmentsTransferred
 }
 
-func (rs *ReplicationStats) AddNumAttachmentsTransferred(delta uint32) {
+func (rs *ReplicationStats) AddNumAttachmentsTransferred(delta uint64) {
 	rs.lock.Lock()
 	defer rs.lock.Unlock()
 	rs.numAttachmentsTransferred += delta
 }
 
-func (rs *ReplicationStats) GetAttachmentBytesTransferred() uint32 {
+func (rs *ReplicationStats) GetAttachmentBytesTransferred() uint64 {
 	rs.lock.RLock()
 	defer rs.lock.RUnlock()
 	return rs.attachmentBytesTransferred
 }
 
-func (rs *ReplicationStats) AddAttachmentBytesTransferred(delta uint32) {
+func (rs *ReplicationStats) AddAttachmentBytesTransferred(delta uint64) {
 	rs.lock.Lock()
 	defer rs.lock.Unlock()
 	rs.attachmentBytesTransferred += delta
 }
 
-func (rs *ReplicationStats) GetDocsCheckedSent() uint32 {
+func (rs *ReplicationStats) GetDocsCheckedSent() uint64 {
 	rs.lock.RLock()
 	defer rs.lock.RUnlock()
 	return rs.docsCheckedSent
 }
 
-func (rs *ReplicationStats) AddDocsCheckedSent(delta uint32) {
+func (rs *ReplicationStats) AddDocsCheckedSent(delta uint64) {
 	rs.lock.Lock()
 	defer rs.lock.Unlock()
 	rs.docsCheckedSent += delta
