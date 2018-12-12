@@ -216,6 +216,10 @@ func stateFnCatchingUp(r *ContinuousReplication) stateFnContinuous {
 				r.LastSequencePushed = stats.GetEndLastSeq()
 				r.ReplicationStats.AddDocsRead(stats.GetDocsRead())
 				r.ReplicationStats.AddDocsWritten(stats.GetDocsWritten())
+				r.ReplicationStats.AddNumAttachmentsTransferred(stats.GetNumAttachmentsTransferred())
+				r.ReplicationStats.AddAttachmentBytesTransferred(stats.GetAttachmentBytesTransferred())
+				r.ReplicationStats.AddDocsCheckedSent(stats.GetDocsCheckedSent())
+
 				return stateFnWaitNewChanges
 			case REPLICATION_ABORTED:
 				r.LogTo("Replicate", "Replication aborted .. try again")

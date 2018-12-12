@@ -326,6 +326,8 @@ func (r Replication) fetchRevsDiff() {
 		return
 	}
 
+	r.Stats.AddDocsCheckedSent(uint64(len(revsDiffMap)))
+
 	req, err := http.NewRequest("POST", revsDiffUrl, bytes.NewReader(revsDiffMapJson))
 	if err != nil {
 		r.LogTo("Replicate", "Error creating request %v", revsDiffMapJson)
@@ -469,8 +471,10 @@ func (r Replication) pushAttachmentDocs() {
 				r.sendErrorEvent(failed, "Writing part", err)
 				return
 			}
+			r.Stats.AddNumAttachmentsTransferred(uint64(len(attachment.Data)))
 
 		}
+		r.Stats.AddNumAttachmentsTransferred(uint64(len(doc.Attachments)))
 
 		err = writer.Close()
 		if err != nil {
