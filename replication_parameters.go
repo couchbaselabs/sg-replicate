@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-
-	"github.com/couchbase/clog"
 )
 
 type ReplicationLifecycle int
@@ -19,7 +17,6 @@ func (l *ReplicationLifecycle) UnmarshalJSON(data []byte) error {
 
 	var s string
 	error := json.Unmarshal(data, &s)
-	clog.To("Replicate", "replication lifecycle string: %v", s)
 	if error == nil {
 		switch s {
 		case "oneshot":
@@ -35,6 +32,7 @@ func (l *ReplicationLifecycle) UnmarshalJSON(data []byte) error {
 const DefaultChangesFeedLimit = 50
 
 type ReplicationParameters struct {
+	LogFn            LogFn `json:"-"`
 	ReplicationId    string
 	Source           *url.URL
 	SourceDb         string

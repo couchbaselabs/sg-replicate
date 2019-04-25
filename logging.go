@@ -1,35 +1,45 @@
 package sgreplicate
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/couchbase/clog"
 )
 
-type LoggingReplication struct {
-	Parameters ReplicationParameters
+const logKey = "Replicate"
+
+func (r *Replication) log(level clog.LogLevel, format string, args ...interface{}) {
+	log(r.Parameters, level, format, args)
 }
 
-func (lr LoggingReplication) LogTo(key string, format string, args ...interface{}) {
-	clog.To(key, prefixWithReplicationId(lr, format), args...)
+func (r *ContinuousReplication) log(level clog.LogLevel, format string, args ...interface{}) {
+	log(r.Parameters, level, format, args)
 }
 
-func (lr LoggingReplication) Warn(args ...interface{}) {
-	if clog.Level <= clog.LevelWarning {
-		clog.Warn(prefixWithReplicationId(lr, fmt.Sprint(args...)))
+func log(param ReplicationParameters, level clog.LogLevel, format string, args ...interface{}) {
+	if param.LogFn == nil {
+		param.LogFn = defaultLogFn
+	}
+	if param.ReplicationId == "" {
+		param.LogFn(level, format, args...)
+	} else {
+		param.LogFn(level, "["+param.ReplicationId+"]"+format, args...)
 	}
 }
 
-func prefixWithReplicationId(lr LoggingReplication, raw string) string {
-
-	replicationId := lr.Parameters.ReplicationId
-
-	if replicationId != "" {
-		return strings.Join([]string{"[", replicationId, "] ", raw}, "")
+var defaultLogFn = func(level clog.LogLevel, format string, args ...interface{}) {
+	if clog.GetLevel() <= level {
+		switch level {
+		case clog.LevelDebug:
+			clog.Debug(args...)
+		case clog.LevelNormal:
+			clog.To(logKey, format, args...)
+		case clog.LevelWarning:
+			clog.Debugf(format, args...)
+		case clog.LevelError:
+			clog.Errorf(format, args)
+		case clog.LevelPanic:
+			clog.Panicf(format, args...)
+		}
 	}
-
-	return raw
 }
 
-type loggerFunction func(key string, format string, args ...interface{})
+type LogFn func(level clog.LogLevel, format string, args ...interface{})
