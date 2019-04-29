@@ -18,14 +18,14 @@ func log(param ReplicationParameters, level clog.LogLevel, format string, args .
 	if param.LogFn == nil {
 		param.LogFn = defaultLogFn
 	}
-	if param.ReplicationId == "" {
-		param.LogFn(level, format, args...)
-	} else {
-		param.LogFn(level, "["+param.ReplicationId+"]"+format, args...)
+
+	if param.ReplicationId != "" {
+		format = "[" + param.ReplicationId + "] " + format
 	}
+	param.LogFn(level, format, args...)
 }
 
-var defaultLogFn = func(level clog.LogLevel, format string, args ...interface{}) {
+func defaultLogFn(level clog.LogLevel, format string, args ...interface{}) {
 	if clog.GetLevel() <= level {
 		switch level {
 		case clog.LevelDebug:
@@ -35,7 +35,7 @@ var defaultLogFn = func(level clog.LogLevel, format string, args ...interface{})
 		case clog.LevelWarning:
 			clog.Debugf(format, args...)
 		case clog.LevelError:
-			clog.Errorf(format, args)
+			clog.Errorf(format, args...)
 		case clog.LevelPanic:
 			clog.Panicf(format, args...)
 		}
