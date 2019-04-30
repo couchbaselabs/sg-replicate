@@ -88,6 +88,7 @@ type ReplicationFactory func(ReplicationParameters, chan ReplicationNotification
 func NewContinuousReplication(params ReplicationParameters, factory ReplicationFactory, notificationChan chan ContinuousReplicationNotification, retryTime time.Duration) *ContinuousReplication {
 
 	eventChan := make(chan ContinuousReplicationEvent)
+
 	if params.LogFn == nil {
 		params.LogFn = defaultLogFn
 	}

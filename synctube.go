@@ -59,15 +59,15 @@ func NewReplication(params ReplicationParameters, notificationChan chan Replicat
 
 	eventChan := make(chan ReplicationEvent)
 
+	if params.LogFn == nil {
+		params.LogFn = defaultLogFn
+	}
+
 	replication := &Replication{
 		Parameters:       params,
 		EventChan:        eventChan,
 		NotificationChan: notificationChan,
 		Stats:            &ReplicationStats{},
-	}
-
-	if params.LogFn == nil {
-		params.LogFn = defaultLogFn
 	}
 
 	// spawn a go-routine that reads from event channel and acts on events

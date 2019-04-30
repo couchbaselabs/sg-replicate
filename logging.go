@@ -15,10 +15,6 @@ func (r *ContinuousReplication) log(level clog.LogLevel, format string, args ...
 }
 
 func log(param ReplicationParameters, level clog.LogLevel, format string, args ...interface{}) {
-	if param.LogFn == nil {
-		param.LogFn = defaultLogFn
-	}
-
 	if param.ReplicationId != "" {
 		format = "[" + param.ReplicationId + "] " + format
 	}
@@ -29,7 +25,7 @@ func defaultLogFn(level clog.LogLevel, format string, args ...interface{}) {
 	if clog.GetLevel() <= level {
 		switch level {
 		case clog.LevelDebug:
-			clog.Debug(args...)
+			clog.Debugf(format, args...)
 		case clog.LevelNormal:
 			clog.To(logKey, format, args...)
 		case clog.LevelWarning:
