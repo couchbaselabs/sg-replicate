@@ -1,12 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
-	"fmt"
 	"github.com/couchbase/clog"
-	"github.com/couchbaselabs/go.assert"
+	assert "github.com/couchbaselabs/go.assert"
 	sgreplicate "github.com/couchbaselabs/sg-replicate"
 )
 

@@ -128,11 +128,11 @@ func (r *ContinuousReplication) processEvents() {
 	defer close(r.NotificationChan) // No more notifications
 
 	for state := stateFnCatchingUp; state != nil; {
-		r.log(clog.LevelNormal, "Replicate", "continuous repl state: %v", state)
+		r.log(clog.LevelNormal, "continuous repl state: %v", state)
 		state = state(r)
-		r.log(clog.LevelNormal, "Replicate", "continuous repl new state: %v", state)
+		r.log(clog.LevelNormal, "continuous repl new state: %v", state)
 	}
-	r.log(clog.LevelNormal, "Replicate", "continuous repl processEvents() is done")
+	r.log(clog.LevelNormal, "continuous repl processEvents() is done")
 
 }
 
