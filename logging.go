@@ -29,7 +29,7 @@ func defaultLogFn(level clog.LogLevel, format string, args ...interface{}) {
 		case clog.LevelNormal:
 			clog.To(logKey, format, args...)
 		case clog.LevelWarning:
-			clog.Debugf(format, args...)
+			clog.Warnf(format, args...)
 		case clog.LevelError:
 			clog.Errorf(format, args...)
 		case clog.LevelPanic:
