@@ -370,7 +370,7 @@ func TestOneShotReplicationGetRevsDiffHappyPath(t *testing.T) {
 		if strings.Contains(path, "/db/_changes") {
 
 			params, err := url.ParseQuery(savedReq.Request.URL.RawQuery)
-			replication.log(clog.LevelNormal, "params: %v", params)
+			replication.log(clog.LevelDebug, "params: %v", params)
 			assert.True(t, err == nil)
 			assert.Equals(t, params["since"][0], lastSequence)
 		}
@@ -1201,13 +1201,13 @@ func DISTestOneShotIntegrationReplication(t *testing.T) {
 	for {
 		select {
 		case replicationNotification := <-notificationChan:
-			replication.log(clog.LevelNormal, "Got notification %v", replicationNotification)
+			replication.log(clog.LevelDebug, "Got notification %v", replicationNotification)
 			if replicationNotification.Status == REPLICATION_ABORTED {
 				clog.Panic("Got REPLICATION_ABORTED")
 				return
 			}
 			if replicationNotification.Status == REPLICATION_STOPPED {
-				replication.log(clog.LevelNormal, "Replication stopped")
+				replication.log(clog.LevelDebug, "Replication stopped")
 				return
 			}
 		case <-time.After(time.Second * 10):
@@ -1389,18 +1389,18 @@ func fakeBulkDocsResponseWithPermanentErrors() string {
 }
 
 func waitForNotificationAndStop(replication *Replication, expected ReplicationStatus) {
-	replication.log(clog.LevelNormal, "Waiting for %v", expected)
+	replication.log(clog.LevelDebug, "Waiting for %v", expected)
 	notificationChan := replication.NotificationChan
 
 	for {
 		select {
 		case replicationNotification := <-notificationChan:
 			if replicationNotification.Status == expected {
-				replication.log(clog.LevelNormal, "Got %v", expected)
+				replication.log(clog.LevelDebug, "Got %v", expected)
 				replication.Stop()
 				return
 			} else {
-				replication.log(clog.LevelNormal, "Waiting for %v but got %v, igoring", expected, replicationNotification.Status)
+				replication.log(clog.LevelDebug, "Waiting for %v but got %v, igoring", expected, replicationNotification.Status)
 			}
 		case <-time.After(time.Second * 10):
 			clog.Panicf("Timeout waiting for %v", expected)
@@ -1431,7 +1431,7 @@ func waitForReplicationStoppedNotification(replication *Replication) (remoteChec
 }
 
 func waitForNotification(replication *Replication, expected ReplicationStatus) {
-	replication.log(clog.LevelNormal, "Waiting for %v", expected)
+	replication.log(clog.LevelDebug, "Waiting for %v", expected)
 	notificationChan := replication.NotificationChan
 
 	for {
@@ -1448,10 +1448,10 @@ func waitForNotification(replication *Replication, expected ReplicationStatus) {
 				}
 			}
 			if replicationNotification.Status == expected {
-				replication.log(clog.LevelNormal, "Got %v", expected)
+				replication.log(clog.LevelDebug, "Got %v", expected)
 				return
 			} else {
-				replication.log(clog.LevelNormal, "Waiting for %v but got %v, igoring", expected, replicationNotification.Status)
+				replication.log(clog.LevelDebug, "Waiting for %v but got %v, igoring", expected, replicationNotification.Status)
 			}
 
 		case <-time.After(time.Second * 10):
@@ -1473,7 +1473,7 @@ func TestGetTargetCheckpoint(t *testing.T) {
 	params.Target = targetServer.URL
 	replication := NewReplication(params, nil)
 	targetCheckpoint := replication.targetCheckpointAddress()
-	replication.log(clog.LevelNormal, "checkpoint: %v", targetCheckpoint)
+	replication.log(clog.LevelDebug, "checkpoint: %v", targetCheckpoint)
 
 }
 
@@ -1486,7 +1486,7 @@ func TestGeneratePushCheckpointRequest(t *testing.T) {
 	// should _not_ have a _rev version
 	replication := NewReplication(ReplicationParameters{}, nil)
 	pushCheckpointRequest := replication.generatePushCheckpointRequest()
-	replication.log(clog.LevelNormal, "pushCheckpointRequest: %v", pushCheckpointRequest)
+	replication.log(clog.LevelDebug, "pushCheckpointRequest: %v", pushCheckpointRequest)
 	assert.True(t, len(pushCheckpointRequest.Revision) == 0)
 
 }

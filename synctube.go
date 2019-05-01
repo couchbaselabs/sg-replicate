@@ -739,12 +739,12 @@ func ReadBulkGetResponse(resp *http.Response, replication Replication) ([]Docume
 			return documents, fmt.Errorf("Error getting next part: %v", err)
 		}
 
-		replication.log(clog.LevelNormal, "mainPart: %v.  Header: %v", mainPart, mainPart.Header)
+		replication.log(clog.LevelDebug, "mainPart: %v.  Header: %v", mainPart, mainPart.Header)
 		mainPartContentTypes := mainPart.Header["Content-Type"] // why a slice?
 		mainPartContentType := mainPartContentTypes[0]
 		contentType, attrs, _ := mime.ParseMediaType(mainPartContentType)
-		replication.log(clog.LevelNormal, "contentType: %v", contentType)
-		replication.log(clog.LevelNormal, "boundary: %v", attrs["boundary"])
+		replication.log(clog.LevelDebug, "contentType: %v", contentType)
+		replication.log(clog.LevelDebug, "boundary: %v", attrs["boundary"])
 		switch contentType {
 		case "application/json":
 			documentBody := DocumentBody{}
@@ -769,7 +769,7 @@ func ReadBulkGetResponse(resp *http.Response, replication Replication) ([]Docume
 				} else if err != nil {
 					return documents, fmt.Errorf("Error nested nextpart: %v", err)
 				}
-				replication.log(clog.LevelNormal, "nestedPart: %v.  Header: %v", nestedPart, nestedPart.Header)
+				replication.log(clog.LevelDebug, "nestedPart: %v.  Header: %v", nestedPart, nestedPart.Header)
 				nestedPartContentTypes := nestedPart.Header["Content-Type"]
 
 				nestedContentType := ""
@@ -777,10 +777,10 @@ func ReadBulkGetResponse(resp *http.Response, replication Replication) ([]Docume
 					var nestedAttrs map[string]string
 					nestedPartContentType := nestedPartContentTypes[0]
 					nestedContentType, nestedAttrs, _ = mime.ParseMediaType(nestedPartContentType)
-					replication.log(clog.LevelNormal, "nestedContentType: %v", nestedContentType)
-					replication.log(clog.LevelNormal, "nestedAttrs: %v", nestedAttrs)
+					replication.log(clog.LevelDebug, "nestedContentType: %v", nestedContentType)
+					replication.log(clog.LevelDebug, "nestedAttrs: %v", nestedAttrs)
 				} else {
-					replication.log(clog.LevelNormal, "processing nestedPart with no defined content type. Header: %v", nestedPart.Header)
+					replication.log(clog.LevelDebug, "processing nestedPart with no defined content type. Header: %v", nestedPart.Header)
 				}
 
 				switch nestedContentType {
@@ -809,7 +809,7 @@ func ReadBulkGetResponse(resp *http.Response, replication Replication) ([]Docume
 
 			mainPart.Close()
 		default:
-			replication.log(clog.LevelNormal, "ignoring unexpected content type: %v", contentType)
+			replication.log(clog.LevelDebug, "ignoring unexpected content type: %v", contentType)
 		}
 	}
 	return documents, nil
