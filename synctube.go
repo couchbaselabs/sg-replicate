@@ -27,7 +27,7 @@ type SGReplication interface {
 }
 
 type Replication struct {
-	LoggingReplication      // ReplicationParams are inside this embedded struct (TODO: fix this, it's confusing)
+	Parameters              ReplicationParameters
 	Stats                   *ReplicationStats
 	EventChan               chan ReplicationEvent
 	NotificationChan        chan ReplicationNotification
@@ -59,11 +59,15 @@ func NewReplication(params ReplicationParameters, notificationChan chan Replicat
 
 	eventChan := make(chan ReplicationEvent)
 
+	if params.LogFn == nil {
+		params.LogFn = defaultLogFn
+	}
+
 	replication := &Replication{
-		LoggingReplication: LoggingReplication{params},
-		EventChan:          eventChan,
-		NotificationChan:   notificationChan,
-		Stats:              &ReplicationStats{},
+		Parameters:       params,
+		EventChan:        eventChan,
+		NotificationChan: notificationChan,
+		Stats:            &ReplicationStats{},
 	}
 
 	// spawn a go-routine that reads from event channel and acts on events
@@ -107,7 +111,7 @@ func (r *Replication) WaitUntilDone() (ReplicationStatus, error) {
 		select {
 		case replicationNotification := <-r.NotificationChan:
 			if replicationNotification.Status == REPLICATION_ABORTED {
-				r.LogTo("Replicate", "REPLICATION_ABORTED due to error: %v", replicationNotification.Error)
+				r.log(clog.LevelDebug, "REPLICATION_ABORTED due to error: %v", replicationNotification.Error)
 				return REPLICATION_ABORTED, fmt.Errorf("Replication Aborted due to error: %v", replicationNotification.Error)
 			}
 			if replicationNotification.Status == REPLICATION_STOPPED {
@@ -125,9 +129,9 @@ func (r *Replication) processEvents() {
 
 	for state := stateFnPreStarted; state != nil; {
 		state = state(r)
-		r.LogTo("Replicate", "new state: %v", state)
+		r.log(clog.LevelDebug, "new state: %v", state)
 	}
-	r.LogTo("Replicate", "processEvents() is done")
+	r.log(clog.LevelDebug, "processEvents() is done")
 
 }
 
@@ -160,7 +164,7 @@ func (r Replication) targetCheckpointAddress() string {
 	replicationParamsJsonBytes, err := json.Marshal(r.Parameters)
 	if err != nil {
 		// TODO: this should return an error rather than panicking
-		clog.Panicf("Unable to generate checkpoint address. Err: %v", err)
+		r.log(clog.LevelPanic, "Unable to generate checkpoint address. Err: %v", err)
 	}
 	replicationParamsJson := string(replicationParamsJsonBytes)
 
@@ -209,10 +213,10 @@ func (r Replication) fetchTargetCheckpoint() {
 
 	req, _ := http.NewRequest("GET", destUrl, nil)
 	resp, err := globalClient.Do(req)
-	r.LogTo("Replicate", "resp: %v, err: %v", resp, err)
+	r.log(clog.LevelDebug, "resp: %v, err: %v", resp, err)
 
 	if err != nil {
-		r.LogTo("Replicate", "Error getting checkpoint: %v", err)
+		r.log(clog.LevelDebug, "Error getting checkpoint: %v", err)
 		event := NewReplicationEvent(FETCH_CHECKPOINT_FAILED)
 		r.sendEventWithTimeout(event)
 		return
@@ -220,54 +224,54 @@ func (r Replication) fetchTargetCheckpoint() {
 	defer resp.Body.Close()
 	if resp.StatusCode == 404 {
 		// valid response, continue with empty remote checkpoint
-		r.LogTo("Replicate", "404 trying to get checkpoint, continue..")
+		r.log(clog.LevelDebug, "404 trying to get checkpoint, continue..")
 		event := NewReplicationEvent(FETCH_CHECKPOINT_SUCCEEDED)
 		checkpoint := Checkpoint{LastSequence: "0"}
 		event.Data = checkpoint
 		r.sendEventWithTimeout(event)
 	} else if resp.StatusCode >= 400 {
 		// we got an error, lets abort
-		r.LogTo("Replicate", "4xx error(not 404) getting checkpoint")
+		r.log(clog.LevelDebug, "4xx error(not 404) getting checkpoint")
 		event := NewReplicationEvent(FETCH_CHECKPOINT_FAILED)
 		r.sendEventWithTimeout(event)
 	} else if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		// looks like we got a valid checkpoint
-		r.LogTo("Replicate", "valid checkpoint")
+		r.log(clog.LevelDebug, "valid checkpoint")
 
 		bodyText, _ := ioutil.ReadAll(resp.Body)
-		r.LogTo("Replicate", "body: %v", string(bodyText))
+		r.log(clog.LevelDebug, "body: %v", string(bodyText))
 		checkpoint := Checkpoint{}
 		err = json.Unmarshal(bodyText, &checkpoint)
 		if err != nil {
-			r.LogTo("Replicate", "Error unmarshalling checkpoint")
+			r.log(clog.LevelDebug, "Error unmarshalling checkpoint")
 			clog.Error(err)
 			event := NewReplicationEvent(FETCH_CHECKPOINT_FAILED)
 			r.sendEventWithTimeout(event)
 			return
 		}
 		if len(checkpoint.LastSequence) == 0 {
-			r.LogTo("Replicate", "Invalid checkpoint, no lastsequence")
+			r.log(clog.LevelDebug, "Invalid checkpoint, no lastsequence")
 			event := NewReplicationEvent(FETCH_CHECKPOINT_FAILED)
 			r.sendEventWithTimeout(event)
 			return
 		}
 		expectedId := fmt.Sprintf("_local/%s", r.targetCheckpointAddress())
 		if checkpoint.Id != expectedId {
-			r.LogTo("Replicate", "Got %s, expected %s", checkpoint.Id, expectedId)
+			r.log(clog.LevelDebug, "Got %s, expected %s", checkpoint.Id, expectedId)
 			event := NewReplicationEvent(FETCH_CHECKPOINT_FAILED)
 			r.sendEventWithTimeout(event)
 			return
 		}
-		r.LogTo("Replicate", "checkpoint: %v", checkpoint.LastSequence)
+		r.log(clog.LevelDebug, "checkpoint: %v", checkpoint.LastSequence)
 		event := NewReplicationEvent(FETCH_CHECKPOINT_SUCCEEDED)
 		event.Data = checkpoint
-		r.LogTo("Replicate", "event: %v", event)
+		r.log(clog.LevelDebug, "event: %v", event)
 
 		r.sendEventWithTimeout(event)
 
 	} else {
 		// unexpected http status, abort
-		r.LogTo("Replicate", "unexpected http status %v", resp.StatusCode)
+		r.log(clog.LevelDebug, "unexpected http status %v", resp.StatusCode)
 		event := NewReplicationEvent(FETCH_CHECKPOINT_FAILED)
 		r.sendEventWithTimeout(event)
 	}
@@ -280,18 +284,18 @@ func (r Replication) fetchChangesFeed() {
 
 	req, _ := http.NewRequest("GET", destUrl, nil)
 	resp, err := globalClient.Do(req)
-	r.LogTo("Replicate", "changes feed resp: %v, err: %v", resp, err)
+	r.log(clog.LevelDebug, "changes feed resp: %v, err: %v", resp, err)
 	if err != nil {
-		r.LogTo("Replicate", "Error getting changes feed: %v", err)
+		r.log(clog.LevelDebug, "Error getting changes feed: %v", err)
 		event := NewReplicationEvent(FETCH_CHANGES_FEED_FAILED)
 		r.sendEventWithTimeout(event)
 		return
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		r.LogTo("Replicate", "Error getting changes feed.  Resp: %v", resp)
+		r.log(clog.LevelDebug, "Error getting changes feed.  Resp: %v", resp)
 		event := NewReplicationEvent(FETCH_CHANGES_FEED_FAILED)
-		r.LogTo("Replicate", "channel: %v", r.EventChan)
+		r.log(clog.LevelDebug, "channel: %v", r.EventChan)
 		r.sendEventWithTimeout(event)
 		return
 	}
@@ -300,7 +304,7 @@ func (r Replication) fetchChangesFeed() {
 	changes := Changes{}
 	err = json.Unmarshal(bodyText, &changes)
 	if err != nil {
-		r.LogTo("Replicate", "Error unmarshalling change")
+		r.log(clog.LevelDebug, "Error unmarshalling change")
 		clog.Error(err)
 		event := NewReplicationEvent(FETCH_CHANGES_FEED_FAILED)
 		r.sendEventWithTimeout(event)
@@ -308,7 +312,7 @@ func (r Replication) fetchChangesFeed() {
 	}
 	event := NewReplicationEvent(FETCH_CHANGES_FEED_SUCCEEDED)
 	event.Data = changes
-	r.LogTo("Replicate", "event: %v", event)
+	r.log(clog.LevelDebug, "event: %v", event)
 	r.sendEventWithTimeout(event)
 
 }
@@ -319,7 +323,7 @@ func (r Replication) fetchRevsDiff() {
 	revsDiffMap := generateRevsDiffMap(r.Changes)
 	revsDiffMapJson, err := json.Marshal(revsDiffMap)
 	if err != nil {
-		r.LogTo("Replicate", "Error marshaling %v", revsDiffMap)
+		r.log(clog.LevelDebug, "Error marshaling %v", revsDiffMap)
 		clog.Error(err)
 		event := NewReplicationEvent(FETCH_REVS_DIFF_FAILED)
 		r.sendEventWithTimeout(event)
@@ -330,7 +334,7 @@ func (r Replication) fetchRevsDiff() {
 
 	req, err := http.NewRequest("POST", revsDiffUrl, bytes.NewReader(revsDiffMapJson))
 	if err != nil {
-		r.LogTo("Replicate", "Error creating request %v", revsDiffMapJson)
+		r.log(clog.LevelDebug, "Error creating request %v", revsDiffMapJson)
 		clog.Error(err)
 		event := NewReplicationEvent(FETCH_REVS_DIFF_FAILED)
 		r.sendEventWithTimeout(event)
@@ -338,16 +342,16 @@ func (r Replication) fetchRevsDiff() {
 	}
 
 	resp, err := globalClient.Do(req)
-	r.LogTo("Replicate", "revs diff resp: %v, err: %v", resp, err)
+	r.log(clog.LevelDebug, "revs diff resp: %v, err: %v", resp, err)
 	if err != nil {
-		r.LogTo("Replicate", "Error getting revs diff: %v", err)
+		r.log(clog.LevelDebug, "Error getting revs diff: %v", err)
 		event := NewReplicationEvent(FETCH_REVS_DIFF_FAILED)
 		r.sendEventWithTimeout(event)
 		return
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		r.LogTo("Replicate", "Unexpected response getting revs diff: %v", resp)
+		r.log(clog.LevelDebug, "Unexpected response getting revs diff: %v", resp)
 		event := NewReplicationEvent(FETCH_REVS_DIFF_FAILED)
 		r.sendEventWithTimeout(event)
 		return
@@ -357,7 +361,7 @@ func (r Replication) fetchRevsDiff() {
 	revsDiffJson := RevsDiffResponseMap{}
 	err = json.Unmarshal(bodyText, &revsDiffJson)
 	if err != nil {
-		r.LogTo("Replicate", "Error unmarshalling json")
+		r.log(clog.LevelDebug, "Error unmarshalling json")
 		clog.Error(err)
 		event := NewReplicationEvent(FETCH_REVS_DIFF_FAILED)
 		r.sendEventWithTimeout(event)
@@ -365,7 +369,7 @@ func (r Replication) fetchRevsDiff() {
 	}
 	event := NewReplicationEvent(FETCH_REVS_DIFF_SUCCEEDED)
 	event.Data = revsDiffJson
-	r.LogTo("Replicate", "event: %v", event)
+	r.log(clog.LevelDebug, "event: %v", event)
 	r.sendEventWithTimeout(event)
 
 }
@@ -373,12 +377,12 @@ func (r Replication) fetchRevsDiff() {
 func (r Replication) fetchBulkGet() {
 
 	bulkGetUrl := r.getBulkGetUrl()
-	r.LogTo("Replicate", "bulkGetUrl %v", bulkGetUrl)
+	r.log(clog.LevelDebug, "bulkGetUrl %v", bulkGetUrl)
 	bulkGetRequest := generateBulkGetRequest(r.RevsDiff)
 
 	bulkGetRequestJson, err := json.Marshal(bulkGetRequest)
 	if err != nil {
-		r.LogTo("Replicate", "Error marshaling %v", bulkGetRequest)
+		r.log(clog.LevelDebug, "Error marshaling %v", bulkGetRequest)
 		clog.Error(err)
 		event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
 		r.sendEventWithTimeout(event)
@@ -386,9 +390,9 @@ func (r Replication) fetchBulkGet() {
 	}
 
 	req, err := http.NewRequest("POST", bulkGetUrl, bytes.NewReader(bulkGetRequestJson))
-	r.LogTo("Replicate", "bulkGet req %v", req)
+	r.log(clog.LevelDebug, "bulkGet req %v", req)
 	if err != nil {
-		r.LogTo("Replicate", "Error creating request %v", bulkGetRequestJson)
+		r.log(clog.LevelDebug, "Error creating request %v", bulkGetRequestJson)
 		clog.Error(err)
 		event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
 		r.sendEventWithTimeout(event)
@@ -396,29 +400,29 @@ func (r Replication) fetchBulkGet() {
 	}
 
 	resp, err := globalClient.Do(req)
-	r.LogTo("Replicate", "bulk get resp: %v, err: %v", resp, err)
+	r.log(clog.LevelDebug, "bulk get resp: %v, err: %v", resp, err)
 	if err != nil {
-		r.LogTo("Replicate", "Error getting bulk get: %v", err)
+		r.log(clog.LevelDebug, "Error getting bulk get: %v", err)
 		event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
 		r.sendEventWithTimeout(event)
 		return
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		r.LogTo("Replicate", "Unexpected response getting bulk get: %v", resp)
+		r.log(clog.LevelDebug, "Unexpected response getting bulk get: %v", resp)
 		event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
 		r.sendEventWithTimeout(event)
 		return
 	}
 
-	documents, err := ReadBulkGetResponse(resp, r.LogTo)
+	documents, err := ReadBulkGetResponse(resp, r)
 	if err == nil {
 		event := NewReplicationEvent(FETCH_BULK_GET_SUCCEEDED)
 		event.Data = documents
 		r.sendEventWithTimeout(event)
 
 	} else {
-		r.LogTo("Replicate", "Error reading bulk get response: %v", err)
+		r.log(clog.LevelDebug, "Error reading bulk get response: %v", err)
 		event := NewReplicationEvent(FETCH_BULK_GET_FAILED)
 		event.Data = err
 		r.sendEventWithTimeout(event)
@@ -432,7 +436,7 @@ func (r Replication) pushAttachmentDocs() {
 	docs := subsetDocsWithAttachemnts(r.Documents)
 	for _, doc := range docs {
 		url := r.getPutDocWithAttatchmentUrl(doc)
-		r.LogTo("Replicate", "pushAttatchmentDocs url: %v", url)
+		r.log(clog.LevelDebug, "pushAttatchmentDocs url: %v", url)
 		body := &bytes.Buffer{}
 		writer := multipart.NewWriter(body)
 
@@ -492,7 +496,7 @@ func (r Replication) pushAttachmentDocs() {
 		req.Header.Set("Content-Type", contentType)
 
 		resp, err := globalClient.Do(req)
-		r.LogTo("Replicate", "bulk get resp: %v, err: %v", resp, err)
+		r.log(clog.LevelDebug, "bulk get resp: %v, err: %v", resp, err)
 		if err != nil {
 			r.sendErrorEvent(failed, "Performing request", err)
 			return
@@ -500,7 +504,7 @@ func (r Replication) pushAttachmentDocs() {
 
 		defer resp.Body.Close()
 		if resp.StatusCode >= 400 {
-			r.LogTo("Replicate", "Unexpected response pushing attachment docs: %v", resp)
+			r.log(clog.LevelDebug, "Unexpected response pushing attachment docs: %v", resp)
 			event := NewReplicationEvent(PUSH_ATTACHMENT_DOCS_FAILED)
 			r.sendEventWithTimeout(event)
 			return
@@ -515,7 +519,7 @@ func (r Replication) pushAttachmentDocs() {
 }
 
 func (r Replication) sendErrorEvent(signal ReplicationEventSignal, msg string, err error) {
-	r.LogTo("Replicate", "%v: %v", msg, err)
+	r.log(clog.LevelDebug, "%v: %v", msg, err)
 	event := NewReplicationEvent(signal)
 	event.Data = err
 	r.sendEventWithTimeout(event)
@@ -528,7 +532,7 @@ func (r Replication) pushBulkDocs() {
 
 	bulkDocsRequestJson, err := json.Marshal(bulkDocsRequest)
 	if err != nil {
-		r.LogTo("Replicate", "Error marshaling %v", bulkDocsRequest)
+		r.log(clog.LevelDebug, "Error marshaling %v", bulkDocsRequest)
 		clog.Error(err)
 		event := NewReplicationEvent(PUSH_BULK_DOCS_FAILED)
 		r.sendEventWithTimeout(event)
@@ -537,7 +541,7 @@ func (r Replication) pushBulkDocs() {
 
 	req, err := http.NewRequest("POST", bulkDocsUrl, bytes.NewReader(bulkDocsRequestJson))
 	if err != nil {
-		r.LogTo("Replicate", "Error creating request %v", bulkDocsRequestJson)
+		r.log(clog.LevelDebug, "Error creating request %v", bulkDocsRequestJson)
 		clog.Error(err)
 		event := NewReplicationEvent(PUSH_BULK_DOCS_FAILED)
 		r.sendEventWithTimeout(event)
@@ -545,16 +549,16 @@ func (r Replication) pushBulkDocs() {
 	}
 
 	resp, err := globalClient.Do(req)
-	r.LogTo("Replicate", "bulk get resp: %v, err: %v", resp, err)
+	r.log(clog.LevelDebug, "bulk get resp: %v, err: %v", resp, err)
 	if err != nil {
-		r.LogTo("Replicate", "Error getting bulk get: %v", err)
+		r.log(clog.LevelDebug, "Error getting bulk get: %v", err)
 		event := NewReplicationEvent(PUSH_BULK_DOCS_FAILED)
 		r.sendEventWithTimeout(event)
 		return
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		r.LogTo("Replicate", "Unexpected response pushing bulk docs: %v", resp)
+		r.log(clog.LevelDebug, "Unexpected response pushing bulk docs: %v", resp)
 		event := NewReplicationEvent(PUSH_BULK_DOCS_FAILED)
 		r.sendEventWithTimeout(event)
 		return
@@ -563,7 +567,7 @@ func (r Replication) pushBulkDocs() {
 	bulkDocsResponse := []DocumentRevisionPair{}
 	decoder := json.NewDecoder(resp.Body)
 	if err = decoder.Decode(&bulkDocsResponse); err != nil {
-		r.LogTo("Replicate", "Error decoding json: %v", err)
+		r.log(clog.LevelDebug, "Error decoding json: %v", err)
 		event := NewReplicationEvent(PUSH_BULK_DOCS_FAILED)
 		r.sendEventWithTimeout(event)
 		return
@@ -590,15 +594,15 @@ func (r Replication) generatePushCheckpointRequest() PushCheckpointRequest {
 func (r Replication) pushCheckpoint() {
 
 	checkpointUrl := r.getCheckpointUrl()
-	r.LogTo("Replicate", "calling pushCheckpointRequest. r.FetchedTargetCheckpoint: %v", r.FetchedTargetCheckpoint)
+	r.log(clog.LevelDebug, "calling pushCheckpointRequest. r.FetchedTargetCheckpoint: %v", r.FetchedTargetCheckpoint)
 	pushCheckpointRequest := r.generatePushCheckpointRequest()
-	r.LogTo("Replicate", "pushCheckpointRequest %v", pushCheckpointRequest)
-	r.LogTo("Replicate", "r.Changes %v", r.Changes)
-	r.LogTo("Replicate", "r.Changes.LastSequence %v", r.Changes.LastSequence)
+	r.log(clog.LevelDebug, "pushCheckpointRequest %v", pushCheckpointRequest)
+	r.log(clog.LevelDebug, "r.Changes %v", r.Changes)
+	r.log(clog.LevelDebug, "r.Changes.LastSequence %v", r.Changes.LastSequence)
 
 	requestJson, err := json.Marshal(pushCheckpointRequest)
 	if err != nil {
-		r.LogTo("Replicate", "Error marshaling %v", pushCheckpointRequest)
+		r.log(clog.LevelDebug, "Error marshaling %v", pushCheckpointRequest)
 		clog.Error(err)
 		event := NewReplicationEvent(PUSH_CHECKPOINT_FAILED)
 		r.sendEventWithTimeout(event)
@@ -607,7 +611,7 @@ func (r Replication) pushCheckpoint() {
 
 	req, err := http.NewRequest("PUT", checkpointUrl, bytes.NewReader(requestJson))
 	if err != nil {
-		r.LogTo("Replicate", "Error creating request %v", requestJson)
+		r.log(clog.LevelDebug, "Error creating request %v", requestJson)
 		clog.Error(err)
 		event := NewReplicationEvent(PUSH_CHECKPOINT_FAILED)
 		r.sendEventWithTimeout(event)
@@ -615,16 +619,16 @@ func (r Replication) pushCheckpoint() {
 	}
 
 	resp, err := globalClient.Do(req)
-	r.LogTo("Replicate", "push checkpoint resp: %+v, err: %v", resp, err)
+	r.log(clog.LevelDebug, "push checkpoint resp: %+v, err: %v", resp, err)
 	if err != nil {
-		r.LogTo("Replicate", "Error pushing checkpoint: %v", err)
+		r.log(clog.LevelDebug, "Error pushing checkpoint: %v", err)
 		event := NewReplicationEvent(PUSH_CHECKPOINT_FAILED)
 		r.sendEventWithTimeout(event)
 		return
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		r.LogTo("Replicate", "Unexpected response pushing checkpoint: %v", resp)
+		r.log(clog.LevelDebug, "Unexpected response pushing checkpoint: %v", resp)
 		event := NewReplicationEvent(PUSH_CHECKPOINT_FAILED)
 		r.sendEventWithTimeout(event)
 		return
@@ -633,14 +637,14 @@ func (r Replication) pushCheckpoint() {
 	checkpointResponse := PushCheckpointResponse{}
 	decoder := json.NewDecoder(resp.Body)
 	if err = decoder.Decode(&checkpointResponse); err != nil {
-		r.LogTo("Replicate", "Error decoding json: %v", err)
+		r.log(clog.LevelDebug, "Error decoding json: %v", err)
 		event := NewReplicationEvent(PUSH_CHECKPOINT_FAILED)
 		r.sendEventWithTimeout(event)
 		return
 	}
 
 	if checkpointResponse.Ok != true {
-		r.LogTo("Replicate", "Error, checkpoint response !ok")
+		r.log(clog.LevelDebug, "Error, checkpoint response !ok")
 		event := NewReplicationEvent(PUSH_CHECKPOINT_FAILED)
 		r.sendEventWithTimeout(event)
 		return
@@ -713,7 +717,7 @@ func (r Replication) getBulkGetUrl() string {
 
 // Read the documents from the _bulk_get response.  It's up to the
 // caller to call resp.Body.Close()
-func ReadBulkGetResponse(resp *http.Response, logger loggerFunction) ([]Document, error) {
+func ReadBulkGetResponse(resp *http.Response, replication Replication) ([]Document, error) {
 
 	contentType := resp.Header.Get("Content-Type")
 
@@ -735,12 +739,12 @@ func ReadBulkGetResponse(resp *http.Response, logger loggerFunction) ([]Document
 			return documents, fmt.Errorf("Error getting next part: %v", err)
 		}
 
-		logger("Replicate", "mainPart: %v.  Header: %v", mainPart, mainPart.Header)
+		replication.log(clog.LevelDebug, "mainPart: %v.  Header: %v", mainPart, mainPart.Header)
 		mainPartContentTypes := mainPart.Header["Content-Type"] // why a slice?
 		mainPartContentType := mainPartContentTypes[0]
 		contentType, attrs, _ := mime.ParseMediaType(mainPartContentType)
-		logger("Replicate", "contentType: %v", contentType)
-		logger("Replicate", "boundary: %v", attrs["boundary"])
+		replication.log(clog.LevelDebug, "contentType: %v", contentType)
+		replication.log(clog.LevelDebug, "boundary: %v", attrs["boundary"])
 		switch contentType {
 		case "application/json":
 			documentBody := DocumentBody{}
@@ -765,7 +769,7 @@ func ReadBulkGetResponse(resp *http.Response, logger loggerFunction) ([]Document
 				} else if err != nil {
 					return documents, fmt.Errorf("Error nested nextpart: %v", err)
 				}
-				logger("Replicate", "nestedPart: %v.  Header: %v", nestedPart, nestedPart.Header)
+				replication.log(clog.LevelDebug, "nestedPart: %v.  Header: %v", nestedPart, nestedPart.Header)
 				nestedPartContentTypes := nestedPart.Header["Content-Type"]
 
 				nestedContentType := ""
@@ -773,10 +777,10 @@ func ReadBulkGetResponse(resp *http.Response, logger loggerFunction) ([]Document
 					var nestedAttrs map[string]string
 					nestedPartContentType := nestedPartContentTypes[0]
 					nestedContentType, nestedAttrs, _ = mime.ParseMediaType(nestedPartContentType)
-					logger("Replicate", "nestedContentType: %v", nestedContentType)
-					logger("Replicate", "nestedAttrs: %v", nestedAttrs)
+					replication.log(clog.LevelDebug, "nestedContentType: %v", nestedContentType)
+					replication.log(clog.LevelDebug, "nestedAttrs: %v", nestedAttrs)
 				} else {
-					logger("Replicate", "processing nestedPart with no defined content type. Header: %v", nestedPart.Header)
+					replication.log(clog.LevelDebug, "processing nestedPart with no defined content type. Header: %v", nestedPart.Header)
 				}
 
 				switch nestedContentType {
@@ -791,7 +795,7 @@ func ReadBulkGetResponse(resp *http.Response, logger loggerFunction) ([]Document
 
 				default:
 					// handle attachment
-					attachment, err := NewAttachment(nestedPart, logger)
+					attachment, err := NewAttachment(nestedPart, replication)
 					if err != nil {
 						return documents, fmt.Errorf("Error decoding attachment: %v", err)
 					}
@@ -805,7 +809,7 @@ func ReadBulkGetResponse(resp *http.Response, logger loggerFunction) ([]Document
 
 			mainPart.Close()
 		default:
-			logger("Replicate", "ignoring unexpected content type: %v", contentType)
+			replication.log(clog.LevelDebug, "ignoring unexpected content type: %v", contentType)
 		}
 	}
 	return documents, nil

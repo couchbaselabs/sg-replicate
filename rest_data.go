@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/couchbase/clog"
 )
 
 type Checkpoint struct {
@@ -182,7 +184,7 @@ func generateBulkDocsRequest(r Replication, documents []Document) BulkDocsReques
 			documentBodies = append(documentBodies, document.Body)
 		} else {
 			for _, attachment := range document.Attachments {
-				r.LogTo("Replicate", "attachment.Headers :%v", attachment.Headers)
+				r.log(clog.LevelDebug, "attachment.Headers :%v", attachment.Headers)
 			}
 		}
 	}

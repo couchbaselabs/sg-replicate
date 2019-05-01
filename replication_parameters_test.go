@@ -8,7 +8,7 @@ import (
 
 func TestReplicationParametersEquals(t *testing.T) {
 	var tests = []struct {
-		name string
+		name     string
 		expected bool
 		a, b     ReplicationParameters
 	}{
