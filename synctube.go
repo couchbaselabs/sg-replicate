@@ -67,7 +67,7 @@ func NewReplication(params ReplicationParameters, notificationChan chan Replicat
 		Parameters:       params,
 		EventChan:        eventChan,
 		NotificationChan: notificationChan,
-		Stats:            &ReplicationStats{},
+		Stats:            &ReplicationStats{active: true},
 	}
 
 	// spawn a go-routine that reads from event channel and acts on events
@@ -131,8 +131,9 @@ func (r *Replication) processEvents() {
 		state = state(r)
 		r.log(clog.LevelDebug, "new state: %v", state)
 	}
-	r.log(clog.LevelDebug, "processEvents() is done")
 
+	r.Stats.SetActive(false)
+	r.log(clog.LevelDebug, "processEvents() is done")
 }
 
 // Shut down the event channel, because this event loop is just

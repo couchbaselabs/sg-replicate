@@ -1,6 +1,9 @@
 package sgreplicate
 
-import "sync"
+import (
+	"sync"
+	"sync/atomic"
+)
 
 type ReplicationStats struct {
 	lock                       sync.RWMutex
@@ -11,6 +14,7 @@ type ReplicationStats struct {
 	numAttachmentsTransferred  uint64
 	attachmentBytesTransferred uint64
 	docsCheckedSent            uint64
+	active                     int32 // atomic bool
 	endLastSeq                 interface{}
 }
 
@@ -96,6 +100,18 @@ func (rs *ReplicationStats) SetStartLastSeq(updatedStartLastSeq uint32) {
 	rs.lock.Lock()
 	defer rs.lock.Unlock()
 	rs.startLastSeq = updatedStartLastSeq
+}
+
+func (rs *ReplicationStats) GetActive() bool {
+	return atomic.LoadInt32(&rs.active) == 1
+}
+
+func (rs *ReplicationStats) SetActive(val bool) {
+	if val {
+		atomic.StoreInt32(&rs.active, 1)
+	} else {
+		atomic.StoreInt32(&rs.active, 0)
+	}
 }
 
 func (rs *ReplicationStats) GetEndLastSeq() interface{} {
