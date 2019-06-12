@@ -61,7 +61,7 @@ type ContinuousReplication struct {
 	Parameters ReplicationParameters
 
 	// Stats of running replication
-	ReplicationStats *ReplicationStats
+	Stats *ReplicationStats
 
 	// the notifications we send out to clients of this api
 	NotificationChan chan ContinuousReplicationNotification
@@ -105,7 +105,7 @@ func NewContinuousReplication(params ReplicationParameters, factory ReplicationF
 		EventChan:                   eventChan,
 		Factory:                     factory,
 		AbortedReplicationRetryTime: retryTime,
-		ReplicationStats:            stats,
+		Stats:                       stats,
 	}
 
 	// spawn a go-routine that reads from event channel and acts on events
@@ -121,7 +121,7 @@ func (r ContinuousReplication) Stop() error {
 }
 
 func (r *ContinuousReplication) GetStats() *ReplicationStats {
-	return r.ReplicationStats
+	return r.Stats
 }
 
 func (r *ContinuousReplication) processEvents() {
