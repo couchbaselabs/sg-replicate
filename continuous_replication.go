@@ -61,7 +61,7 @@ type ContinuousReplication struct {
 	Parameters ReplicationParameters
 
 	// Stats of running replication
-	ReplicationStats *ReplicationStats
+	Stats *ReplicationStats
 
 	// the notifications we send out to clients of this api
 	NotificationChan chan ContinuousReplicationNotification
@@ -99,8 +99,10 @@ func NewContinuousReplication(params ReplicationParameters, factory ReplicationF
 		EventChan:                   eventChan,
 		Factory:                     factory,
 		AbortedReplicationRetryTime: retryTime,
-		ReplicationStats:            &ReplicationStats{active: true},
+		Stats:                       &ReplicationStats{},
 	}
+
+	replication.Stats.SetActive(true)
 
 	// spawn a go-routine that reads from event channel and acts on events
 	go replication.processEvents()
@@ -109,13 +111,14 @@ func NewContinuousReplication(params ReplicationParameters, factory ReplicationF
 
 }
 
-func (r ContinuousReplication) Stop() error {
+func (r *ContinuousReplication) Stop() error {
 	r.EventChan <- STOP
+	r.Stats.SetActive(false)
 	return nil
 }
 
 func (r *ContinuousReplication) GetStats() *ReplicationStats {
-	return r.ReplicationStats
+	return r.Stats
 }
 
 func (r *ContinuousReplication) processEvents() {
@@ -133,7 +136,6 @@ func (r *ContinuousReplication) processEvents() {
 		r.log(clog.LevelDebug, "continuous repl new state: %v", state)
 	}
 
-	r.ReplicationStats.SetActive(false)
 	r.log(clog.LevelDebug, "continuous repl processEvents() is done")
 
 }
@@ -220,11 +222,11 @@ func stateFnCatchingUp(r *ContinuousReplication) stateFnContinuous {
 				r.log(clog.LevelDebug, "Replication stopped, caught up")
 				stats := notification.Data.(*ReplicationStats)
 				r.LastSequencePushed = stats.GetEndLastSeq()
-				r.ReplicationStats.AddDocsRead(stats.GetDocsRead())
-				r.ReplicationStats.AddDocsWritten(stats.GetDocsWritten())
-				r.ReplicationStats.AddNumAttachmentsTransferred(stats.GetNumAttachmentsTransferred())
-				r.ReplicationStats.AddAttachmentBytesTransferred(stats.GetAttachmentBytesTransferred())
-				r.ReplicationStats.AddDocsCheckedSent(stats.GetDocsCheckedSent())
+				r.Stats.AddDocsRead(stats.GetDocsRead())
+				r.Stats.AddDocsWritten(stats.GetDocsWritten())
+				r.Stats.AddNumAttachmentsTransferred(stats.GetNumAttachmentsTransferred())
+				r.Stats.AddAttachmentBytesTransferred(stats.GetAttachmentBytesTransferred())
+				r.Stats.AddDocsCheckedSent(stats.GetDocsCheckedSent())
 
 				return stateFnWaitNewChanges
 			case REPLICATION_ABORTED:

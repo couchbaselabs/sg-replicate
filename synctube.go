@@ -67,7 +67,7 @@ func NewReplication(params ReplicationParameters, notificationChan chan Replicat
 		Parameters:       params,
 		EventChan:        eventChan,
 		NotificationChan: notificationChan,
-		Stats:            &ReplicationStats{active: true},
+		Stats:            &ReplicationStats{},
 	}
 
 	// spawn a go-routine that reads from event channel and acts on events
@@ -78,13 +78,25 @@ func NewReplication(params ReplicationParameters, notificationChan chan Replicat
 }
 
 // Start this replication
-func (r Replication) Start() error {
-	return r.sendEventWithTimeout(NewReplicationEvent(REPLICATION_START))
+func (r *Replication) Start() error {
+	err := r.sendEventWithTimeout(NewReplicationEvent(REPLICATION_START))
+	if err != nil {
+		return err
+	}
+
+	r.Stats.SetActive(true)
+	return nil
 }
 
 // Stop this replication
-func (r Replication) Stop() error {
-	return r.sendEventWithTimeout(NewReplicationEvent(REPLICATION_STOP))
+func (r *Replication) Stop() error {
+	err := r.sendEventWithTimeout(NewReplicationEvent(REPLICATION_STOP))
+	if err != nil {
+		return err
+	}
+
+	r.Stats.SetActive(false)
+	return nil
 }
 
 func (r *Replication) GetStats() *ReplicationStats {
