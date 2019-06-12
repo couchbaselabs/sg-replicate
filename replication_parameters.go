@@ -43,6 +43,7 @@ type ReplicationParameters struct {
 	Lifecycle        ReplicationLifecycle
 	Disabled         bool
 	Async            bool
+	Stats            *ReplicationStats
 }
 
 func (rp ReplicationParameters) GetSourceDbUrl() string {
