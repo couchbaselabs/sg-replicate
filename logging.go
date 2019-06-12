@@ -7,11 +7,11 @@ import (
 const logKey = "Replicate"
 
 func (r *Replication) log(level clog.LogLevel, format string, args ...interface{}) {
-	log(r.Parameters, level, format, args)
+	log(r.Parameters, level, format, args...)
 }
 
 func (r *ContinuousReplication) log(level clog.LogLevel, format string, args ...interface{}) {
-	log(r.Parameters, level, format, args)
+	log(r.Parameters, level, format, args...)
 }
 
 func log(param ReplicationParameters, level clog.LogLevel, format string, args ...interface{}) {
