@@ -475,7 +475,7 @@ func (r Replication) pushAttachmentDocs() {
 				r.sendErrorEvent(failed, "Writing part", err)
 				return
 			}
-			r.Stats.AddNumAttachmentsTransferred(uint64(len(attachment.Data)))
+			r.Stats.AddAttachmentBytesTransferred(uint64(len(attachment.Data)))
 
 		}
 		r.Stats.AddNumAttachmentsTransferred(uint64(len(doc.Attachments)))
