@@ -222,6 +222,8 @@ func stateFnCatchingUp(r *ContinuousReplication) stateFnContinuous {
 			switch notification.Status {
 			case REPLICATION_STOPPED:
 				r.log(clog.LevelDebug, "Replication stopped, caught up")
+				// We'll receive the last sequence pushed over this notification's data field
+				r.LastSequencePushed = notification.Data
 				return stateFnWaitNewChanges
 			case REPLICATION_ABORTED:
 				r.log(clog.LevelDebug, "Replication aborted .. try again")

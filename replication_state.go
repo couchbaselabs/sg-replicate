@@ -103,8 +103,9 @@ func stateFnActiveFetchChangesFeed(r *Replication) stateFn {
 		if len(r.Changes.Results) == 0 {
 			// nothing to do, so stop
 			r.shutdownEventChannel()
-			r.Stats.SetEndLastSeq(r.Changes.LastSequence)
 			notification := NewReplicationNotification(REPLICATION_STOPPED)
+			r.Stats.SetEndLastSeq(r.Changes.LastSequence)
+			notification.Data = r.Changes.LastSequence
 			r.NotificationChan <- *notification
 			return nil
 		} else {
