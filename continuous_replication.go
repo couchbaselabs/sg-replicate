@@ -61,7 +61,7 @@ type ContinuousReplication struct {
 	Parameters ReplicationParameters
 
 	// Stats of running replication
-	ReplicationStats *ReplicationStats
+	Stats *ReplicationStats
 
 	// the notifications we send out to clients of this api
 	NotificationChan chan ContinuousReplicationNotification
@@ -93,13 +93,19 @@ func NewContinuousReplication(params ReplicationParameters, factory ReplicationF
 		params.LogFn = defaultLogFn
 	}
 
+	stats := params.Stats
+	if stats == nil {
+		stats = &ReplicationStats{}
+		params.Stats = stats
+	}
+
 	replication := &ContinuousReplication{
 		Parameters:                  params,
 		NotificationChan:            notificationChan,
 		EventChan:                   eventChan,
 		Factory:                     factory,
 		AbortedReplicationRetryTime: retryTime,
-		ReplicationStats:            &ReplicationStats{},
+		Stats:                       stats,
 	}
 
 	// spawn a go-routine that reads from event channel and acts on events
@@ -115,7 +121,7 @@ func (r ContinuousReplication) Stop() error {
 }
 
 func (r *ContinuousReplication) GetStats() *ReplicationStats {
-	return r.ReplicationStats
+	return r.Stats
 }
 
 func (r *ContinuousReplication) processEvents() {
@@ -216,14 +222,8 @@ func stateFnCatchingUp(r *ContinuousReplication) stateFnContinuous {
 			switch notification.Status {
 			case REPLICATION_STOPPED:
 				r.log(clog.LevelDebug, "Replication stopped, caught up")
-				stats := notification.Data.(*ReplicationStats)
-				r.LastSequencePushed = stats.GetEndLastSeq()
-				r.ReplicationStats.AddDocsRead(stats.GetDocsRead())
-				r.ReplicationStats.AddDocsWritten(stats.GetDocsWritten())
-				r.ReplicationStats.AddNumAttachmentsTransferred(stats.GetNumAttachmentsTransferred())
-				r.ReplicationStats.AddAttachmentBytesTransferred(stats.GetAttachmentBytesTransferred())
-				r.ReplicationStats.AddDocsCheckedSent(stats.GetDocsCheckedSent())
-
+				// We'll receive the last sequence pushed over this notification's data field
+				r.LastSequencePushed = notification.Data
 				return stateFnWaitNewChanges
 			case REPLICATION_ABORTED:
 				r.log(clog.LevelDebug, "Replication aborted .. try again")
