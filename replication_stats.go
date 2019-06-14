@@ -7,6 +7,15 @@ import (
 	"sync/atomic"
 )
 
+const (
+	StatKeySgrActive                     = "sgr_active"
+	StatKeySgrNumAttachmentsTransferred  = "sgr_num_attachments_transferred"
+	StatKeySgrAttachmentBytesTransferred = "sgr_num_attachment_bytes_transferred"
+	StatKeySgrNumDocsFailedToPush        = "sgr_num_docs_failed_to_push"
+	StatKeySgrNumDocsPushed              = "sgr_num_docs_pushed"
+	StatKeySgrDocsCheckedSent            = "sgr_docs_checked_sent"
+)
+
 // ReplicationStats holds atomic values for the given replication, and also satisfies the expvar.Var interface
 type ReplicationStats struct {
 	docsRead                   uint32
@@ -23,13 +32,13 @@ type ReplicationStats struct {
 
 // String returns the given ReplicationStats as JSON to satisfy the expvar.Var interface
 func (rs *ReplicationStats) String() string {
-	return fmt.Sprintf(`{"sgr_active":%t,"sgr_num_attachments_transferred":%d,"sgr_num_attachment_bytes_transferred":%d,"sgr_num_docs_failed_to_push":%d,"sgr_num_docs_pushed":%d,"sgr_docs_checked_sent":%d}`,
-		rs.GetActive(),
-		rs.GetNumAttachmentsTransferred(),
-		rs.GetAttachmentBytesTransferred(),
-		rs.GetDocWriteFailures(),
-		rs.GetDocsWritten(),
-		rs.GetDocsCheckedSent(),
+	return fmt.Sprintf(`{"%s":%t,"%s":%d,"%s":%d,"%s":%d,"%s":%d,"%s":%d}`,
+		StatKeySgrActive, rs.GetActive(),
+		StatKeySgrNumAttachmentsTransferred, rs.GetNumAttachmentsTransferred(),
+		StatKeySgrAttachmentBytesTransferred, rs.GetAttachmentBytesTransferred(),
+		StatKeySgrNumDocsFailedToPush, rs.GetDocWriteFailures(),
+		StatKeySgrNumDocsPushed, rs.GetDocsWritten(),
+		StatKeySgrDocsCheckedSent, rs.GetDocsCheckedSent(),
 	)
 }
 
