@@ -23,31 +23,13 @@ type ReplicationStats struct {
 
 // String returns the given ReplicationStats as JSON to satisfy the expvar.Var interface
 func (rs *ReplicationStats) String() string {
-	endLastSeqStr := `null`
-	if s := rs.GetEndLastSeq(); s != nil {
-		endLastSeqStr = fmt.Sprintf(`"%v"`, s)
-	}
-
-	return fmt.Sprintf(`{
-	"active": %t,
-	"docs_read": %d,
-	"docs_written": %d,
-	"doc_write_failures": %d,
-	"startLastSeq": %d,
-	"numAttachmentsTransferred": %d,
-	"attachmentBytesTransferred": %d,
-	"docsCheckedSent": %d,
-	"endLastSeq": %s
-}`,
+	return fmt.Sprintf(`{"sgr_active":%t,"sgr_num_attachments_transferred":%d,"sgr_num_attachment_bytes_transferred":%d,"sgr_num_docs_failed_to_push":%d,"sgr_num_docs_pushed":%d,"sgr_docs_checked_sent":%d}`,
 		rs.GetActive(),
-		rs.GetDocsRead(),
-		rs.GetDocsWritten(),
-		rs.GetDocWriteFailures(),
-		rs.GetStartLastSeq(),
 		rs.GetNumAttachmentsTransferred(),
 		rs.GetAttachmentBytesTransferred(),
+		rs.GetDocWriteFailures(),
+		rs.GetDocsWritten(),
 		rs.GetDocsCheckedSent(),
-		endLastSeqStr,
 	)
 }
 
