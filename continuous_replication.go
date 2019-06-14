@@ -108,6 +108,8 @@ func NewContinuousReplication(params ReplicationParameters, factory ReplicationF
 		Stats:                       stats,
 	}
 
+	replication.Stats.SetActive(true)
+
 	// spawn a go-routine that reads from event channel and acts on events
 	go replication.processEvents()
 
@@ -117,6 +119,7 @@ func NewContinuousReplication(params ReplicationParameters, factory ReplicationF
 
 func (r ContinuousReplication) Stop() error {
 	r.EventChan <- STOP
+	r.Stats.SetActive(false)
 	return nil
 }
 
