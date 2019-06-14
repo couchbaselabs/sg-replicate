@@ -1,10 +1,13 @@
 package sgreplicate
 
 import (
+	"expvar"
+	"fmt"
 	"sync"
 	"sync/atomic"
 )
 
+// ReplicationStats holds atomic values for the given replication, and also satisfies the expvar.Var interface
 type ReplicationStats struct {
 	docsRead                   uint32
 	docsWritten                uint32
@@ -13,9 +16,43 @@ type ReplicationStats struct {
 	numAttachmentsTransferred  uint64
 	attachmentBytesTransferred uint64
 	docsCheckedSent            uint64
+	active                     atomicBool
 	endLastSeq                 interface{}
 	endLastSeqLock             sync.RWMutex
 }
+
+// String returns the given ReplicationStats as JSON to satisfy the expvar.Var interface
+func (rs *ReplicationStats) String() string {
+	endLastSeqStr := `null`
+	if s := rs.GetEndLastSeq(); s != nil {
+		endLastSeqStr = fmt.Sprintf(`"%v"`, s)
+	}
+
+	return fmt.Sprintf(`{
+	"active": %t,
+	"docs_read": %d,
+	"docs_written": %d,
+	"doc_write_failures": %d,
+	"startLastSeq": %d,
+	"numAttachmentsTransferred": %d,
+	"attachmentBytesTransferred": %d,
+	"docsCheckedSent": %d,
+	"endLastSeq": %s
+}`,
+		rs.GetActive(),
+		rs.GetDocsRead(),
+		rs.GetDocsWritten(),
+		rs.GetDocWriteFailures(),
+		rs.GetStartLastSeq(),
+		rs.GetNumAttachmentsTransferred(),
+		rs.GetAttachmentBytesTransferred(),
+		rs.GetDocsCheckedSent(),
+		endLastSeqStr,
+	)
+}
+
+// Compile-time interface check
+var _ expvar.Var = &ReplicationStats{}
 
 func (rs *ReplicationStats) GetNumAttachmentsTransferred() uint64 {
 	return atomic.LoadUint64(&rs.numAttachmentsTransferred)
@@ -83,4 +120,28 @@ func (rs *ReplicationStats) SetEndLastSeq(updatedEndLastSeq interface{}) {
 	rs.endLastSeqLock.Lock()
 	defer rs.endLastSeqLock.Unlock()
 	rs.endLastSeq = updatedEndLastSeq
+}
+
+func (rs *ReplicationStats) GetActive() bool {
+	return rs.active.Get()
+}
+
+func (rs *ReplicationStats) SetActive(val bool) {
+	rs.active.Set(val)
+}
+
+type atomicBool struct {
+	val int32
+}
+
+func (a *atomicBool) Get() bool {
+	return atomic.LoadInt32(&a.val) != 0
+}
+
+func (a *atomicBool) Set(val bool) {
+	if val {
+		atomic.StoreInt32(&a.val, 1)
+	} else {
+		atomic.StoreInt32(&a.val, 0)
+	}
 }
