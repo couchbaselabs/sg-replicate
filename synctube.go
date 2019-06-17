@@ -130,7 +130,7 @@ func (r *Replication) WaitUntilDone() (ReplicationStatus, error) {
 }
 
 func (r *Replication) processEvents() {
-
+	r.Stats.Active.Set(true)
 	defer close(r.NotificationChan) // No more notifications
 
 	for state := stateFnPreStarted; state != nil; {
@@ -138,7 +138,7 @@ func (r *Replication) processEvents() {
 		r.log(clog.LevelDebug, "new state: %v", state)
 	}
 	r.log(clog.LevelDebug, "processEvents() is done")
-
+	r.Stats.Active.Set(false)
 }
 
 // Shut down the event channel, because this event loop is just
