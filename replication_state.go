@@ -1,6 +1,7 @@
 package sgreplicate
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/couchbase/clog"
@@ -104,12 +105,12 @@ func stateFnActiveFetchChangesFeed(r *Replication) stateFn {
 			// nothing to do, so stop
 			r.shutdownEventChannel()
 			notification := NewReplicationNotification(REPLICATION_STOPPED)
-			r.Stats.SetEndLastSeq(r.Changes.LastSequence)
+			r.Stats.EndLastSeq.Set(fmt.Sprintf("%v", r.Changes.LastSequence))
 			notification.Data = r.Changes.LastSequence
 			r.NotificationChan <- *notification
 			return nil
 		} else {
-			r.Stats.SetEndLastSeq(r.Changes.LastSequence)
+			r.Stats.EndLastSeq.Set(fmt.Sprintf("%v", r.Changes.LastSequence))
 			go r.fetchRevsDiff()
 
 			r.log(clog.LevelDebug, "Transition from stateFnActiveFetchChangesFeed -> stateFnActiveFetchRevDiffs")
@@ -196,7 +197,7 @@ func stateFnActiveFetchBulkGet(r *Replication) stateFn {
 		switch event.Data.(type) {
 		case []Document:
 			r.Documents = event.Data.([]Document)
-			r.Stats.AddDocsRead(uint32(len(r.Documents)))
+			r.Stats.DocsRead.Add(int64(len(r.Documents)))
 		default:
 			r.shutdownEventChannel()
 			r.log(clog.LevelDebug, "Got unexpected type: %v", event.Data)
@@ -301,7 +302,7 @@ func stateFnActivePushBulkDocs(r *Replication) stateFn {
 
 		// update stats:
 		// TODO: is this accurate when some of the docs had attachments and still need to be pushed?
-		r.Stats.AddDocsWritten(uint32(len(r.Documents)))
+		r.Stats.DocsWritten.Add(int64(len(r.Documents)))
 
 		// if we made it this far, send a notification that the bulk_docs succeeded
 		notification := NewReplicationNotification(REPLICATION_PUSHED_BULK_DOCS)
