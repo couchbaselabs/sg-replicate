@@ -95,7 +95,7 @@ func NewContinuousReplication(params ReplicationParameters, factory ReplicationF
 
 	stats := params.Stats
 	if stats == nil {
-		stats = &ReplicationStats{}
+		stats = NewReplicationStats()
 		params.Stats = stats
 	}
 
@@ -125,6 +125,7 @@ func (r *ContinuousReplication) GetStats() *ReplicationStats {
 }
 
 func (r *ContinuousReplication) processEvents() {
+	r.Stats.Active.Set(true)
 
 	r.log(clog.LevelDebug, "ContinuousReplication.processEvents()")
 
@@ -139,6 +140,7 @@ func (r *ContinuousReplication) processEvents() {
 		r.log(clog.LevelDebug, "continuous repl new state: %v", state)
 	}
 	r.log(clog.LevelDebug, "continuous repl processEvents() is done")
+	r.Stats.Active.Set(false)
 
 }
 

@@ -23,8 +23,6 @@ type MockOneShotReplication struct {
 
 	// fake checkpoint sent in the REPLICATION_STOPPED notification
 	fakeCheckpoint interface{}
-
-	fakeStats *ReplicationStats
 }
 
 func (r MockOneShotReplication) Start() error {
@@ -46,8 +44,7 @@ func (r MockOneShotReplication) pretendToBeAOneShotReplicator() {
 		clog.To("TEST", "send REPLICATION_STOPPED to %v", r.NotificationChan)
 
 		notification := *(NewReplicationNotification(REPLICATION_STOPPED))
-		r.fakeStats.SetEndLastSeq(r.fakeCheckpoint)
-		notification.Data = r.fakeStats
+		notification.Data = r.fakeCheckpoint
 		r.NotificationChan <- notification
 
 		clog.To("TEST", "sent REPLICATION_STOPPED")
@@ -106,7 +103,6 @@ func TestNoOpContinuousReplication(t *testing.T) {
 			NotificationChan: notificationChan,
 			stopWhenFinished: true,
 			fakeCheckpoint:   lastSequence,
-			fakeStats:        &ReplicationStats{},
 		}
 
 	}
@@ -150,7 +146,6 @@ func TestHappyPathContinuousReplication(t *testing.T) {
 			NotificationChan: notificationChan,
 			stopWhenFinished: true,
 			fakeCheckpoint:   lastSequence,
-			fakeStats:        &ReplicationStats{},
 		}
 
 	}
@@ -196,7 +191,6 @@ func TestUnHealthyContinuousReplication(t *testing.T) {
 			NotificationChan: notificationChan,
 			stopWhenFinished: false,
 			fakeCheckpoint:   1,
-			fakeStats:        &ReplicationStats{},
 		}
 
 	}

@@ -65,7 +65,7 @@ func NewReplication(params ReplicationParameters, notificationChan chan Replicat
 
 	stats := params.Stats
 	if stats == nil {
-		stats = &ReplicationStats{}
+		stats = NewReplicationStats()
 		params.Stats = stats
 	}
 
@@ -130,7 +130,7 @@ func (r *Replication) WaitUntilDone() (ReplicationStatus, error) {
 }
 
 func (r *Replication) processEvents() {
-
+	r.Stats.Active.Set(true)
 	defer close(r.NotificationChan) // No more notifications
 
 	for state := stateFnPreStarted; state != nil; {
@@ -138,7 +138,7 @@ func (r *Replication) processEvents() {
 		r.log(clog.LevelDebug, "new state: %v", state)
 	}
 	r.log(clog.LevelDebug, "processEvents() is done")
-
+	r.Stats.Active.Set(false)
 }
 
 // Shut down the event channel, because this event loop is just
@@ -336,7 +336,7 @@ func (r Replication) fetchRevsDiff() {
 		return
 	}
 
-	r.Stats.AddDocsCheckedSent(uint64(len(revsDiffMap)))
+	r.Stats.DocsCheckedSent.Add(int64(len(revsDiffMap)))
 
 	req, err := http.NewRequest("POST", revsDiffUrl, bytes.NewReader(revsDiffMapJson))
 	if err != nil {
@@ -481,10 +481,10 @@ func (r Replication) pushAttachmentDocs() {
 				r.sendErrorEvent(failed, "Writing part", err)
 				return
 			}
-			r.Stats.AddAttachmentBytesTransferred(uint64(len(attachment.Data)))
+			r.Stats.AttachmentBytesTransferred.Add(int64(len(attachment.Data)))
 
 		}
-		r.Stats.AddNumAttachmentsTransferred(uint64(len(doc.Attachments)))
+		r.Stats.NumAttachmentsTransferred.Add(int64(len(doc.Attachments)))
 
 		err = writer.Close()
 		if err != nil {
