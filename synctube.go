@@ -173,7 +173,7 @@ func (r Replication) targetCheckpointAddress() string {
 // CBL_ReplicatorSettings.m::remoteCheckpointDocIDForLocalUUID (http://bit.ly/2a3HMdx) as much as possible.
 func (params ReplicationParameters) TargetCheckpointAddress() (string, error) {
 
-	// params is a copy so modifying top-level fields won't affect the calller.
+	// params is a copy so modifying top-level fields won't affect the caller.
 	// Need to nil stats to prevent being marshaled into the input for the checkpoint hash.
 	params.Stats = nil
 
