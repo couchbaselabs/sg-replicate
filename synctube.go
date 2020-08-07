@@ -159,18 +159,28 @@ func (r *Replication) shutdownEventChannel() {
 }
 
 func (r Replication) targetCheckpointAddress() string {
+	s, err := r.Parameters.TargetCheckpointAddress()
+	if err != nil {
+		r.log(clog.LevelPanic, "Unable to generate checkpoint address. Err: %v", err)
+	}
+	return s
+}
 
-	// Calculate a target checkpoint address / local document ID for storing checkpoint "local doc" on the remote
-	// target Sync Gateway.  This checkpoint address / local document ID should be as unique as possible, to avoid
-	// issues like #16 where different replications erroneously use the same checkpoint and docs
-	// fail to transfer.  This code tries to emulate the behavior in Couchbase Lite iOS
-	// CBL_ReplicatorSettings.m::remoteCheckpointDocIDForLocalUUID (http://bit.ly/2a3HMdx) as much as possible.
+// TargetCheckpointAddress calculates a checkpoint ID used for storing a checkpoint local doc on the remote/target Sync Gateway.
+// This checkpoint address / local document ID should be as unique as possible, to avoid
+// issues like #16 where different replications erroneously use the same checkpoint and docs
+// fail to transfer.  This code tries to emulate the behavior in Couchbase Lite iOS
+// CBL_ReplicatorSettings.m::remoteCheckpointDocIDForLocalUUID (http://bit.ly/2a3HMdx) as much as possible.
+func (params ReplicationParameters) TargetCheckpointAddress() (string, error) {
+
+	// params is a copy so modifying top-level fields won't affect the caller.
+	// Need to nil stats to prevent being marshaled into the input for the checkpoint hash.
+	params.Stats = nil
 
 	// serialize the parameters to JSON
-	replicationParamsJsonBytes, err := json.Marshal(r.Parameters)
+	replicationParamsJsonBytes, err := json.Marshal(params)
 	if err != nil {
-		// TODO: this should return an error rather than panicking
-		r.log(clog.LevelPanic, "Unable to generate checkpoint address. Err: %v", err)
+		return "", err
 	}
 	replicationParamsJson := string(replicationParamsJsonBytes)
 
@@ -190,8 +200,7 @@ func (r Replication) targetCheckpointAddress() string {
 	shaBytes := sha1.Sum([]byte(replicationParamsJson))
 
 	// return hex output
-	return fmt.Sprintf("%x", shaBytes)
-
+	return fmt.Sprintf("%x", shaBytes), nil
 }
 
 func (r Replication) sendEventWithTimeout(event *ReplicationEvent) error {
